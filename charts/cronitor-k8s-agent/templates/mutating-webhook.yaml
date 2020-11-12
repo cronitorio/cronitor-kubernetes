@@ -1,0 +1,26 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "cronitor-k8s-agent.fullname" . }}-admission-cfg
+  labels:
+    {{ include "cronitor-k8s-agent.labels" . | nindent 4 }}
+webhooks:
+  - name: k8s.cronitor.io
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["cronjobs"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+    clientConfig:
+      service:
+        name: {{ include "cronitor-k8s-agent.fullname" . }}-admission-webhook-svc
+        namespace: {{ .Release.Namespace }}
+        path: "/mutate"
+{{/*      caBundle: ''*/}}
+    {{- if .Values.injector.namespaceSelector }}
+    namespaceSelector:
+      {{ toYaml .Values.injector.namespaceSelector | nindent 6 }}
+    {{ end }}
+{{- with .Values.injector.failurePolicy }}
+    failurePolicy: {{.}}
+{{ end }}
