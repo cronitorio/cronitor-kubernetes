@@ -75,14 +75,23 @@ func onDelete(coll CronJobCollection, obj interface{}) {
 	coll.RemoveCronJob(cronjob)
 }
 
-func NewCronJobWatcher(coll CronJobCollection) {
-	clientset := GetClientSet()
-	factory := informers.NewSharedInformerFactory(clientset, 0)
-	informer := factory.Batch().V1beta1().CronJobs().Informer()
+type CronJobWatcher struct {
+	informer cache.SharedIndexInformer
+}
 
+func (c CronJobWatcher) StartWatching() {
 	stopper := make(chan struct{})
 	defer close(stopper)
 	defer runtime.HandleCrash()
+
+	log.Info("The CronJob watcher is starting...")
+	go c.informer.Run(stopper)
+}
+
+func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
+	clientset := GetClientSet()
+	factory := informers.NewSharedInformerFactory(clientset, 0)
+	informer := factory.Batch().V1beta1().CronJobs().Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -96,6 +105,7 @@ func NewCronJobWatcher(coll CronJobCollection) {
 		},
 	})
 
-	log.Info("The CronJob watcher is starting...")
-	informer.Run(stopper)
+	return CronJobWatcher{
+		informer: informer,
+	}
 }

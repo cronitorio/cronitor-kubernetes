@@ -24,11 +24,18 @@ func NewCronJobCollection() CronJobCollection {
 
 func (coll *CronJobCollection) AddCronJob(cronjob *v1beta1.CronJob) {
 	coll.cronjobs[cronjob.GetUID()] = cronjob
-	log.Debug("CronJob %s added", cronjob.Name)
+	log.WithFields(log.Fields{
+		"namespace": cronjob.Namespace,
+		"name": cronjob.Name,
+	}).Info("Cronjob added")
 }
 
 func (coll *CronJobCollection) RemoveCronJob(cronjob *v1beta1.CronJob) {
 	delete(coll.cronjobs, cronjob.GetUID())
+	log.WithFields(log.Fields{
+		"namespace": cronjob.Namespace,
+		"name": cronjob.Name,
+	}).Info("Cronjob removed")
 }
 
 func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
@@ -38,21 +45,21 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cronjobs, err := api.CronJobs("").List(ctx, listOptions)
-	log.Debug("Cronjobs found: " + JsonAndPrint(cronjobs))
 	if err != nil {
 		return err
 	}
 	for _, cronjob := range cronjobs.Items {
-		if included, err := NewCronitorConfigParser(&cronjob).included(); err != nil && included {
+		if included, err := NewCronitorConfigParser(&cronjob).included(); err == nil && included {
 			coll.AddCronJob(&cronjob)
 		}
 	}
 	coll.loaded = true
-	log.Infof("Existing CronJobs have loaded. %d found.", len(coll.cronjobs))
+	log.Infof("Existing CronJobs have loaded. %d found; %d included.", len(cronjobs.Items), len(coll.cronjobs))
 	return nil
 }
 
 func (coll CronJobCollection) StartWatching() {
-	NewCronJobWatcher(coll)
+	watcher := NewCronJobWatcher(coll)
+	watcher.StartWatching()
 	coll.watching = true
 }

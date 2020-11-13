@@ -9,6 +9,7 @@ require (
 	github.com/googleapis/gnostic v0.5.3 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/opsgenie/kubernetes-event-exporter v0.0.0-20200822153613-bad127009bcb
+	github.com/sirupsen/logrus v1.4.2
 	golang.org/x/crypto v0.0.0-20201112155050-0c6587e931a9 // indirect
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58 // indirect
