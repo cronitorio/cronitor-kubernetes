@@ -1,0 +1,23 @@
+apiVersion: skaffold/v2beta9
+kind: Config
+build:
+  local:
+    useBuildkit: true
+  artifacts:
+    - image: jdotjdot/cronitor-k8s
+      docker:
+        dockerfile: Dockerfile
+
+
+deploy:
+  helm:
+    releases:
+      - name: cronitor-k8s
+        chartPath: charts/cronitor-k8s-agent
+        artifactOverrides:
+          image: jdotjdot/cronitor-k8s
+        valuesFiles: []
+        setValues:
+          imagePullPolicy: Never
+        namespace: cronitor
+        recreatePods: true

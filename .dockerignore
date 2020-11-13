@@ -1,0 +1,6 @@
+charts/
+README.md
+.gitignore
+Dockerfile
+Makefile
+skaffold.yaml
