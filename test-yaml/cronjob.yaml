@@ -1,0 +1,16 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: eventrouter-test-croonjob
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: hello
+              image: busybox
+              args: [/bin/sh, -c, date ; echo Hello from k8s]
+          restartPolicy: OnFailure
+  concurrencyPolicy: Forbid

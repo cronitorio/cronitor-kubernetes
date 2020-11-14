@@ -8,7 +8,8 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.3 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
-	github.com/opsgenie/kubernetes-event-exporter v0.0.0-20200822153613-bad127009bcb
+	github.com/imdario/mergo v0.3.8 // indirect
+	github.com/kofalt/go-memoize v0.0.0-20200917044458-9b55a8d73e1c
 	github.com/sirupsen/logrus v1.4.2
 	golang.org/x/crypto v0.0.0-20201112155050-0c6587e931a9 // indirect
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect

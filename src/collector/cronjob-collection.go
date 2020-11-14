@@ -57,18 +57,15 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 	return nil
 }
 
-func (coll CronJobCollection) StartWatchingAll() {
-	cronJobWatcher := NewCronJobWatcher(coll)
-	jobsWatcher, engine := NewJobsEventWatcher(coll)
+
+func (coll *CronJobCollection) StartWatchingAll() {
+	cronJobWatcher := NewCronJobWatcher(*coll)
 
 	coll.stopper = func() {
 		cronJobWatcher.StopWatching()
-		jobsWatcher.Stop()
-		engine.Stop()
 	}
 
 	cronJobWatcher.StartWatching()
-	jobsWatcher.Start()
 }
 
 func (coll CronJobCollection) StopWatchingAll() {
