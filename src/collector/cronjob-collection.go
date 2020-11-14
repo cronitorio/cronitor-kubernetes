@@ -9,16 +9,15 @@ import (
 )
 
 type CronJobCollection struct {
-	cronjobs map[types.UID]*v1beta1.CronJob
-	loaded bool
-	watching bool
+	cronjobs       map[types.UID]*v1beta1.CronJob
+	loaded         bool
+	stopper	func()
 }
 
 func NewCronJobCollection() CronJobCollection {
 	return CronJobCollection{
-		cronjobs: make(map[types.UID]*v1beta1.CronJob),
-		loaded: false,
-		watching: false,
+		cronjobs:       make(map[types.UID]*v1beta1.CronJob),
+	 	loaded:         false,
 	}
 }
 
@@ -58,8 +57,32 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 	return nil
 }
 
-func (coll CronJobCollection) StartWatching() {
-	watcher := NewCronJobWatcher(coll)
-	watcher.StartWatching()
-	coll.watching = true
+func (coll CronJobCollection) StartWatchingAll() {
+	cronJobWatcher := NewCronJobWatcher(coll)
+	jobsWatcher, engine := NewJobsEventWatcher(coll)
+
+	coll.stopper = func() {
+		cronJobWatcher.StopWatching()
+		jobsWatcher.Stop()
+		engine.Stop()
+	}
+
+	cronJobWatcher.StartWatching()
+	jobsWatcher.Start()
+}
+
+func (coll CronJobCollection) StopWatchingAll() {
+	if coll.stopper == nil {
+		log.Warning("CronJobCollection.stopper() called, but it wasn't running")
+	}
+	coll.stopper()
+	coll.stopper = nil
+}
+
+func (coll CronJobCollection) GetAllWatchedCronJobUIDs() []types.UID {
+	var outList []types.UID
+	for k, _ := range coll.cronjobs {
+		outList = append(outList, k)
+	}
+	return outList
 }
