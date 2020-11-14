@@ -53,7 +53,7 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 		}
 	}
 	coll.loaded = true
-	log.Infof("Existing CronJobs have loaded. %d found; %d included.", len(cronjobs.Items), len(coll.cronjobs))
+	log.Infof("Existing CronJobs have loaded. %d found; %d included based on configuration.", len(cronjobs.Items), len(coll.cronjobs))
 	return nil
 }
 

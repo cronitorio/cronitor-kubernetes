@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -9,15 +8,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-//&CronJob{ObjectMeta:{eventrouter-test-croonjob  cronitor /apis/batch/v1beta1/namespaces/cronitor/cronjobs/eventrouter-test-croonjob 7c56ca1c-f023-4ba2-94b8-657d4a291687 16727 0 2020-11-13 04:38:24 +0000 UTC <nil> <nil> map[app.kubernetes.io/managed-by:skaffold skaffold.dev/run-id:3a993098-5a27-45bb-aab9-24e2ce4910d5] map[] [] []  [{Go-http-client Update batch/v1beta1 2020-11-13 04:38:24 +0000 UTC FieldsV1 {"f:spec":{"f:concurrencyPolicy":{},"f:failedJobsHistoryLimit":{},"f:jobTemplate":{"f:spec":{"f:template":{"f:spec":{"f:containers":{"k:{\"name\":\"hello\"}":{".":{},"f:args":{},"f:image":{},"f:imagePullPolicy":{},"f:name":{},"f:resources":{},"f:terminationMessagePath":{},"f:terminationMessagePolicy":{}}},"f:dnsPolicy":{},"f:restartPolicy":{},"f:schedulerName":{},"f:securityContext":{},"f:terminationGracePeriodSeconds":{}}}}},"f:schedule":{},"f:successfulJobsHistoryLimit":{},"f:suspend":{}}}} {skaffold Update batch/v1beta1 2020-11-13 04:38:25 +0000 UTC FieldsV1 {"f:metadata":{"f:labels":{".":{},"f:app.kubernetes.io/managed-by":{},"f:skaffold.dev/run-id":{}}}}}]},Spec:CronJobSpec{Schedule:*/2 * * * *,StartingDeadlineSeconds:nil,ConcurrencyPolicy:Forbid,Suspend:*false,JobTemplate:JobTemplateSpec{ObjectMeta:{      0 0001-01-01 00:00:00 +0000 UTC <nil> <nil> map[] map[] [] []  []},Spec:{<nil> <nil> <nil> <nil> nil <nil> {{      0 0001-01-01 00:00:00 +0000 UTC <nil> <nil> map[] map[] [] []  []} {[] [] [{hello busybox [] [/bin/sh -c date ; echo Hello from k8s]  [] [] [] {map[] map[]} [] [] nil nil nil nil /dev/termination-log File Always nil false false false}] [] OnFailure 0xc00039d090 <nil> ClusterFirst map[]   <nil>  false false false <nil> PodSecurityContext{SELinuxOptions:nil,RunAsUser:nil,RunAsNonRoot:nil,SupplementalGroups:[],FSGroup:nil,RunAsGroup:nil,Sysctls:[]Sysctl{},WindowsOptions:nil,FSGroupChangePolicy:nil,SeccompProfile:nil,} []   nil default-scheduler [] []  <nil> nil [] <nil> <nil> <nil> map[] [] <nil>}} <nil>},},SuccessfulJobsHistoryLimit:*3,FailedJobsHistoryLimit:*1,},Status:CronJobStatus{Active:[]ObjectReference{},LastScheduleTime:<nil>,},}
-
-func JsonAndPrint(input interface{}) string {
-	item, _ := json.Marshal(input)
-	return string(item)
-}
-
 func onAdd(coll CronJobCollection, obj interface{}) {
-	// Cast as a CronJob
 	cronjob := obj.(*v1beta1.CronJob)
 	configParser := NewCronitorConfigParser(cronjob)
 	included, err := configParser.included()

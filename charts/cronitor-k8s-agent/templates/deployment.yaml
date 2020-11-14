@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "cronitor-k8s-agent.fullname" . }}
   labels:
-{{ include "cronitor-k8s-agent.labels" . | indent 4 }}
+    {{ include "cronitor-k8s-agent.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -29,9 +29,9 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
-          env:
-            - name: DEFAULT_BEHAVIOR
-              value: {{ .Values.config.default | quote }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "cronitor-k8s-agent.fullname" . }}-environment-configmap
           ports:
             - name: http
               containerPort: 80

@@ -10,10 +10,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-// TODO: We want to get all events for watched CronJobs.
-// We can mainly do that by watching all cronjobs that are "Controlled by"
-// any CronJob we are watching
-
 type EventHandler struct {
 	collection *CronJobCollection
 	stopper chan struct{}
@@ -68,7 +64,7 @@ func (e EventHandler) OnAdd(obj interface{}) {
 			"name": event.InvolvedObject.Name,
 			"kind": event.InvolvedObject.Kind,
 			"eventMessage": event.Message,
-		}).Info("We had a job watcher add event")
+		}).Info("We had a job watcher event be added")
 	}
 }
 
@@ -86,7 +82,7 @@ func (e EventHandler) OnDelete(obj interface{}) {
 			"name": event.InvolvedObject.Name,
 			"kind": event.InvolvedObject.Kind,
 			"eventMessage": event.Message,
-		}).Info("We had a job watcher delete event")
+		}).Info("We had a job watcher event be deleted")
 	}
 }
 
@@ -102,7 +98,7 @@ func (e EventHandler) OnUpdate(oldObj interface{}, newObj interface{}) {
 			"name": oldEvent.InvolvedObject.Name,
 			"kind": newEvent.InvolvedObject.Kind,
 			"eventMessage": newEvent.Message,
-		}).Info("We had a job watcher update event... somehow?")
+		}).Info("We had a job watcher event be updated... somehow?")
 	}
 }
 
