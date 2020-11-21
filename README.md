@@ -16,5 +16,8 @@ CronJob, and then discard then if they do not
 Open questions:
 * Creating Monitors in Cronitor. Can we store metdata to keep the k8s UID? Should we do it based on k8s name? 
 Can we have a way that the canonical Cronitor ID be separate from the "name"?
+* What should we do when watched CronJobs are deleted? Do we keep in Cronitor or remove?
+* What should we do when the Cronitor k8s agent is redeployed with different watching rules, but 
+no-longer-watched CronJobs still exist? Do we delete them or leave them be?
 
 [1]: https://github.com/opsgenie/kubernetes-event-exporter/blob/master/main.go
