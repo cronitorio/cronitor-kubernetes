@@ -7,20 +7,29 @@ import (
 	"strconv"
 )
 
+type defaultBehaviorValue string
+
+const (
+	defaultBehaviorInclude defaultBehaviorValue = "include"
+	defaultBehaviorExclude defaultBehaviorValue = "exclude"
+)
+
+type CronitorAnnotation string
+
 const (
 	// AnnotationInclude is the key of the annotation that explicitly
 	// controls whether a CronJob will be monitored by Cronitor.
 	// Only required when the Cronitor agent is not set to automatically monitor
 	// all CronJobs.
 	// The only valid values are "true" and "false". Default is "false".
-	AnnotationInclude = "k8s.cronitor.io/include"
+	AnnotationInclude CronitorAnnotation = "k8s.cronitor.io/include"
 
 	// AnnotationExclude is the key of the annotation that explicitly
 	// controls whether a CronJob will be monitored by Cronitor.
 	// Only required when the Cronitor agent is set to require manual
 	// selection of CronJobs to monitor.
 	// The only valid values are "true" and "false". Default is "false".
-	AnnotationExclude = "k8s.cronitor.io/exclude"
+	AnnotationExclude CronitorAnnotation = "k8s.cronitor.io/exclude"
 )
 
 type CronitorConfigParser struct {
@@ -35,18 +44,18 @@ func NewCronitorConfigParser(cronjob *v1beta1.CronJob) CronitorConfigParser {
 
 func (cronitorParser CronitorConfigParser) included() (bool, error) {
 	cronjob := cronitorParser.cronjob
-	defaultBehavior := os.Getenv("DEFAULT_BEHAVIOR")
+	defaultBehavior := defaultBehaviorValue(os.Getenv("DEFAULT_BEHAVIOR"))
 
 	switch defaultBehavior {
-	case "exclude":
-		raw, ok := cronjob.Annotations[AnnotationInclude]
+	case defaultBehaviorExclude:
+		raw, ok := cronjob.Annotations[string(AnnotationInclude)]
 		// Default if not present in this scenario is to exclude
 		if !ok {
 			return false, nil
 		}
 		return strconv.ParseBool(raw)
-	case "include":
-		raw, ok := cronjob.Annotations[AnnotationExclude]
+	case defaultBehaviorInclude:
+		raw, ok := cronjob.Annotations[string(AnnotationExclude)]
 		// Default if not present in this scenario is to include
 		if !ok {
 			return true, nil
