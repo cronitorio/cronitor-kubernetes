@@ -49,7 +49,6 @@ func onUpdate(coll CronJobCollection, oldObj interface{}, newObj interface{}) {
 	}
 }
 
-
 func onDelete(coll CronJobCollection, obj interface{}) {
 	cronjob := obj.(*v1beta1.CronJob)
 	configParser := NewCronitorConfigParser(cronjob)
@@ -67,8 +66,8 @@ func onDelete(coll CronJobCollection, obj interface{}) {
 }
 
 type CronJobWatcher struct {
-	informer cache.SharedIndexInformer
-	stopper chan struct{}
+	informer    cache.SharedIndexInformer
+	stopper     chan struct{}
 	jobsWatcher *EventHandler
 }
 
@@ -86,7 +85,7 @@ func (c CronJobWatcher) StopWatching() {
 }
 
 func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
-	clientset := GetClientSet()
+	clientset := coll.clientset
 	factory := informers.NewSharedInformerFactory(clientset, 0)
 	informer := factory.Batch().V1beta1().CronJobs().Informer()
 
@@ -105,8 +104,8 @@ func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
 	eventHandler := NewJobsEventWatcher(&coll)
 
 	return CronJobWatcher{
-		informer: informer,
-		stopper: make(chan struct{}),
+		informer:    informer,
+		stopper:     make(chan struct{}),
 		jobsWatcher: eventHandler,
 	}
 }

@@ -12,8 +12,8 @@ import (
 
 type EventHandler struct {
 	collection *CronJobCollection
-	stopper chan struct{}
-	informer cache.SharedInformer
+	stopper    chan struct{}
+	informer   cache.SharedInformer
 }
 
 func (e EventHandler) Start() {
@@ -30,7 +30,7 @@ func (e *EventHandler) Stop() {
 func (e EventHandler) CheckJobIsWatched(namespace string, name string) bool {
 	// Grab the Job's information from the Kubernetes API.
 	// Note: this might be a bit expensive, should we memoize it when possible?
-	clientset := GetClientSet()
+	clientset := e.collection.clientset
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	jobsClient := clientset.BatchV1().Jobs(namespace)
@@ -61,8 +61,8 @@ func (e EventHandler) OnAdd(obj interface{}) {
 
 	if e.CheckJobIsWatched(event.InvolvedObject.Namespace, event.InvolvedObject.Name) {
 		log.WithFields(log.Fields{
-			"name": event.InvolvedObject.Name,
-			"kind": event.InvolvedObject.Kind,
+			"name":         event.InvolvedObject.Name,
+			"kind":         event.InvolvedObject.Kind,
 			"eventMessage": event.Message,
 		}).Info("We had a job watcher event be added")
 	}
@@ -79,8 +79,8 @@ func (e EventHandler) OnDelete(obj interface{}) {
 
 	if e.CheckJobIsWatched(event.InvolvedObject.Namespace, event.InvolvedObject.Name) {
 		log.WithFields(log.Fields{
-			"name": event.InvolvedObject.Name,
-			"kind": event.InvolvedObject.Kind,
+			"name":         event.InvolvedObject.Name,
+			"kind":         event.InvolvedObject.Kind,
 			"eventMessage": event.Message,
 		}).Info("We had a job watcher event be deleted")
 	}
@@ -95,23 +95,22 @@ func (e EventHandler) OnUpdate(oldObj interface{}, newObj interface{}) {
 
 	if e.CheckJobIsWatched(newEvent.InvolvedObject.Namespace, newEvent.InvolvedObject.Name) {
 		log.WithFields(log.Fields{
-			"name": oldEvent.InvolvedObject.Name,
-			"kind": newEvent.InvolvedObject.Kind,
+			"name":         oldEvent.InvolvedObject.Name,
+			"kind":         newEvent.InvolvedObject.Kind,
 			"eventMessage": newEvent.Message,
 		}).Info("We had a job watcher event be updated... somehow?")
 	}
 }
 
-
 func NewJobsEventWatcher(collection *CronJobCollection) *EventHandler {
-	clientset := GetClientSet()
+	clientset := collection.clientset
 	factory := informers.NewSharedInformerFactory(clientset, 0)
 	informer := factory.Core().V1().Events().Informer()
 
 	eventHandler := &EventHandler{
 		collection: collection,
-		stopper: make(chan struct{}),
-		informer: informer,
+		stopper:    make(chan struct{}),
+		informer:   informer,
 	}
 
 	informer.AddEventHandler(eventHandler)

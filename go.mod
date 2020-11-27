@@ -2,15 +2,18 @@ module github.com/jdotjdot/Cronitor-k8s
 
 go 1.15
 
+replace github.com/cronitorio/cronitor-cli => github.com/jdotjdot/cronitor-cli v0.0.0-20201122001207-ff47a8dfbadf
+
 require (
+	github.com/cronitorio/cronitor-cli v0.0.0-00010101000000-000000000000
 	github.com/go-logr/logr v0.3.0 // indirect
 	github.com/google/go-cmp v0.5.3 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.3 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
-	github.com/kofalt/go-memoize v0.0.0-20200917044458-9b55a8d73e1c
 	github.com/sirupsen/logrus v1.4.2
+	github.com/spf13/cobra v0.0.6
 	golang.org/x/crypto v0.0.0-20201112155050-0c6587e931a9 // indirect
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58 // indirect

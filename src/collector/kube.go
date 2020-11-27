@@ -6,19 +6,24 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func GetConfig() *rest.Config {
-	if config, err := rest.InClusterConfig(); err == nil {
-		return config
+func GetConfig(pathToKubeconfig string) (*rest.Config, error) {
+	// TODO: BuildConfigFromFlags falls back to in-cluster config, so we can remove the later code
+	// as long as we put better error messaging in place
+	if pathToKubeconfig != "" {
+		config, err := clientcmd.BuildConfigFromFlags("", pathToKubeconfig)
+		if err != nil {
+			return nil, err
+		}
+		return config, nil
 	}
-	config, err := clientcmd.BuildConfigFromFlags("", "/Users/JJ/.kube/config")
+	config, err := rest.InClusterConfig()
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
-	return config
+	return config, nil
 }
 
-func GetClientSet() *kubernetes.Clientset {
-	config := GetConfig()
+func GetClientSet(config *rest.Config) *kubernetes.Clientset {
 	clientset := kubernetes.NewForConfigOrDie(config)
 	return clientset
 }

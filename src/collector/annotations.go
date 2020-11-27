@@ -10,8 +10,9 @@ import (
 type defaultBehaviorValue string
 
 const (
-	defaultBehaviorInclude defaultBehaviorValue = "include"
-	defaultBehaviorExclude defaultBehaviorValue = "exclude"
+	defaultBehaviorInclude      defaultBehaviorValue = "include"
+	defaultBehaviorExclude      defaultBehaviorValue = "exclude"
+	defaultBehaviorNoneProvided defaultBehaviorValue = ""
 )
 
 type CronitorAnnotation string
@@ -42,9 +43,17 @@ func NewCronitorConfigParser(cronjob *v1beta1.CronJob) CronitorConfigParser {
 	}
 }
 
+func (cronitorParser CronitorConfigParser) getDefaultBehavior() defaultBehaviorValue {
+	defaultBehavior := defaultBehaviorValue(os.Getenv("DEFAULT_BEHAVIOR"))
+	if defaultBehavior == defaultBehaviorNoneProvided {
+		defaultBehavior = defaultBehaviorInclude
+	}
+	return defaultBehavior
+}
+
 func (cronitorParser CronitorConfigParser) included() (bool, error) {
 	cronjob := cronitorParser.cronjob
-	defaultBehavior := defaultBehaviorValue(os.Getenv("DEFAULT_BEHAVIOR"))
+	defaultBehavior := cronitorParser.getDefaultBehavior()
 
 	switch defaultBehavior {
 	case defaultBehaviorExclude:

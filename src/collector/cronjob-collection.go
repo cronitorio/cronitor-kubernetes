@@ -6,26 +6,34 @@ import (
 	"k8s.io/api/batch/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 )
 
 type CronJobCollection struct {
-	cronjobs       map[types.UID]*v1beta1.CronJob
-	loaded         bool
-	stopper	func()
+	clientset *kubernetes.Clientset
+	cronjobs  map[types.UID]*v1beta1.CronJob
+	loaded    bool
+	stopper   func()
 }
 
-func NewCronJobCollection() CronJobCollection {
-	return CronJobCollection{
-		cronjobs:       make(map[types.UID]*v1beta1.CronJob),
-	 	loaded:         false,
+func NewCronJobCollection(pathToKubeconfig string) (*CronJobCollection, error) {
+	config, err := GetConfig(pathToKubeconfig)
+	if err != nil {
+		return nil, err
 	}
+	clientset := GetClientSet(config)
+	return &CronJobCollection{
+		clientset: clientset,
+		cronjobs:  make(map[types.UID]*v1beta1.CronJob),
+		loaded:    false,
+	}, nil
 }
 
 func (coll *CronJobCollection) AddCronJob(cronjob *v1beta1.CronJob) {
 	coll.cronjobs[cronjob.GetUID()] = cronjob
 	log.WithFields(log.Fields{
 		"namespace": cronjob.Namespace,
-		"name": cronjob.Name,
+		"name":      cronjob.Name,
 	}).Info("Cronjob added")
 }
 
@@ -33,12 +41,12 @@ func (coll *CronJobCollection) RemoveCronJob(cronjob *v1beta1.CronJob) {
 	delete(coll.cronjobs, cronjob.GetUID())
 	log.WithFields(log.Fields{
 		"namespace": cronjob.Namespace,
-		"name": cronjob.Name,
+		"name":      cronjob.Name,
 	}).Info("Cronjob removed")
 }
 
 func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
-	clientset := GetClientSet()
+	clientset := coll.clientset
 	api := clientset.BatchV1beta1()
 	listOptions := meta_v1.ListOptions{}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -56,7 +64,6 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 	log.Infof("Existing CronJobs have loaded. %d found; %d included based on configuration.", len(cronjobs.Items), len(coll.cronjobs))
 	return nil
 }
-
 
 func (coll *CronJobCollection) StartWatchingAll() {
 	cronJobWatcher := NewCronJobWatcher(*coll)
