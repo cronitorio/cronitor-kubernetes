@@ -1,4 +1,4 @@
-module github.com/jdotjdot/Cronitor-k8s
+module github.com/cronitorio/cronitor-kubernetes
 
 go 1.15
 

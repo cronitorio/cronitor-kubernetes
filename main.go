@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/jdotjdot/Cronitor-k8s/src/cmd"
+	"github.com/cronitorio/cronitor-kubernetes/src/cmd"
 	log "github.com/sirupsen/logrus"
 )
 

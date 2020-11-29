@@ -2,7 +2,7 @@ package collector
 
 import (
 	"context"
-	"github.com/jdotjdot/Cronitor-k8s/src/api"
+	"github.com/cronitorio/cronitor-kubernetes/src/api"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/batch/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
