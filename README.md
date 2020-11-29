@@ -12,6 +12,8 @@ when the cronjobs change, just inspect events at time of receipt to see if they 
 CronJob, and then discard then if they do not
 * Handle whether one namespace or all
 * Make it highly available? May need to handle leader election like [here][1]
+* Send telemetry events
+* Upload logs upon failure
 
 Issues:
 * `"name"` seems to be required on PUT request
