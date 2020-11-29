@@ -7,6 +7,7 @@ import (
 )
 
 var kubeconfig string
+var apiKey string
 
 var RootCmd = &cobra.Command{
 	Use: "cronitor-k8s",
@@ -21,4 +22,6 @@ func Execute() {
 
 func init() {
 	RootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "path to a kubeconfig to use")
+	RootCmd.PersistentFlags().StringVar(&apiKey, "apikey", "", "Cronitor.io API key")
+	_ = RootCmd.MarkPersistentFlagRequired("apikey")
 }

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/jdotjdot/Cronitor-k8s/src/api"
 	"github.com/jdotjdot/Cronitor-k8s/src/collector"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -9,6 +10,8 @@ import (
 	"syscall"
 )
 
+var dryRun bool
+
 var agentCmd = &cobra.Command{
 	Use:   "agent",
 	Short: "Run the cronitor-k8s agent against a Kubernetes cluster",
@@ -16,7 +19,8 @@ var agentCmd = &cobra.Command{
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	collection, err := collector.NewCronJobCollection(kubeconfig)
+	cronitorApi := api.NewCronitorApi(apiKey, dryRun)
+	collection, err := collector.NewCronJobCollection(kubeconfig, &cronitorApi)
 	if err != nil {
 		return err
 	}
@@ -42,5 +46,6 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
+	agentCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Dry run, do not actually send updates to Cronitor")
 	RootCmd.AddCommand(agentCmd)
 }
