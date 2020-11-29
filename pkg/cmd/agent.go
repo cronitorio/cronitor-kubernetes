@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/cronitorio/cronitor-kubernetes/src/api"
-	"github.com/cronitorio/cronitor-kubernetes/src/collector"
+	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
+	"github.com/cronitorio/cronitor-kubernetes/pkg/collector"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"os"
