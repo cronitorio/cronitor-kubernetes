@@ -2,9 +2,13 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/batch/v1"
+	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -27,14 +31,77 @@ func (e *EventHandler) Stop() {
 	close(e.stopper)
 }
 
-func (e EventHandler) CheckJobIsWatched(namespace string, name string) bool {
+// fetchPod grabs the Pod metadata from the Kubernetes API
+func (e EventHandler) fetchPod(namespace string, jobName string) (*corev1.Pod, error) {
+	// This could potentially be moved off of EventHandler into its own kube package
+	clientset := e.collection.clientset
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	podsClient := clientset.CoreV1().Pods(namespace)
+	listOptions := meta_v1.ListOptions{
+		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
+	}
+	pods, err := podsClient.List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	switch itemsLength := len(pods.Items); itemsLength {
+	case 0:
+		return nil, fmt.Errorf("no pod matching job name %s found", jobName)
+	case 1:
+		return &pods.Items[0], nil
+	default:
+		return nil, fmt.Errorf("more than one pod matching job name %s, %d found", jobName, len(pods.Items))
+	}
+}
+
+func (e EventHandler) fetchJob(namespace string, name string) (*v1.Job, error) {
 	// Grab the Job's information from the Kubernetes API.
 	// Note: this might be a bit expensive, should we memoize it when possible?
 	clientset := e.collection.clientset
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	jobsClient := clientset.BatchV1().Jobs(namespace)
-	job, err := jobsClient.Get(ctx, name, v1.GetOptions{})
+	job, err := jobsClient.Get(ctx, name, meta_v1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return job, nil
+}
+
+func (e EventHandler) fetchCronJob(uid types.UID) (*v1beta1.CronJob, error) {
+	cronjobs := e.collection.cronjobs
+	if val, ok := cronjobs[uid]; ok {
+		return val, nil
+	} else {
+		return nil, fmt.Errorf("cronjob %s not found in collection", string(uid))
+	}
+}
+
+func (e EventHandler) FetchObjectsFromEvent(event *corev1.Event) (pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob, err error) {
+	namespace := event.InvolvedObject.Namespace
+	jobName := event.InvolvedObject.Name
+	job, err = e.fetchJob(namespace, jobName)
+	if err != nil {
+		return
+	}
+	ownerReference := job.ObjectMeta.OwnerReferences[0]
+	if ownerReference.Kind != "CronJob" {
+		err = fmt.Errorf("expected ownerReference of CronJob, got %s", ownerReference.Kind)
+	}
+	ownerUID := ownerReference.UID
+	cronjob, err = e.fetchCronJob(ownerUID)
+	if err != nil {
+		return
+	}
+
+	pod, err = e.fetchPod(namespace, jobName)
+	return
+}
+
+func (e EventHandler) CheckJobIsWatched(namespace string, name string) bool {
+	job, err := e.fetchJob(namespace, name)
 	if err != nil {
 		// Job doesn't exist
 		return false
@@ -64,7 +131,14 @@ func (e EventHandler) OnAdd(obj interface{}) {
 			"name":         event.InvolvedObject.Name,
 			"kind":         event.InvolvedObject.Kind,
 			"eventMessage": event.Message,
-		}).Info("We had a job watcher event be added")
+			"eventReason":  event.Reason,
+		}).Info("Job event added")
+		pod, job, cronjob, err := e.FetchObjectsFromEvent(event)
+		if err != nil {
+			log.Warnf("could not fetch objects related to event: %s", err.Error())
+			return
+		}
+		_ = e.collection.cronitorApi.MakeAndSendTelemetryEvent(event, pod, job, cronjob)
 	}
 }
 
@@ -82,7 +156,8 @@ func (e EventHandler) OnDelete(obj interface{}) {
 			"name":         event.InvolvedObject.Name,
 			"kind":         event.InvolvedObject.Kind,
 			"eventMessage": event.Message,
-		}).Info("We had a job watcher event be deleted")
+			"eventReason":  event.Reason,
+		}).Info("Job event removed")
 	}
 }
 
@@ -98,7 +173,8 @@ func (e EventHandler) OnUpdate(oldObj interface{}, newObj interface{}) {
 			"name":         oldEvent.InvolvedObject.Name,
 			"kind":         newEvent.InvolvedObject.Kind,
 			"eventMessage": newEvent.Message,
-		}).Info("We had a job watcher event be updated... somehow?")
+			"eventReason":  newEvent.Reason,
+		}).Info("Job event updated (...somehow?)")
 	}
 }
 
