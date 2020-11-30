@@ -52,7 +52,7 @@ func (e EventHandler) fetchPod(namespace string, jobName string) (*corev1.Pod, e
 	case 1:
 		return &pods.Items[0], nil
 	default:
-		return nil, fmt.Errorf("more than one pod matching job name %s, %d found", jobName, len(pods.Items))
+		return nil, fmt.Errorf("more than one pod matching job name %s, %d found", jobName, itemsLength)
 	}
 }
 
