@@ -6,11 +6,12 @@ spec:
   schedule: "*/1 * * * *"
   jobTemplate:
     spec:
+      backoffLimit: 3
       template:
         spec:
           containers:
             - name: hello
               image: busybox
-              args: [/bin/sh, -c, date ; echo Hello from k8s]
+              args: [/bin/sh, -c, date ; sleep 5 ; echo Hello from k8s]
           restartPolicy: OnFailure
   concurrencyPolicy: Forbid

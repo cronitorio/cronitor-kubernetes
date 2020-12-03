@@ -24,8 +24,13 @@ into `[]lib.Rules` within `lib.Monitor` in the Cronitor CLI code. See `api/const
 own ID and the key disappears and is not returned in API calls to list existing monitors. As a result,
 we are currently lacking a way to identify monitors once they are created within Cronitor to properly
 send pings.
+* When loading the agent, sometimes we'll pick up events that are still present in Kubernetes but are actually
+from sometime in the past. Can the telemetry API have a timestamp field added so that events from the past 
+can be submitted?
 
 Open questions:
+* Where should we store the Docker builds? Docker Hub or Github registry?
+* Where will building/CD take place? Github Actions?
 * Creating Monitors in Cronitor. Can we store metdata to keep the k8s UID? Should we do it based on k8s name? 
 Can we have a way that the canonical Cronitor ID be separate from the "name"?
 * What should we do when watched CronJobs are deleted? Do we keep in Cronitor or remove?

@@ -1,3 +1,4 @@
+{{/*
 {{- if .Values.ingress.enabled -}}
 {{- $fullName := include "cronitor-k8s-agent.fullname" . -}}
 {{- $svcPort := .Values.service.port -}}
@@ -39,3 +40,4 @@ spec:
         {{- end }}
   {{- end }}
 {{- end }}
+*/}}

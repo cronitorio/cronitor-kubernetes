@@ -1,4 +1,3 @@
-replicaCount: 1
 
 image: jdotjdot/cronitor-k8s:latest
 imagePullPolicy: Always
@@ -6,8 +5,15 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+credentials:
+  secretName: null
+  secretKey: null
+
 config:
+  # Setting to include or exclude non-annotated CronJobs by default.
+  # Permitted values are "include" or "exclude".
   default: 'include'
+
 
 injector:
   namespaceSelector: ''
@@ -31,9 +37,9 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
-service:
-  type: ClusterIP
-  port: 80
+#service:
+#  type: ClusterIP
+#  port: 80
 
 ingress:
   enabled: false

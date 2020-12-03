@@ -4,12 +4,13 @@ RUN apk add --update git
 ENV GO111MODULE=on CGO_ENABLED=0
 WORKDIR /code/
 
+# Precache gomod dependencies, so we don't need to redownload on every build
 COPY go.mod go.sum /code/
 RUN go mod download
 
 COPY . /code/
-RUN go build -o /bin/cronitor-k8s
+RUN go build -o /bin/cronitor-kubernetes
 
-FROM scratch
-COPY --from=build /bin/cronitor-k8s /bin/cronitor-k8s
-ENTRYPOINT ["/bin/cronitor-k8s"]
+FROM alpine:latest
+COPY --from=build /bin/cronitor-kubernetes /bin/cronitor-kubernetes
+ENTRYPOINT ["/bin/cronitor-kubernetes"]

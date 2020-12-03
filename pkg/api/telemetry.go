@@ -143,6 +143,10 @@ func (api CronitorApi) MakeAndSendTelemetryEvent(event *corev1.Event, logs strin
 		return err
 	}
 
+	if api.DryRun {
+		return nil
+	}
+
 	_, err = api.sendTelemetryPostRequest(telemetryEvent)
 	if err != nil {
 		return err

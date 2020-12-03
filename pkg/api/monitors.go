@@ -52,11 +52,6 @@ func (api CronitorApi) PutCronJobs(cronJobs []*v1beta1.CronJob) ([]*lib.Monitor,
 	logrus.Debugf("response: %s", response)
 
 	var responseMonitors []*lib.Monitor
-	// TODO: This must be removed and is a temporary hack to enable continued development
-	// to get around the fact that the API returns "rules": {} instead of "rules": [] when a monitor
-	// has no rules. This is incompatible with the struct declaration of []lib.Rule and breaks
-	// the Unmarshal call.
-	//response = bytes.ReplaceAll(response, []byte(`"rules":{}`), []byte(`"rules":[]`))
 	if err = json.Unmarshal(response, &responseMonitors); err != nil {
 		return nil, fmt.Errorf("error from %s: %s, error: %s", url, response, err.Error())
 	}

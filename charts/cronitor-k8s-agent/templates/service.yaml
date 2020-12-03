@@ -1,3 +1,4 @@
+{{/*
 apiVersion: v1
 kind: Service
 metadata:
@@ -14,3 +15,4 @@ spec:
   selector:
     app.kubernetes.io/name: {{ include "cronitor-k8s-agent.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
+*/}}

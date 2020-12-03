@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"errors"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/collector"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,7 +21,15 @@ var agentCmd = &cobra.Command{
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	cronitorApi := api.NewCronitorApi(apiKey, dryRun)
+	apiKey := viper.GetString("apikey")
+	if apiKey == "" {
+		return errors.New("a Cronitor api key is required. Provide via --apikey or CRONITOR_API_KEY environmental value")
+	}
+	cronitorApi := api.NewCronitorApi(apiKey, viper.GetBool("dryrun"))
+	kubeconfig := viper.GetString("kubeconfig")
+	if kubeconfig == "" {
+		log.Info("no kubeconfig provided, defaulting to in-cluster...")
+	}
 	collection, err := collector.NewCronJobCollection(kubeconfig, &cronitorApi)
 	if err != nil {
 		return err
@@ -46,6 +56,7 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
-	agentCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Dry run, do not actually send updates to Cronitor")
+	agentCmd.Flags().BoolVar(&dryRun, "dryrun", false, "Dry run, do not actually send updates to Cronitor")
+	_ = viper.BindPFlag("dryrun", agentCmd.Flags().Lookup("dryrun"))
 	RootCmd.AddCommand(agentCmd)
 }

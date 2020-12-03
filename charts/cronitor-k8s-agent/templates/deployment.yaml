@@ -5,7 +5,7 @@ metadata:
   labels:
     {{ include "cronitor-k8s-agent.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "cronitor-k8s-agent.name" . }}
@@ -29,11 +29,18 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
+          args:
+            - agent
           env:
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: CRONITOR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "A valid name for a Secret holding the API key is required!" .Values.credentials.secretName }}
+                  key: {{ required "A valid key in a Secret holding the API key is required!" .Values.credentials.secretKey }}
           envFrom:
             - configMapRef:
                 name: {{ include "cronitor-k8s-agent.fullname" . }}-environment-configmap
