@@ -21,7 +21,6 @@ func onAdd(coll CronJobCollection, obj interface{}) {
 		return
 	}
 
-	// TODO: Add the CronJob in Cronitor.
 	coll.AddCronJob(cronjob)
 }
 
