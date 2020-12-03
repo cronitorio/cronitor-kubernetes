@@ -6,24 +6,8 @@ Annotations:
 * `k8s.cronitor.io/include` - "true" or "false"
 * `k8s.cronitor.io/exclude` - "true" or "false"
 
-Todos:
-* Combine the jobs watcher and cronjob watcher into one. Don't need to regenerate the jobs watcher
-when the cronjobs change, just inspect events at time of receipt to see if they reference a watched
-CronJob, and then discard then if they do not
-* Handle whether one namespace or all
-* Make it highly available? May need to handle leader election like [here][1]
-* Send telemetry events
-* Upload logs upon failure
-
 Issues:
-* `"name"` seems to be required on PUT request
 * Tags like `"kubernetes"` are not auto-created when submitted as part of a PUT request
-* When a monitor has no rules, instead of returning null or `[]`, `{}` is returned. This breaks unmarshaling
-into `[]lib.Rules` within `lib.Monitor` in the Cronitor CLI code. See `api/constructor.go:90`.
-* When a monitor is created using the UID as `key` in a PUT request, the Cronitor seems to assign its
-own ID and the key disappears and is not returned in API calls to list existing monitors. As a result,
-we are currently lacking a way to identify monitors once they are created within Cronitor to properly
-send pings.
 * When loading the agent, sometimes we'll pick up events that are still present in Kubernetes but are actually
 from sometime in the past. Can the telemetry API have a timestamp field added so that events from the past 
 can be submitted?
@@ -47,5 +31,12 @@ General notes:
 * Jobs / CronJobs without a backoffLimit that are failing will retry indefinitely. A "failure" event never occurs, so
 Cronitor would see this as the job never completing rather than as a failure. Default backoffLimit might be 6 though;
 requires further investigation.
+
+Todos:
+* Combine the jobs watcher and cronjob watcher into one. Don't need to regenerate the jobs watcher
+when the cronjobs change, just inspect events at time of receipt to see if they reference a watched
+CronJob, and then discard then if they do not
+* Handle whether one namespace or all
+* Make it highly available? May need to handle leader election like [here][1]
 
 [1]: https://github.com/opsgenie/kubernetes-event-exporter/blob/master/main.go
