@@ -25,15 +25,18 @@ const (
 )
 
 type TelemetryEvent struct {
-	CronJob  *v1beta1.CronJob
-	Event    TelemetryEventStatus
-	Message  string
+	CronJob   *v1beta1.CronJob
+	Event     TelemetryEventStatus
+	Message   string
 	ErrorLogs string
+	// Series is a UUID to distinguish different sets of pings in a series.
+	// In Kubernetes, this is loosely analogous to a Job instance of a CronJob, so we use the
+	// Job's UUID, which will stay stable even on multiple pod retries.
 	Series   *types.UID
 	ExitCode *int
-	// Metric
-	Env  string
-	Host string // need to fetch from Pod
+	Env      string
+	// Host is the Kubernetes node that the pod is running on
+	Host string
 }
 
 func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) (*TelemetryEvent, error) {
@@ -43,9 +46,8 @@ func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, logs string, pod 
 
 	CronJob := cronjob
 	Message := event.Message
-	if logs != "" {
-		Message = fmt.Sprintf("[%s] %s", Message, logs)
-	}
+	ErrorLogs := logs
+	Series := job.UID
 
 	var Event TelemetryEventStatus
 	switch reason := event.Reason; reason {
@@ -61,10 +63,12 @@ func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, logs string, pod 
 
 	Host := pod.Spec.NodeName
 	telemetryEvent := TelemetryEvent{
-		CronJob: CronJob,
-		Event:   Event,
-		Message: Message,
-		Host:    Host,
+		CronJob:   CronJob,
+		Event:     Event,
+		Message:   Message,
+		ErrorLogs: ErrorLogs,
+		Series:    &Series,
+		Host:      Host,
 	}
 
 	return &telemetryEvent, nil
@@ -73,7 +77,13 @@ func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, logs string, pod 
 func (t TelemetryEvent) Encode() string {
 	q := url.Values{}
 	if t.Message != "" {
-		q.Add("message", t.Message)
+		var message string
+		if t.ErrorLogs != "" {
+			message = fmt.Sprintf("[%s] %s", t.Message, t.ErrorLogs)
+		} else {
+			message = t.Message
+		}
+		q.Add("message", message)
 	}
 	if t.Series != nil {
 		q.Add("series", string(*t.Series))
@@ -92,7 +102,7 @@ func (t TelemetryEvent) Encode() string {
 
 // telemetryUrl generates the URL required to send events to the Telemetry API.
 func (api CronitorApi) telemetryUrl(params *TelemetryEvent) string {
-	return fmt.Sprintf("https://cronitor.link/ping/%s/%s", api.ApiKey, string(params.CronJob.GetUID()))
+	return fmt.Sprintf("https://cronitor.link/ping/%s/%s/%s", api.ApiKey, string(params.CronJob.GetUID()), params.Event)
 }
 
 func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte, error) {

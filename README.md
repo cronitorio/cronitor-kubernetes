@@ -36,6 +36,7 @@ use as well? It seems like we need to require both API keys in case the Monitor 
 for telemetry events.
 * Pods can have more than one container, and so there may be more than one exit code. What should we do for exit
 code selection?
+* Allow selecting existing monitors in Cronitor for use as a CronJob by using a monitor ID as an annotation?
 
 General notes:
 * Jobs / CronJobs without a backoffLimit that are failing will retry indefinitely. A "failure" event never occurs, so

@@ -121,7 +121,13 @@ func (e EventHandler) FetchObjectsFromEvent(event *corev1.Event) (pod *corev1.Po
 	}
 
 	pod, err = e.fetchPod(namespace, jobName)
-	logs, err = e.fetchPodLogs(pod)
+	if err != nil {
+		return
+	}
+
+	// Logs may not be available because the pod hasn't started yet, or maybe logs just aren't available.
+	// In that case, ignore. Logs are retrieved on a best-effort basis.
+	logs, _ = e.fetchPodLogs(pod)
 	return
 }
 
