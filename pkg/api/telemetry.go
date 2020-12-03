@@ -28,6 +28,7 @@ type TelemetryEvent struct {
 	CronJob  *v1beta1.CronJob
 	Event    TelemetryEventStatus
 	Message  string
+	ErrorLogs string
 	Series   *types.UID
 	ExitCode *int
 	// Metric
@@ -35,13 +36,16 @@ type TelemetryEvent struct {
 	Host string // need to fetch from Pod
 }
 
-func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) (*TelemetryEvent, error) {
+func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) (*TelemetryEvent, error) {
 	if event.InvolvedObject.Kind != "Job" {
 		log.Fatal("an event was passed to telemetry that doesn't belong to a job")
 	}
 
 	CronJob := cronjob
 	Message := event.Message
+	if logs != "" {
+		Message = fmt.Sprintf("[%s] %s", Message, logs)
+	}
 
 	var Event TelemetryEventStatus
 	switch reason := event.Reason; reason {
@@ -123,8 +127,8 @@ func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte,
 	return body, nil
 }
 
-func (api CronitorApi) MakeAndSendTelemetryEvent(event *corev1.Event, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
-	telemetryEvent, err := NewTelemetryEventFromKubernetesEvent(event, pod, job, cronjob)
+func (api CronitorApi) MakeAndSendTelemetryEvent(event *corev1.Event, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
+	telemetryEvent, err := NewTelemetryEventFromKubernetesEvent(event, logs, pod, job, cronjob)
 	if err != nil {
 		return err
 	}

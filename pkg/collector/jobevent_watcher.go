@@ -1,9 +1,11 @@
 package collector
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"io"
 	v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -79,7 +81,29 @@ func (e EventHandler) fetchCronJob(uid types.UID) (*v1beta1.CronJob, error) {
 	}
 }
 
-func (e EventHandler) FetchObjectsFromEvent(event *corev1.Event) (pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob, err error) {
+func (e EventHandler) fetchPodLogs(pod *corev1.Pod) (string, error) {
+	podLogOpts := corev1.PodLogOptions{}
+	clientset := e.collection.clientset
+	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "", err
+	}
+
+	str := buf.String()
+	return str, nil
+}
+
+func (e EventHandler) FetchObjectsFromEvent(event *corev1.Event) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1beta1.CronJob, err error) {
 	namespace := event.InvolvedObject.Namespace
 	jobName := event.InvolvedObject.Name
 	job, err = e.fetchJob(namespace, jobName)
@@ -97,6 +121,7 @@ func (e EventHandler) FetchObjectsFromEvent(event *corev1.Event) (pod *corev1.Po
 	}
 
 	pod, err = e.fetchPod(namespace, jobName)
+	logs, err = e.fetchPodLogs(pod)
 	return
 }
 
@@ -133,12 +158,12 @@ func (e EventHandler) OnAdd(obj interface{}) {
 			"eventMessage": event.Message,
 			"eventReason":  event.Reason,
 		}).Info("Job event added")
-		pod, job, cronjob, err := e.FetchObjectsFromEvent(event)
+		pod, logs, job, cronjob, err := e.FetchObjectsFromEvent(event)
 		if err != nil {
 			log.Warnf("could not fetch objects related to event: %s", err.Error())
 			return
 		}
-		_ = e.collection.cronitorApi.MakeAndSendTelemetryEvent(event, pod, job, cronjob)
+		_ = e.collection.cronitorApi.MakeAndSendTelemetryEvent(event, logs, pod, job, cronjob)
 	}
 }
 
