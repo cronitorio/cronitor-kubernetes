@@ -12,7 +12,7 @@ var apiKey string
 
 var RootCmd = &cobra.Command{
 	PersistentPreRunE: initializeConfig,
-	Use: "cronitor-k8s",
+	Use:               "cronitor-k8s",
 }
 
 func Execute() {

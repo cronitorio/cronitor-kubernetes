@@ -14,15 +14,15 @@ import (
 
 // https://docs.google.com/document/d/1erh-fvTkF14jyJGv3DYuN2UalWe6AN49XOUsWHJccso/edit#heading=h.ylm2gai335jy
 type CronitorJob struct {
-	Key         string            `json:"key"`
-	DefaultName string            `json:"defaultName"`
-	Name        string            `json:"name,omitempty"`
-	DefaultNote string            `json:"defaultNote"`
-	Metadata    string			   `json:"metadata"`  // This is actually a string rather than a map
-	Type_       string            `json:"type"` // 'job'
-	Schedule    string            `json:"schedule"`
-	Tags        []string          `json:"tags,omitempty"`
-	Rules       []string          `json:"rules"`
+	Key         string   `json:"key"`
+	DefaultName string   `json:"defaultName"`
+	Name        string   `json:"name,omitempty"`
+	DefaultNote string   `json:"defaultNote"`
+	Metadata    string   `json:"metadata"` // This is actually a string rather than a map
+	Type_       string   `json:"type"`     // 'job'
+	Schedule    string   `json:"schedule"`
+	Tags        []string `json:"tags,omitempty"`
+	Rules       []string `json:"rules"`
 }
 
 func convertCronJobToCronitorJob(job *v1beta1.CronJob) CronitorJob {
@@ -36,7 +36,7 @@ func convertCronJobToCronitorJob(job *v1beta1.CronJob) CronitorJob {
 	}
 	metadataJson, _ := json.Marshal(metadata)
 	cronitorJob := CronitorJob{
-		Key: string(job.UID),
+		Key:         string(job.UID),
 		DefaultName: name,
 		DefaultNote: fmt.Sprintf("created by cronitor-kubernetes, monitors %s in cluster %s", name, job.ObjectMeta.GetClusterName()),
 		Schedule:    job.Spec.Schedule,
