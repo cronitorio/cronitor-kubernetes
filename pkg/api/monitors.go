@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/cronitorio/cronitor-cli/lib"
@@ -57,7 +56,7 @@ func (api CronitorApi) PutCronJobs(cronJobs []*v1beta1.CronJob) ([]*lib.Monitor,
 	// to get around the fact that the API returns "rules": {} instead of "rules": [] when a monitor
 	// has no rules. This is incompatible with the struct declaration of []lib.Rule and breaks
 	// the Unmarshal call.
-	response = bytes.ReplaceAll(response, []byte(`"rules":{}`), []byte(`"rules":[]`))
+	//response = bytes.ReplaceAll(response, []byte(`"rules":{}`), []byte(`"rules":[]`))
 	if err = json.Unmarshal(response, &responseMonitors); err != nil {
 		return nil, fmt.Errorf("error from %s: %s, error: %s", url, response, err.Error())
 	}

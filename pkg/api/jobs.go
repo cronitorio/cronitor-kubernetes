@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"k8s.io/api/batch/v1beta1"
 	"strconv"
@@ -17,7 +18,7 @@ type CronitorJob struct {
 	DefaultName string            `json:"defaultName"`
 	Name        string            `json:"name,omitempty"`
 	DefaultNote string            `json:"defaultNote"`
-	Metadata    map[string]string `json:"metadata"`
+	Metadata    string			   `json:"metadata"`  // This is actually a string rather than a map
 	Type_       string            `json:"type"` // 'job'
 	Schedule    string            `json:"schedule"`
 	Tags        []string          `json:"tags,omitempty"`
@@ -33,13 +34,13 @@ func convertCronJobToCronitorJob(job *v1beta1.CronJob) CronitorJob {
 	if job.Spec.StartingDeadlineSeconds != nil {
 		metadata["startingDeadlineSeconds"] = strconv.FormatInt(*job.Spec.StartingDeadlineSeconds, 10)
 	}
+	metadataJson, _ := json.Marshal(metadata)
 	cronitorJob := CronitorJob{
 		Key: string(job.UID),
-		// Providing defaultName isn't sufficient; "name" is required as well
-		Name:        name,
 		DefaultName: name,
+		DefaultNote: fmt.Sprintf("created by cronitor-kubernetes, monitors %s in cluster %s", name, job.ObjectMeta.GetClusterName()),
 		Schedule:    job.Spec.Schedule,
-		Metadata:    metadata,
+		Metadata:    string(metadataJson),
 		Type_:       "job",
 		Tags:        []string{"kubernetes"},
 		// An empty rules array is required

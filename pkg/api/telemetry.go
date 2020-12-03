@@ -88,7 +88,7 @@ func (t TelemetryEvent) Encode() string {
 
 // telemetryUrl generates the URL required to send events to the Telemetry API.
 func (api CronitorApi) telemetryUrl(params *TelemetryEvent) string {
-	return fmt.Sprintf("https://cronitor.link/%s/%s", string(params.CronJob.GetUID()), params.Event)
+	return fmt.Sprintf("https://cronitor.link/ping/%s/%s", api.ApiKey, string(params.CronJob.GetUID()))
 }
 
 func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte, error) {
@@ -98,7 +98,6 @@ func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte,
 		return nil, err
 	}
 	req.URL.RawQuery = params.Encode()
-	req.SetBasicAuth(api.ApiKey, "")
 	client := &http.Client{
 		Timeout: 120 * time.Second,
 	}
