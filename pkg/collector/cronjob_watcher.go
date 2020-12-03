@@ -61,7 +61,6 @@ func onDelete(coll CronJobCollection, obj interface{}) {
 		return
 	}
 
-	// TODO: Here we remove the CronJob from Cronitor, or at least notify that it's been removed
 	coll.RemoveCronJob(cronjob)
 }
 
