@@ -62,6 +62,7 @@ func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, logs string, pod 
 	}
 
 	Host := pod.Spec.NodeName
+	// TODO: Add environment here from CronJob parser
 	telemetryEvent := TelemetryEvent{
 		CronJob:   CronJob,
 		Event:     Event,

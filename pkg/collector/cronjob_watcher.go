@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -10,8 +11,8 @@ import (
 
 func onAdd(coll CronJobCollection, obj interface{}) {
 	cronjob := obj.(*v1beta1.CronJob)
-	configParser := NewCronitorConfigParser(cronjob)
-	included, err := configParser.included()
+	configParser := pkg.NewCronitorConfigParser(cronjob)
+	included, err := configParser.IsCronJobIncluded()
 	if err != nil {
 		panic(err)
 	}
@@ -27,13 +28,13 @@ func onAdd(coll CronJobCollection, obj interface{}) {
 func onUpdate(coll CronJobCollection, oldObj interface{}, newObj interface{}) {
 	cronjobOld := oldObj.(*v1beta1.CronJob)
 	cronjobNew := newObj.(*v1beta1.CronJob)
-	configParserOld := NewCronitorConfigParser(cronjobOld)
-	configParserNew := NewCronitorConfigParser(cronjobNew)
-	wasIncluded, err := configParserOld.included()
+	configParserOld := pkg.NewCronitorConfigParser(cronjobOld)
+	configParserNew := pkg.NewCronitorConfigParser(cronjobNew)
+	wasIncluded, err := configParserOld.IsCronJobIncluded()
 	if err != nil {
 		panic(err)
 	}
-	nowIncluded, err := configParserNew.included()
+	nowIncluded, err := configParserNew.IsCronJobIncluded()
 	if err != nil {
 		panic(err)
 	}
@@ -50,8 +51,8 @@ func onUpdate(coll CronJobCollection, oldObj interface{}, newObj interface{}) {
 
 func onDelete(coll CronJobCollection, obj interface{}) {
 	cronjob := obj.(*v1beta1.CronJob)
-	configParser := NewCronitorConfigParser(cronjob)
-	included, err := configParser.included()
+	configParser := pkg.NewCronitorConfigParser(cronjob)
+	included, err := configParser.IsCronJobIncluded()
 	if err != nil {
 		panic(err)
 	}

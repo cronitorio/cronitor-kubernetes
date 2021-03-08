@@ -1,4 +1,4 @@
-package collector
+package pkg
 
 import (
 	"fmt"
@@ -106,7 +106,7 @@ func (cronitorParser CronitorConfigParser) getDefaultBehavior() defaultBehaviorV
 	return defaultBehavior
 }
 
-func (cronitorParser CronitorConfigParser) included() (bool, error) {
+func (cronitorParser CronitorConfigParser) IsCronJobIncluded() (bool, error) {
 	cronjob := cronitorParser.cronjob
 	defaultBehavior := cronitorParser.getDefaultBehavior()
 

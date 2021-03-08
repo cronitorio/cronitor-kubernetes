@@ -8,3 +8,5 @@ metadata:
 data:
 
   DEFAULT_BEHAVIOR: {{ .Values.config.default | quote }}
+  DEFAULT_ENV: {{ .Values.config.defaultEnvironment | quote }}
+  TAGS: {{ .Values.config.tags | quote }}

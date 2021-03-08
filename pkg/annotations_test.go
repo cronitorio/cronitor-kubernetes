@@ -1,4 +1,4 @@
-package collector
+package pkg
 
 import (
 	"encoding/json"
@@ -22,7 +22,7 @@ func TestCronJobInclusion(t *testing.T) {
 	}
 
 	parser := NewCronitorConfigParser(&jsonBlob.Items[0])
-	if got, _ := parser.included(); !got {
-		t.Errorf("cronjob.included() = %s; wanted true", strconv.FormatBool(got))
+	if got, _ := parser.IsCronJobIncluded(); !got {
+		t.Errorf("cronjob.IsCronJobIncluded() = %s; wanted true", strconv.FormatBool(got))
 	}
 }

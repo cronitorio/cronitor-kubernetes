@@ -10,9 +10,18 @@ credentials:
   secretKey: null
 
 config:
+
   # Setting to include or exclude non-annotated CronJobs by default.
   # Permitted values are "include" or "exclude".
   default: 'include'
+
+  # The default Cronitor environment name for CronJobs picked up by the Cronitor agent.
+  # Default is none (empty string). Can be overridden by CronJob annotations.
+  defaultEnv: ''
+
+  # Cronitor tags to include on every CronJob submitted to Cronitor by the Cronitor agent.
+  # Additional, per-CronJob tags can be added using CronJob annotations.
+  tags: ''
 
 
 injector:

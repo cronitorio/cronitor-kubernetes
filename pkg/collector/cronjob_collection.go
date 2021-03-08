@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/batch/v1beta1"
@@ -69,7 +70,7 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 		return err
 	}
 	for _, cronjob := range cronjobs.Items {
-		if included, err := NewCronitorConfigParser(&cronjob).included(); err == nil && included {
+		if included, err := pkg.NewCronitorConfigParser(&cronjob).IsCronJobIncluded(); err == nil && included {
 			coll.AddCronJob(&cronjob)
 		}
 	}
