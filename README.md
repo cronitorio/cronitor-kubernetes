@@ -1,5 +1,10 @@
-# Cronitor-k8s
+# cronitor-kubernetes
+
 Cronitor's Kubernetes agent and integration
+
+To use the Helm cart:
+
+    helm repo add cronitor https://cronitorio.github.io/cronitor-kubernetes/
 
 
 Annotations: 
@@ -27,3 +32,10 @@ General notes:
 * Jobs / CronJobs without a backoffLimit that are failing will retry indefinitely. A "failure" event never occurs, so
 Cronitor would see this as the job never completing rather than as a failure. Default backoffLimit might be 6 though;
 requires further investigation.
+  
+
+To make a new release:
+1. Update the `version` number in the chart's `Chart.yaml`
+2. Update the `appVersion` number if necessary
+3. Push to the `main` branch
+4. Profit

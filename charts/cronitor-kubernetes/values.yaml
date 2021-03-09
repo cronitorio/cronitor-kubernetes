@@ -1,5 +1,5 @@
 
-image: jdotjdot/cronitor-k8s:latest
+image: cronitorio/cronitor-kubernetes:latest
 imagePullPolicy: Always
 imagePullSecrets: []
 nameOverride: ""
