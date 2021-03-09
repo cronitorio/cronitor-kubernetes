@@ -88,12 +88,23 @@ func (cronitorParser CronitorConfigParser) GetTags() []string {
 	return tagList
 }
 
-func (cronitorParser CronitorConfigParser) GetCronitorID() string {
+// GetSpecifiedCronitorID returns the pre-specified Cronitor monitor ID, if provided as an annotation
+// on the CronJob object. If not provided, returns an empty string
+func (cronitorParser CronitorConfigParser) GetSpecifiedCronitorID() string {
 	if assignedId, ok := cronitorParser.cronjob.Annotations[string(AnnotationCronitorID)]; ok && assignedId != "" {
 		return assignedId
 	}
 
 	return ""
+}
+
+// GetCronitorID returns the correct Cronitor monitor ID for the CronJob, defaulting to the CronJob's
+// Kubernetes UID if no pre-specified monitor ID is provided by the user.
+func (cronitorParser CronitorConfigParser) GetCronitorID() string {
+	if specifiedId := cronitorParser.GetSpecifiedCronitorID(); specifiedId != "" {
+		return specifiedId
+	}
+	return string(cronitorParser.cronjob.GetUID())
 }
 
 // Inclusion/exclusion behavior

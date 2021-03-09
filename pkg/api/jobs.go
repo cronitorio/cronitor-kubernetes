@@ -41,22 +41,22 @@ func (cronitorJob CronitorJob) GetEnvironment() string {
 	return ""
 }
 
-func convertCronJobToCronitorJob(job *v1beta1.CronJob) CronitorJob {
-	configParser := pkg.NewCronitorConfigParser(job)
+func convertCronJobToCronitorJob(cronJob *v1beta1.CronJob) CronitorJob {
+	configParser := pkg.NewCronitorConfigParser(cronJob)
 
-	name := fmt.Sprintf("%s/%s", job.Namespace, job.Name)
+	name := fmt.Sprintf("%s/%s", cronJob.Namespace, cronJob.Name)
 	metadata := make(map[string]string)
-	if job.Spec.ConcurrencyPolicy != "" {
-		metadata["concurrencyPolicy"] = string(job.Spec.ConcurrencyPolicy)
+	if cronJob.Spec.ConcurrencyPolicy != "" {
+		metadata["concurrencyPolicy"] = string(cronJob.Spec.ConcurrencyPolicy)
 	}
-	if job.Spec.StartingDeadlineSeconds != nil {
-		metadata["startingDeadlineSeconds"] = strconv.FormatInt(*job.Spec.StartingDeadlineSeconds, 10)
+	if cronJob.Spec.StartingDeadlineSeconds != nil {
+		metadata["startingDeadlineSeconds"] = strconv.FormatInt(*cronJob.Spec.StartingDeadlineSeconds, 10)
 	}
 	metadataJson, _ := json.Marshal(metadata)
 
 	allTags := []string{
 		"kubernetes",
-		fmt.Sprintf("kubernetes-namespace:%s", job.Namespace),
+		fmt.Sprintf("kubernetes-namespace:%s", cronJob.Namespace),
 	}
 	for _, tag := range configParser.GetTags() {
 		allTags = append(allTags, tag)
@@ -65,18 +65,11 @@ func convertCronJobToCronitorJob(job *v1beta1.CronJob) CronitorJob {
 		allTags = append(allTags, fmt.Sprintf("env:%s", environment))
 	}
 
-	var key string
-	if existingCronitorID := configParser.GetCronitorID(); existingCronitorID != "" {
-		key = existingCronitorID
-	} else {
-		key = string(job.UID)
-	}
-
 	cronitorJob := CronitorJob{
-		Key:         key,
+		Key:         configParser.GetCronitorID(),
 		DefaultName: name,
-		DefaultNote: fmt.Sprintf("created by cronitor-kubernetes, monitors %s in cluster %s", name, job.ObjectMeta.GetClusterName()),
-		Schedule:    job.Spec.Schedule,
+		DefaultNote: fmt.Sprintf("created by cronitor-kubernetes, monitors %s in cluster %s", name, cronJob.ObjectMeta.GetClusterName()),
+		Schedule:    cronJob.Spec.Schedule,
 		Metadata:    string(metadataJson),
 		Type_:       "job",
 		Tags:        allTags,

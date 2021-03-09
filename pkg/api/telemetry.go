@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"fmt"
+	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	v1 "k8s.io/api/batch/v1"
@@ -62,7 +63,7 @@ func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, logs string, pod 
 	}
 
 	Host := pod.Spec.NodeName
-	// TODO: Add environment here from CronJob parser
+
 	telemetryEvent := TelemetryEvent{
 		CronJob:   CronJob,
 		Event:     Event,
@@ -70,6 +71,10 @@ func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, logs string, pod 
 		ErrorLogs: ErrorLogs,
 		Series:    &Series,
 		Host:      Host,
+	}
+
+	if env := pkg.NewCronitorConfigParser(cronjob).GetEnvironment(); env != "" {
+		telemetryEvent.Env = env
 	}
 
 	return &telemetryEvent, nil
@@ -103,7 +108,8 @@ func (t TelemetryEvent) Encode() string {
 
 // telemetryUrl generates the URL required to send events to the Telemetry API.
 func (api CronitorApi) telemetryUrl(params *TelemetryEvent) string {
-	return fmt.Sprintf("https://cronitor.link/ping/%s/%s/%s", api.ApiKey, string(params.CronJob.GetUID()), params.Event)
+	cronitorID := pkg.NewCronitorConfigParser(params.CronJob).GetCronitorID()
+	return fmt.Sprintf("https://cronitor.link/ping/%s/%s/%s", api.ApiKey, cronitorID, params.Event)
 }
 
 func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte, error) {
