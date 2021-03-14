@@ -13,11 +13,14 @@ deploy:
   helm:
     releases:
       - name: cronitor-k8s
-        chartPath: charts/cronitor-k8s-agent
+        chartPath: charts/cronitor-kubernetes
         artifactOverrides:
           image: jdotjdot/cronitor-k8s
         valuesFiles: []
         setValues:
           imagePullPolicy: Never
-        namespace: cronitor
+          credentials:
+            secretName: 'cronitor-secret'
+            secretKey: 'CRONITOR_API_KEY'
+        namespace:  default
         recreatePods: true

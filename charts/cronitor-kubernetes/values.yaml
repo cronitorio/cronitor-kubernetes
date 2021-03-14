@@ -17,12 +17,16 @@ config:
 
   # The default Cronitor environment name for CronJobs picked up by the Cronitor agent.
   # Default is none (empty string). Can be overridden by CronJob annotations.
-  defaultEnv: ''
+  defaultEnvironment: ''
 
   # Cronitor tags to include on every CronJob submitted to Cronitor by the Cronitor agent.
   # Additional, per-CronJob tags can be added using CronJob annotations.
   tags: ''
 
+
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
 
 serviceAccount:
   # Specifies whether a service account should be created
