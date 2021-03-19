@@ -1,0 +1,19 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: eventrouter-test-cronjob-fail
+  annotations:
+    k8s.cronitor.io/env: 'staging'
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          containers:
+            - name: hello
+              image: busybox
+              args: [/bin/sh, -c, date ; sleep 5 ; echo Hello from k8s; exit 1]
+          restartPolicy: OnFailure
+  concurrencyPolicy: Forbid
