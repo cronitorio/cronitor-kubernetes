@@ -19,6 +19,9 @@ Issues:
 * When loading the agent, sometimes we'll pick up events that are still present in Kubernetes but are actually
 from sometime in the past. Can the telemetry API have a timestamp field added so that events from the past 
 can be submitted?
+* Because we're receiving both pod events and job events, particularly on start, the `Run` and `Fail` telemetry
+event nearly always gets run twice in a row (though with the same series ID), once for the Job and 
+  once for the Pod. Is this a problem?
   
 Remaining to-dos:
 * Set up publishing to Github Container Registry: https://github.com/docker/login-action#github-container-registry

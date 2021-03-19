@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
@@ -40,16 +39,20 @@ type TelemetryEvent struct {
 	Host string
 }
 
-func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) (*TelemetryEvent, error) {
-	if event.InvolvedObject.Kind != "Job" {
-		log.Fatal("an event was passed to telemetry that doesn't belong to a job")
+func TranslatePodEventReasonToTelemteryEventStatus(event *pkg.PodEvent) (*TelemetryEventStatus, error) {
+	var Event TelemetryEventStatus
+	switch reason := event.Reason; reason {
+	case "Started":
+		Event = Run
+	case "BackOff":
+		Event = Fail
+	default:
+		return nil, fmt.Errorf("unknown pod event reason \"%s\" received", reason)
 	}
+	return &Event, nil
+}
 
-	CronJob := cronjob
-	Message := event.Message
-	ErrorLogs := logs
-	Series := job.UID
-
+func translateJobEventReasonToTelemetryEventStatus(event *pkg.JobEvent) (*TelemetryEventStatus, error) {
 	var Event TelemetryEventStatus
 	switch reason := event.Reason; reason {
 	case "SuccessfulCreate":
@@ -61,12 +64,54 @@ func NewTelemetryEventFromKubernetesEvent(event *corev1.Event, logs string, pod 
 	default:
 		return nil, fmt.Errorf("unknown job event reason \"%s\" received", reason)
 	}
+	return &Event, nil
+}
+
+func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) (*TelemetryEvent, error) {
+	CronJob := cronjob
+	Message := event.Message
+	ErrorLogs := logs
+	Series := job.UID
+
+	Event, err := TranslatePodEventReasonToTelemteryEventStatus(event)
+	if err != nil {
+		return nil, err
+	}
+
+	Host := pod.Spec.NodeName
+
+	telemetryEvent := TelemetryEvent{
+		CronJob: CronJob,
+		Event: *Event,
+		Message: Message,
+		ErrorLogs: ErrorLogs,
+		Series: &Series,
+		Host: Host,
+	}
+
+	if env := pkg.NewCronitorConfigParser(cronjob).GetEnvironment(); env != "" {
+		telemetryEvent.Env = env
+	}
+
+	return &telemetryEvent, nil
+}
+
+func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) (*TelemetryEvent, error) {
+	CronJob := cronjob
+	Message := event.Message
+	ErrorLogs := logs
+	Series := job.UID
+
+	Event, err := translateJobEventReasonToTelemetryEventStatus(event)
+	if err != nil {
+		return nil, err
+	}
 
 	Host := pod.Spec.NodeName
 
 	telemetryEvent := TelemetryEvent{
 		CronJob:   CronJob,
-		Event:     Event,
+		Event:     *Event,
 		Message:   Message,
 		ErrorLogs: ErrorLogs,
 		Series:    &Series,
@@ -144,20 +189,39 @@ func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte,
 	return body, nil
 }
 
-func (api CronitorApi) MakeAndSendTelemetryEvent(event *corev1.Event, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
-	telemetryEvent, err := NewTelemetryEventFromKubernetesEvent(event, logs, pod, job, cronjob)
-	if err != nil {
-		return err
-	}
-
+func (api CronitorApi) sendTelemetryEvent(t *TelemetryEvent) error {
 	if api.DryRun {
 		return nil
 	}
 
-	_, err = api.sendTelemetryPostRequest(telemetryEvent)
+	_, err := api.sendTelemetryPostRequest(t)
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
+
+func (api CronitorApi) MakeAndSendTelemetryPodEvent(event *pkg.PodEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
+	telemetryEvent, err := NewTelemetryEventFromKubernetesPodEvent(event, logs, pod, job, cronjob)
+	if err != nil {
+		return err
+	}
+
+	return api.sendTelemetryEvent(telemetryEvent)
+}
+
+func (api CronitorApi) MakeAndSendTelemetryJobEvent(event *pkg.JobEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
+	telemetryEvent, err := NewTelemetryEventFromKubernetesJobEvent(event, logs, pod, job, cronjob)
+	if err != nil {
+		return err
+	}
+
+	return api.sendTelemetryEvent(telemetryEvent)
+}
+
+/*
+ Sending logs:
+Host:  https://logs.cronitor.link/<api key>/<monitor key>/?series=<same series as pings>&metric=length:<byte length before gzip>
+Body: <gzipped log message>
+ */
