@@ -6,14 +6,17 @@ metadata:
   labels:
     {{ include "cronitor-k8s-agent.labels" . | nindent 4 }}
 rules:
-  - apiGroups: ["", "batch"]
+  - apiGroups: [""]
     resources:
       - events
       - pods
       - pods/log
-      - jobs
-      - cronjobs
       - namespaces
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["batch"]
+    resources:
+      - cronjobs
+      - jobs
     verbs: ["get", "watch", "list"]
 
 ---
