@@ -27,7 +27,6 @@ event nearly always gets run twice in a row (though with the same series ID), on
   
 Remaining to-dos:
 * Set up publishing to Github Container Registry: https://github.com/docker/login-action#github-container-registry
-* Look into ensuring `SharedInformer`-s are actually shared
 * See if we can get the informers to limit information received at the server level
 * Refactor log-fetching so it can happen asynchronously. We don't need the logs at the time
 we send telemetry, they can be grabbed after-the-fact
