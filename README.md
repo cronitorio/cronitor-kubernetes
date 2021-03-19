@@ -23,7 +23,7 @@ can be submitted?
 event nearly always gets run twice in a row (though with the same series ID), once for the Job and 
   once for the Pod. Is this a problem?
 * Can't push docker container
-* When adding cronjobs, occasionally getting some weird 404s that I don' tunderstand
+* When adding cronjobs, occasionally getting some weird 404s that I don't understand
   
 Remaining to-dos:
 * Set up publishing to Github Container Registry: https://github.com/docker/login-action#github-container-registry
