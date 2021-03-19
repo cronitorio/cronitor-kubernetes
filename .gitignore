@@ -133,3 +133,5 @@ dmypy.json
 
 # Helm packaging
 charts/*.tgz
+
+*.secret.yaml
