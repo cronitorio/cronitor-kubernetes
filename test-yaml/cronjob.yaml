@@ -4,7 +4,7 @@ metadata:
   name: eventrouter-test-cronjob
   annotations:
     k8s.cronitor.io/env: 'staging'
-    k8s.cronitor.io/cronitor-id: 'uv93823'
+#    k8s.cronitor.io/cronitor-id: 'uv93823'
 spec:
   schedule: "*/1 * * * *"
   jobTemplate:

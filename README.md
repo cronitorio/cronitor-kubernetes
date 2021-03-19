@@ -22,11 +22,15 @@ can be submitted?
 * Because we're receiving both pod events and job events, particularly on start, the `Run` and `Fail` telemetry
 event nearly always gets run twice in a row (though with the same series ID), once for the Job and 
   once for the Pod. Is this a problem?
+* Can't push docker container
+* When adding cronjobs, occasionally getting some weird 404s that I don' tunderstand
   
 Remaining to-dos:
 * Set up publishing to Github Container Registry: https://github.com/docker/login-action#github-container-registry
 * Look into ensuring `SharedInformer`-s are actually shared
 * See if we can get the informers to limit information received at the server level
+* Refactor log-fetching so it can happen asynchronously. We don't need the logs at the time
+we send telemetry, they can be grabbed after-the-fact
 
 Open questions:
 * What should we do when watched CronJobs are deleted? Do we keep in Cronitor or remove?
