@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cronitorio/cronitor-cli/lib"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
 	"net/http"
@@ -38,7 +38,7 @@ func (api CronitorApi) PutCronJobs(cronJobs []*v1beta1.CronJob) ([]*lib.Monitor,
 		return nil, err
 	}
 
-	logrus.Debugf("request: <%s> %s", url, jsonBytes)
+	log.Debugf("request: <%s> %s", url, jsonBytes)
 
 	if api.DryRun {
 		return make([]*lib.Monitor, 0), nil
@@ -49,7 +49,7 @@ func (api CronitorApi) PutCronJobs(cronJobs []*v1beta1.CronJob) ([]*lib.Monitor,
 		return nil, err
 	}
 
-	logrus.Debugf("response: %s", response)
+	log.Debugf("response: %s", response)
 
 	var responseMonitors []*lib.Monitor
 	if err = json.Unmarshal(response, &responseMonitors); err != nil {
