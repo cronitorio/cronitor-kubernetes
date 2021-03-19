@@ -1,3 +1,7 @@
 Congratulations on installing the Cronitor Kubernetes agent!
 
 Create some CronJobs and you should start seeing them show up in your account shortly.
+
+If you haven't already, make sure you create a Secret in the "{{ .Release.Namespace }}"
+namespace to store your Cronitor API key, and configure the secret name and data key name
+in your `values.yaml` or by using `--set` when upgrading the release.
