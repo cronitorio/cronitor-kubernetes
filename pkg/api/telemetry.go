@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -128,13 +130,7 @@ func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, p
 func (t TelemetryEvent) Encode() string {
 	q := url.Values{}
 	if t.Message != "" {
-		var message string
-		if t.ErrorLogs != "" {
-			message = fmt.Sprintf("[%s] %s", t.Message, t.ErrorLogs)
-		} else {
-			message = t.Message
-		}
-		q.Add("message", message)
+		q.Add("message", t.Message)
 	}
 	if t.Series != nil {
 		q.Add("series", string(*t.Series))
@@ -202,26 +198,44 @@ func (api CronitorApi) sendTelemetryEvent(t *TelemetryEvent) error {
 	return nil
 }
 
-func (api CronitorApi) MakeAndSendTelemetryPodEvent(event *pkg.PodEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
+func (api CronitorApi) MakeAndSendTelemetryPodEventAndLogs(event *pkg.PodEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
 	telemetryEvent, err := NewTelemetryEventFromKubernetesPodEvent(event, logs, pod, job, cronjob)
 	if err != nil {
 		return err
 	}
 
+	defer func(telemetryEvent *TelemetryEvent, pod *corev1.Pod) {
+		_, err := api.ShipLogData(telemetryEvent)
+		if err != nil {
+			if strings.Contains(err.Error(), "no such host") {
+					// This error is due entirely to logs.cronitor.link not existing yet,
+					// so discard for now
+					return
+			}
+			log.Errorf("unexpected error sending log data for pod %s/%s: %v", pod.Namespace, pod.Name, err)
+		}
+	}(telemetryEvent, pod)
+
 	return api.sendTelemetryEvent(telemetryEvent)
 }
 
-func (api CronitorApi) MakeAndSendTelemetryJobEvent(event *pkg.JobEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
+func (api CronitorApi) MakeAndSendTelemetryJobEventAndLogs(event *pkg.JobEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
 	telemetryEvent, err := NewTelemetryEventFromKubernetesJobEvent(event, logs, pod, job, cronjob)
 	if err != nil {
 		return err
 	}
 
+	defer func(telemetryEvent *TelemetryEvent, job *v1.Job) {
+		_, err := api.ShipLogData(telemetryEvent)
+		if err != nil {
+			if strings.Contains(err.Error(), "no such host") {
+				// This error is due entirely to logs.cronitor.link not existing yet,
+				// so discard for now
+				return
+			}
+			log.Errorf("unexpected error sending log data for job %s/%s: %v", job.Namespace, job.Name, err)
+		}
+	}(telemetryEvent, job)
+
 	return api.sendTelemetryEvent(telemetryEvent)
 }
-
-/*
- Sending logs:
-Host:  https://logs.cronitor.link/<api key>/<monitor key>/?series=<same series as pings>&metric=length:<byte length before gzip>
-Body: <gzipped log message>
- */

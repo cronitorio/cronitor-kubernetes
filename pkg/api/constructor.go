@@ -21,11 +21,16 @@ type CronitorApiError struct {
 }
 
 func (c CronitorApiError) Error() string {
-	responseData, err := ioutil.ReadAll(c.Response.Body)
-	if err != nil {
-		log.Fatal(err)
+	if c.Response != nil {
+		responseData, err := ioutil.ReadAll(c.Response.Body)
+		defer c.Response.Body.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+		return fmt.Sprintf("response: %s, error: %s", responseData, c.Err.Error())
+	} else {
+		return c.Err.Error()
 	}
-	return fmt.Sprintf("response: %s, error: %s", responseData, c.Err.Error())
 }
 
 func (c *CronitorApiError) Unwrap() error {

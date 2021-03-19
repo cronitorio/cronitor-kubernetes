@@ -240,7 +240,7 @@ func (e EventHandler) OnAdd(obj interface{}) {
 				log.Warnf("could not fetch objects related to event: %s", err.Error())
 				return
 			}
-			_ = e.collection.cronitorApi.MakeAndSendTelemetryJobEvent(&typedEvent, logs, pod, job, cronjob)
+			_ = e.collection.cronitorApi.MakeAndSendTelemetryJobEventAndLogs(&typedEvent, logs, pod, job, cronjob)
 		}
 
 	case "Pod":
@@ -285,7 +285,7 @@ func (e EventHandler) OnAdd(obj interface{}) {
 				log.Warnf("could not fetch objects related to event: %s", err.Error())
 				return
 			}
-			_ = e.collection.cronitorApi.MakeAndSendTelemetryPodEvent(&typedEvent, logs, pod, job, cronjob)
+			_ = e.collection.cronitorApi.MakeAndSendTelemetryPodEventAndLogs(&typedEvent, logs, pod, job, cronjob)
 		}
 
 	default:
