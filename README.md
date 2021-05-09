@@ -2,7 +2,7 @@
 
 Cronitor's Kubernetes agent and integration
 
-To use the Helm cart:
+To use the Helm chart:
 
     helm repo add cronitor https://cronitorio.github.io/cronitor-kubernetes/
 
