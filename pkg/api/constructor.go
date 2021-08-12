@@ -40,7 +40,7 @@ func (c *CronitorApiError) Unwrap() error {
 func NewCronitorApi(apikey string, dryRun bool) CronitorApi {
 	return CronitorApi{
 		DryRun:         dryRun,
-		UserAgent:      "cronitor-k8s",
+		UserAgent:      "cronitor-kubernetes",
 		ApiKey:         apikey,
 		IsAutoDiscover: true,
 	}

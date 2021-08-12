@@ -16,7 +16,7 @@ var dryRun bool
 
 var agentCmd = &cobra.Command{
 	Use:   "agent",
-	Short: "Run the cronitor-k8s agent against a Kubernetes cluster",
+	Short: "Run the cronitor-kubernetes agent against a Kubernetes cluster",
 	RunE:  run,
 }
 

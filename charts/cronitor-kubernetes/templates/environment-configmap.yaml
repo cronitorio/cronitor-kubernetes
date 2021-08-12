@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "cronitor-k8s-agent.fullname" . }}-{{ $component }}
+  name: {{ include "cronitor-kubernetes-agent.fullname" . }}-{{ $component }}
   labels:
-    {{ include "cronitor-k8s-agent.labels" . | nindent 4 }}
+    {{ include "cronitor-kubernetes-agent.labels" . | nindent 4 }}
 data:
 
   DEFAULT_BEHAVIOR: {{ .Values.config.default | quote }}

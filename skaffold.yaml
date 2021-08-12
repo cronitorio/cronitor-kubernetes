@@ -4,7 +4,7 @@ build:
   local:
     useBuildkit: true
   artifacts:
-    - image: cronitorio/cronitor-k8s
+    - image: cronitorio/cronitor-kubernetes
       docker:
         dockerfile: Dockerfile
 
@@ -12,10 +12,10 @@ build:
 deploy:
   helm:
     releases:
-      - name: cronitor-k8s
+      - name: cronitor-kubernetes
         chartPath: charts/cronitor-kubernetes
         artifactOverrides:
-          image: cronitorio/cronitor-k8s
+          image: cronitorio/cronitor-kubernetes
         valuesFiles: []
         setValues:
           imagePullPolicy: Never
