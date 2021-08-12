@@ -1,5 +1,7 @@
 
-image: cronitorio/cronitor-kubernetes:latest
+image: ""
+repository: ghcr.io/cronitorio/cronitor-kubernetes
+imageTag: ""
 imagePullPolicy: Always
 imagePullSecrets: []
 nameOverride: ""

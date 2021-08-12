@@ -3,9 +3,8 @@ on:
   push:
     branches:
       - main
-  release:
-    types:
-      - published
+    tags:
+      - 'v*.*.*'
 
 jobs:
 
@@ -29,15 +28,38 @@ jobs:
           version: v3.4.0
 
       - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.2.0
+        uses: helm/chart-releaser-action@v1.2.1
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 
 
-  push_to_registry:
+  create_docker_container:
     name: Push Docker image to Github Registry
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Get the version tag from Chart.yaml's appVersion tag
+      - name: Get appVersion
+        id: get_appversion
+        uses: CumulusDS/get-yaml-paths-action@v0.1.0
+        with:
+          file: charts/cronitor-kubernetes/Chart.yaml
+          appVersion: appVersion
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: |
+            ghcr.io/cronitorio/cronitor-kubernetes
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}},value=${{ steps.get_appversion.outputs.appVersion }}
+            type=sha
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 
@@ -45,6 +67,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Login to Github Registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v1
         with:
           registry: ghcr.io
@@ -55,8 +78,10 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v2
         with:
-          push: true
-          tags: cronitorio/cronitor-kubernetes/cronitor-kubernetes
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}

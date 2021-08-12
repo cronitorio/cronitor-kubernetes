@@ -27,7 +27,12 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image }}"
+          {{ if .Values.image }}
+          {{/* Useful for overrides, like when using Skaffold */}}
+          image: {{ .Values.image | quote }}
+          {{ else }}
+          image: "{{ .Values.repository }}:{{ .Values.imageTag | default .Chart.AppVersion }}"
+          {{ end }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           args:
             - agent
