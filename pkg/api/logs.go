@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -20,6 +21,9 @@ Body: <gzipped log message>
 
 func (api CronitorApi) logUrl(params *TelemetryEvent) string {
 	cronitorID := pkg.NewCronitorConfigParser(params.CronJob).GetCronitorID()
+	if hostnameOverride := viper.GetString("hostname-override"); hostnameOverride != "" {
+		return fmt.Sprintf("%s/%s/%s/", hostnameOverride, api.ApiKey, cronitorID)
+	}
 	return fmt.Sprintf("https://logs.cronitor.link/%s/%s/", api.ApiKey, cronitorID)
 }
 

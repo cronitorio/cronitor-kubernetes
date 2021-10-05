@@ -7,9 +7,6 @@ import (
 	"os"
 )
 
-var kubeconfig string
-var apiKey string
-
 var RootCmd = &cobra.Command{
 	PersistentPreRunE: initializeConfig,
 	Use:               "cronitor-kubernetes",
@@ -23,13 +20,16 @@ func Execute() {
 }
 
 func init() {
-	RootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "path to a kubeconfig to use")
-	RootCmd.PersistentFlags().StringVar(&apiKey, "apikey", "", "Cronitor.io API key")
+	RootCmd.PersistentFlags().String("kubeconfig", "", "path to a kubeconfig to use")
+	RootCmd.PersistentFlags().String("apikey", "", "Cronitor.io API key")
+	RootCmd.PersistentFlags().String("hostname-override", "", "App hostname to use (mainly for testing)")
+	RootCmd.PersistentFlags().MarkHidden("hostname-override")
 }
 
 func initializeConfig(cmd *cobra.Command, args []string) error {
 	_ = viper.BindEnv("apikey", "CRONITOR_API_KEY")
 	_ = viper.BindPFlag("apikey", cmd.Flags().Lookup("apikey"))
 	_ = viper.BindPFlag("kubeconfig", cmd.Flags().Lookup("kubeconfig"))
+	_ = viper.BindPFlag("hostname-override", cmd.Flags().Lookup("hostname-override"))
 	return nil
 }
