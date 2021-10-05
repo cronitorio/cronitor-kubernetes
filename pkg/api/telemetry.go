@@ -177,7 +177,6 @@ func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte,
 			Response: response,
 		}
 	}
-	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, CronitorApiError{
 			fmt.Errorf("error response code %d returned", response.StatusCode),
@@ -189,6 +188,7 @@ func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte,
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 	return body, nil
 }
 

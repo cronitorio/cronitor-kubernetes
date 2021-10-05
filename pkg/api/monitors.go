@@ -91,11 +91,11 @@ func (api CronitorApi) sendHttpPut(url string, body string) ([]byte, error) {
 		}
 	}
 
-	defer response.Body.Close()
 	contents, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 
 	return contents, nil
 }
