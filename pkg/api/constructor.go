@@ -2,8 +2,6 @@ package api
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -22,12 +20,10 @@ type CronitorApiError struct {
 
 func (c CronitorApiError) Error() string {
 	if c.Response != nil {
-		responseData, err := ioutil.ReadAll(c.Response.Body)
 		defer c.Response.Body.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-		return fmt.Sprintf("response: %s, error: %s", responseData, c.Err.Error())
+		// Sometimes the body is already closed here, so we can't read response data, but we can get the URL we tried
+		url := c.Response.Request.URL
+		return fmt.Sprintf("url: %s, error: %s", url, c.Err.Error())
 	} else {
 		return c.Err.Error()
 	}

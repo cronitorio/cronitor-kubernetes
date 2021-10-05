@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
@@ -150,7 +151,13 @@ func (t TelemetryEvent) Encode() string {
 // telemetryUrl generates the URL required to send events to the Telemetry API.
 func (api CronitorApi) telemetryUrl(params *TelemetryEvent) string {
 	cronitorID := pkg.NewCronitorConfigParser(params.CronJob).GetCronitorID()
-	return fmt.Sprintf("https://cronitor.link/ping/%s/%s/%s", api.ApiKey, cronitorID, params.Event)
+	var hostname string
+	if hostnameOverride := viper.GetString("hostname-override"); hostnameOverride != "" {
+		hostname = hostnameOverride
+	} else {
+		hostname = "https://cronitor.link"
+	}
+	return fmt.Sprintf("%s/ping/%s/%s/%s", hostname, api.ApiKey, cronitorID, params.Event)
 }
 
 func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte, error) {
@@ -170,7 +177,6 @@ func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte,
 			Response: response,
 		}
 	}
-	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, CronitorApiError{
 			fmt.Errorf("error response code %d returned", response.StatusCode),
@@ -182,6 +188,7 @@ func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte,
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 	return body, nil
 }
 

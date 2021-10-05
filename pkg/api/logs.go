@@ -5,7 +5,9 @@ import (
 	"compress/gzip"
 	"fmt"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -20,6 +22,9 @@ Body: <gzipped log message>
 
 func (api CronitorApi) logUrl(params *TelemetryEvent) string {
 	cronitorID := pkg.NewCronitorConfigParser(params.CronJob).GetCronitorID()
+	if hostnameOverride := viper.GetString("hostname-override"); hostnameOverride != "" {
+		return fmt.Sprintf("%s/%s/%s/", hostnameOverride, api.ApiKey, cronitorID)
+	}
 	return fmt.Sprintf("https://logs.cronitor.link/%s/%s/", api.ApiKey, cronitorID)
 }
 
@@ -43,10 +48,10 @@ func gzipLogData(logData string) *bytes.Buffer {
 
 	gz := gzip.NewWriter(&b)
 	if _, err := gz.Write([]byte(logData)); err != nil {
-		log.Fatal(err)
+		log.Fatal(errors.Wrap(err, "error writing gzip"))
 	}
 	if err := gz.Close(); err != nil {
-		log.Fatal(err)
+		log.Fatal(errors.Wrap(err, "error closing gzip"))
 	}
 	return &b
 }
@@ -74,7 +79,6 @@ func (api CronitorApi) ShipLogData(params *TelemetryEvent) ([]byte, error) {
 			Response: response,
 		}
 	}
-	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, CronitorApiError{
 			fmt.Errorf("error response code %d returned", response.StatusCode),
@@ -85,6 +89,7 @@ func (api CronitorApi) ShipLogData(params *TelemetryEvent) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 	log.Infof("logs shipped for series %s", *params.Series)
 	return body, nil
 }

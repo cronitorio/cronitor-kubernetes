@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/cronitorio/cronitor-cli/lib"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
 	"net/http"
@@ -14,6 +15,9 @@ import (
 
 func (api CronitorApi) monitorUrl() string {
 	// MUST have trailing slash, or will return a 200 with no errors but won't work
+	if hostnameOverride := viper.GetString("hostname-override"); hostnameOverride != "" {
+		return fmt.Sprintf("%s/api/monitors", hostnameOverride)
+	}
 	return "https://cronitor.io/api/monitors/"
 }
 
@@ -87,11 +91,11 @@ func (api CronitorApi) sendHttpPut(url string, body string) ([]byte, error) {
 		}
 	}
 
-	defer response.Body.Close()
 	contents, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 
 	return contents, nil
 }
