@@ -34,11 +34,11 @@ func TestEnvironmentTag(t *testing.T) {
 	cronJob := convertCronJobToCronitorJob(&jsonBlob)
 
 	for _, tag := range cronJob.Tags {
-		if tag == "env:staging" {
+		if tag == "cluster-env:staging" {
 			return
 		}
 	}
-	t.Errorf("no environment tag `%s` found on CronitorJob object", "env:staging")
+	t.Errorf("no environment tag `%s` found on CronitorJob object", "cluster-env:staging")
 }
 
 func TestTagList(t *testing.T) {
