@@ -62,7 +62,7 @@ func convertCronJobToCronitorJob(cronJob *v1beta1.CronJob) CronitorJob {
 		allTags = append(allTags, tag)
 	}
 	if environment := configParser.GetEnvironment(); environment != "" {
-		allTags = append(allTags, fmt.Sprintf("env:%s", environment))
+		allTags = append(allTags, fmt.Sprintf("cluster-env:%s", environment))
 	}
 
 	cronitorJob := CronitorJob{
