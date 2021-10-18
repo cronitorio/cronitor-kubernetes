@@ -66,7 +66,7 @@ func init() {
 	RootCmd.AddCommand(agentCmd)
 }
 
-func initializeAgentConfig(cmd *cobra.Command, args []string) error {
+func initializeAgentConfig(agentCmd *cobra.Command, args []string) error {
 	_ = viper.BindPFlag("dryrun", agentCmd.Flags().Lookup("dryrun"))
 	_ = viper.BindEnv("ship-logs", "CRONITOR_AGENT_SHIP_LOGS")
 	_ = viper.BindPFlag("ship-logs", agentCmd.Flags().Lookup("ship-logs"))
