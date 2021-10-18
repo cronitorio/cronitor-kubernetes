@@ -13,12 +13,16 @@ import (
 	"time"
 )
 
+func (api CronitorApi) mainApiUrl() string {
+	if hostnameOverride := viper.GetString("hostname-override"); hostnameOverride != "" {
+		return fmt.Sprintf("%s/api", hostnameOverride)
+	}
+	return "https://cronitor.io/api"
+}
+
 func (api CronitorApi) monitorUrl() string {
 	// MUST have trailing slash, or will return a 200 with no errors but won't work
-	if hostnameOverride := viper.GetString("hostname-override"); hostnameOverride != "" {
-		return fmt.Sprintf("%s/api/monitors", hostnameOverride)
-	}
-	return "https://cronitor.io/api/monitors/"
+	return fmt.Sprintf("%s/monitors", api.mainApiUrl())
 }
 
 func (api CronitorApi) PutCronJob(cronJob *v1beta1.CronJob) ([]*lib.Monitor, error) {
@@ -65,11 +69,11 @@ func (api CronitorApi) PutCronJobs(cronJobs []*v1beta1.CronJob) ([]*lib.Monitor,
 	return responseMonitors, nil
 }
 
-func (api CronitorApi) sendHttpPut(url string, body string) ([]byte, error) {
+func (api CronitorApi) sendHttpRequest(method string, url string, body string) ([]byte, error) {
 	client := &http.Client{
 		Timeout: 120 * time.Second,
 	}
-	request, err := http.NewRequest("PUT", url, strings.NewReader(body))
+	request, err := http.NewRequest(method, url, strings.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -98,4 +102,12 @@ func (api CronitorApi) sendHttpPut(url string, body string) ([]byte, error) {
 	defer response.Body.Close()
 
 	return contents, nil
+}
+
+func (api CronitorApi) sendHttpPost(url string, body string) ([]byte, error) {
+	return api.sendHttpRequest("POST", url, body)
+}
+
+func (api CronitorApi) sendHttpPut(url string, body string) ([]byte, error) {
+	return api.sendHttpRequest("PUT", url, body)
 }

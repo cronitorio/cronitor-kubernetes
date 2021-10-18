@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/pkg/errors"
@@ -10,7 +11,6 @@ import (
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -20,24 +20,13 @@ Host:  https://logs.cronitor.link/<api key>/<monitor key>/?series=<same series a
 Body: <gzipped log message>
 */
 
-func (api CronitorApi) logUrl(params *TelemetryEvent) string {
-	cronitorID := pkg.NewCronitorConfigParser(params.CronJob).GetCronitorID()
-	if hostnameOverride := viper.GetString("hostname-override"); hostnameOverride != "" {
-		return fmt.Sprintf("%s/%s/%s/", hostnameOverride, api.ApiKey, cronitorID)
-	}
-	return fmt.Sprintf("https://logs.cronitor.link/%s/%s/", api.ApiKey, cronitorID)
-}
 
-func (t *TelemetryEvent) EncodeForLogs() string {
-	q := url.Values{}
-	if t.ErrorLogs != "" {
-		byteLength := len(t.ErrorLogs)
-		q.Add("metric", fmt.Sprintf("length:%d", byteLength))
+func (api CronitorApi) logPresignUrl() string {
+	url := fmt.Sprintf("%s/logs/presign", api.mainApiUrl())
+	if dev := viper.GetBool("dev"); dev {
+		url = url + "?dev=true"
 	}
-	if t.Series != nil {
-		q.Add("series", string(*t.Series))
-	}
-	return q.Encode()
+	return url
 }
 
 func gzipLogData(logData string) *bytes.Buffer {
@@ -57,13 +46,44 @@ func gzipLogData(logData string) *bytes.Buffer {
 }
 
 func (api CronitorApi) ShipLogData(params *TelemetryEvent) ([]byte, error) {
-	logUrl := api.logUrl(params)
+	cronitorID := pkg.NewCronitorConfigParser(params.CronJob).GetCronitorID()
+	seriesID := string(*params.Series)
 	gzippedLogs := gzipLogData(params.ErrorLogs)
-	req, err := http.NewRequest("POST", logUrl, gzippedLogs)
+
+	jsonBytes, err := json.Marshal(map[string]string{
+		"job_key": cronitorID,
+		"series": seriesID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't encode job and series IDs to JSON")
+	}
+
+	if api.DryRun {
+		return nil, nil
+	}
+
+	var responseJson struct {
+		Url string `json:"url"`
+	}
+	response, err := api.sendHttpPost(api.logPresignUrl(), string(jsonBytes))
+	if err != nil {
+		return nil, errors.Wrap(err, "error generating presign url for log uploading")
+	}
+	if err := json.Unmarshal(response, &responseJson); err != nil {
+		return nil, err
+	}
+	s3LogPutUrl := responseJson.Url
+	if len(s3LogPutUrl) == 0 {
+		return nil, errors.New("no presigned S3 url returned. Something is wrong")
+	}
+
+	req, err := http.NewRequest("PUT", s3LogPutUrl, gzippedLogs)
+	// In order to add **any** type of headers, this also needs to be adjusted in the
+	//req.Header.Add("Content-Type", "text/plain")
+	//req.Header.Add("Content-Encoding", "gzip")
 	if err != nil {
 		return nil, err
 	}
-	req.URL.RawQuery = params.EncodeForLogs()
 
 	if api.DryRun {
 		return nil, nil
@@ -72,24 +92,24 @@ func (api CronitorApi) ShipLogData(params *TelemetryEvent) ([]byte, error) {
 	client := &http.Client{
 		Timeout: 120 * time.Second,
 	}
-	response, err := client.Do(req)
+	response2, err := client.Do(req)
 	if err != nil || response == nil {
 		return nil, CronitorApiError{
 			Err:      err,
-			Response: response,
+			Response: response2,
 		}
 	}
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
+	if response2.StatusCode < 200 || response2.StatusCode >= 300 {
 		return nil, CronitorApiError{
-			fmt.Errorf("error response code %d returned", response.StatusCode),
-			response,
+			fmt.Errorf("error response code %d returned", response2.StatusCode),
+			response2,
 		}
 	}
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := ioutil.ReadAll(response2.Body)
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer response2.Body.Close()
 	log.Infof("logs shipped for series %s", *params.Series)
 	return body, nil
 }
