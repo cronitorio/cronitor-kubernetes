@@ -25,6 +25,11 @@ config:
   # Additional, per-CronJob tags can be added using CronJob annotations.
   tags: ''
 
+  # The Cronitor agent can automatically fetch and archive the logs of each job run after
+  # completion or failure for later display or retrieval within the Cronitor web UI. Set this
+  # to false if you do not want to send your logs to Cronitor.
+  shipLogs: true
+
 
 rbac:
   # Specifies whether RBAC resources should be created

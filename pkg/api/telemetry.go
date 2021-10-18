@@ -212,6 +212,9 @@ func (api CronitorApi) MakeAndSendTelemetryPodEventAndLogs(event *pkg.PodEvent, 
 	}
 
 	defer func(telemetryEvent *TelemetryEvent, pod *corev1.Pod) {
+		if !viper.GetBool("ship-logs") {
+			return
+		}
 		_, err := api.ShipLogData(telemetryEvent)
 		if err != nil {
 			if strings.Contains(err.Error(), "no such host") {
@@ -233,6 +236,9 @@ func (api CronitorApi) MakeAndSendTelemetryJobEventAndLogs(event *pkg.JobEvent, 
 	}
 
 	defer func(telemetryEvent *TelemetryEvent, job *v1.Job) {
+		if !viper.GetBool("ship-logs") {
+			return
+		}
 		_, err := api.ShipLogData(telemetryEvent)
 		if err != nil {
 			if strings.Contains(err.Error(), "no such host") {
