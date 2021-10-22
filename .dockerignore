@@ -1,7 +1,8 @@
 charts/
 test-yaml/
-README.md
 .gitignore
 Dockerfile
 Makefile
 skaffold.yaml
+*.md
+.github/
