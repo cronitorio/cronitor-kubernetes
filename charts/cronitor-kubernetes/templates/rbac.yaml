@@ -10,7 +10,9 @@ rules:
     resources:
       - events
       - pods
+      {{- if .Values.config.shipLogs }}
       - pods/log
+      {{- end }}
       - namespaces
     verbs: ["get", "watch", "list"]
   - apiGroups: ["batch"]
