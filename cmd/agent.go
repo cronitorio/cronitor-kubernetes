@@ -71,5 +71,9 @@ func initializeAgentConfig(agentCmd *cobra.Command, args []string) error {
 	_ = viper.BindEnv("ship-logs", "CRONITOR_AGENT_SHIP_LOGS")
 	_ = viper.BindPFlag("ship-logs", agentCmd.Flags().Lookup("ship-logs"))
 
+	if RootCmd.PersistentPreRunE != nil {
+		return RootCmd.PersistentPreRunE(agentCmd.Parent(), args)
+	}
+
 	return nil
 }
