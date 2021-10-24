@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"os"
 )
 
 // Temporarily borrowed from https://github.com/cronitorio/cronitor-cli/blob/a5e2b681c89ff8fd5803551206d7ce9674122bd1/lib/cronitor.go#L44
@@ -36,7 +37,7 @@ func (c *CronitorApiError) Unwrap() error {
 func NewCronitorApi(apikey string, dryRun bool) CronitorApi {
 	return CronitorApi{
 		DryRun:         dryRun,
-		UserAgent:      "cronitor-kubernetes",
+		UserAgent:      fmt.Sprintf("cronitor-kubernetes/%s", os.Getenv("APP_VERSION")),
 		ApiKey:         apikey,
 		IsAutoDiscover: true,
 	}

@@ -166,6 +166,7 @@ func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte,
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("User-Agent", api.UserAgent)
 	req.URL.RawQuery = params.Encode()
 	client := &http.Client{
 		Timeout: 120 * time.Second,

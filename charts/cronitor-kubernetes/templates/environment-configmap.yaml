@@ -7,6 +7,8 @@ metadata:
     {{ include "cronitor-kubernetes-agent.labels" . | nindent 4 }}
 data:
 
+  CHART_VERSION: {{ .Chart.Version | quote }}
+  APP_VERSION: {{ .Chart.AppVersion | quote }}
   DEFAULT_BEHAVIOR: {{ .Values.config.default | quote }}
   DEFAULT_ENV: {{ .Values.config.defaultEnvironment | quote }}
   TAGS: {{ .Values.config.tags | quote }}
