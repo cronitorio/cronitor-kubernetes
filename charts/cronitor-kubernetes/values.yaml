@@ -30,6 +30,9 @@ config:
   # to false if you do not want to send your logs to Cronitor.
   shipLogs: true
 
+  # Enable Sentry telemetry to help the Cronitor team catch and debug issues with the agent
+  sentryEnabled: true
+
 
 rbac:
   # Specifies whether RBAC resources should be created
