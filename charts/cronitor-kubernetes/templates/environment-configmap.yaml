@@ -12,7 +12,7 @@ data:
   TAGS: {{ .Values.config.tags | quote }}
 
   {{ if .Values.config.sentryEnabled }}
-  SENTRY_ENABLED: true
+  SENTRY_ENABLED: 'true'
   SENTRY_RELEASE: 'chart@{{ .Chart.Version }}|app@{{ .Chart.AppVersion }}'
   SENTRY_ENVIRONMENT: 'production'
   {{ end }}
