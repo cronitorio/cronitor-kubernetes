@@ -1,2 +1,2 @@
-# Cronitor-k8s
+# cronitor-kubernetes
 Cronitor's Kubernetes agent and integration
