@@ -77,8 +77,7 @@ func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, p
 	Message := event.Message
 	ErrorLogs := logs
 	Series := job.UID
-	eventTime := event.EventTime
-	timestamp := float64(eventTime.UnixNano()) / 1000
+	eventTime := event.LastTimestamp
 
 	Event, err := TranslatePodEventReasonToTelemteryEventStatus(event)
 	if err != nil {
@@ -94,7 +93,7 @@ func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, p
 		ErrorLogs: ErrorLogs,
 		Series:    &Series,
 		Host:      Host,
-		Timestamp: strconv.FormatFloat(timestamp, 'f', -3, 64),
+		Timestamp: strconv.FormatInt(eventTime.Unix(), 10),
 	}
 
 	if env := pkg.NewCronitorConfigParser(cronjob).GetEnvironment(); env != "" {
@@ -109,8 +108,7 @@ func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, p
 	Message := event.Message
 	ErrorLogs := logs
 	Series := job.UID
-	eventTime := event.EventTime
-	timestamp := float64(eventTime.UnixNano()) / 1000
+	eventTime := event.LastTimestamp
 
 	Event, err := translateJobEventReasonToTelemetryEventStatus(event)
 	if err != nil {
@@ -126,7 +124,7 @@ func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, p
 		ErrorLogs: ErrorLogs,
 		Series:    &Series,
 		Host:      Host,
-		Timestamp: strconv.FormatFloat(timestamp, 'f', -3, 64),
+		Timestamp: strconv.FormatInt(eventTime.Unix(), 10),
 	}
 
 	if env := pkg.NewCronitorConfigParser(cronjob).GetEnvironment(); env != "" {
