@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	log.SetLevel(log.DebugLevel)
+	//log.SetLevel(log.DebugLevel)
 	// Set to true to see line number information
 	//log.SetReportCaller(false)
 
