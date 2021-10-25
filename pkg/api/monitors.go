@@ -82,7 +82,7 @@ func (api CronitorApi) sendHttpRequest(method string, url string, body string) (
 	request.Header.Add("User-Agent", api.UserAgent)
 	request.Header.Add("Cronitor-Version", "2020-10-27")
 
-	//log.Debug(formatRequest(request))
+	log.Debug(formatRequest(request))
 
 	response, err := client.Do(request)
 	if err != nil {

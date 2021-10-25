@@ -2,14 +2,14 @@ package main
 
 import (
 	"github.com/cronitorio/cronitor-kubernetes/cmd"
-	log "github.com/sirupsen/logrus"
 	"github.com/getsentry/sentry-go"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"time"
 )
 
 func init() {
-	//log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.DebugLevel)
 	// Set to true to see line number information
 	//log.SetReportCaller(false)
 

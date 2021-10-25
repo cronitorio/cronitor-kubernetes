@@ -32,6 +32,8 @@ type TelemetryEvent struct {
 	Event     TelemetryEventStatus
 	Message   string
 	ErrorLogs string
+	// Timestamp in seconds with 3 decimal places for microsecond
+	Timestamp int64
 	// Series is a UUID to distinguish different sets of pings in a series.
 	// In Kubernetes, this is loosely analogous to a Job instance of a CronJob, so we use the
 	// Job's UUID, which will stay stable even on multiple pod retries.
@@ -75,6 +77,7 @@ func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, p
 	Message := event.Message
 	ErrorLogs := logs
 	Series := job.UID
+	timestamp := event.LastTimestamp  // This is preferable to EventTime, right?
 
 	Event, err := TranslatePodEventReasonToTelemteryEventStatus(event)
 	if err != nil {
@@ -90,6 +93,7 @@ func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, p
 		ErrorLogs: ErrorLogs,
 		Series: &Series,
 		Host: Host,
+		Timestamp: timestamp.Unix(),
 	}
 
 	if env := pkg.NewCronitorConfigParser(cronjob).GetEnvironment(); env != "" {
@@ -104,6 +108,7 @@ func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, p
 	Message := event.Message
 	ErrorLogs := logs
 	Series := job.UID
+	timestamp := event.LastTimestamp  // This is preferable to EventTime, right?
 
 	Event, err := translateJobEventReasonToTelemetryEventStatus(event)
 	if err != nil {
@@ -119,6 +124,7 @@ func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, p
 		ErrorLogs: ErrorLogs,
 		Series:    &Series,
 		Host:      Host,
+		Timestamp: timestamp.Unix(),
 	}
 
 	if env := pkg.NewCronitorConfigParser(cronjob).GetEnvironment(); env != "" {
@@ -144,6 +150,9 @@ func (t TelemetryEvent) Encode() string {
 	}
 	if t.Host != "" {
 		q.Add("host", t.Host)
+	}
+	if t.Timestamp != 0 {
+		q.Add("stamp", strconv.FormatInt(t.Timestamp, 10))
 	}
 	return q.Encode()
 }
