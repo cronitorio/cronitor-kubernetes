@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/cronitorio/cronitor-kubernetes/cmd"
-	log "github.com/sirupsen/logrus"
 	"github.com/getsentry/sentry-go"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"time"
 )

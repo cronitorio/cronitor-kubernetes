@@ -275,10 +275,12 @@ func (e EventHandler) OnAdd(obj interface{}) {
 		// the double-request, but this is acceptable for now.
 		if e.CheckJobIsWatched(job.Namespace, job.Name) {
 			log.WithFields(log.Fields{
-				"name":         typedEvent.InvolvedObject.Name,
-				"kind":         typedEvent.InvolvedObject.Kind,
-				"eventMessage": typedEvent.Message,
-				"eventReason":  typedEvent.Reason,
+				"name":          typedEvent.InvolvedObject.Name,
+				"kind":          typedEvent.InvolvedObject.Kind,
+				"eventMessage":  typedEvent.Message,
+				"eventReason":   typedEvent.Reason,
+				"eventTime":     typedEvent.EventTime,
+				"lastTimestamp": typedEvent.LastTimestamp,
 			}).Info("Pod event added")
 			pod, logs, job, cronjob, err := e.FetchObjectsFromPodEvent(&typedEvent)
 			if err != nil {

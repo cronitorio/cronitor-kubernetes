@@ -32,6 +32,8 @@ type TelemetryEvent struct {
 	Event     TelemetryEventStatus
 	Message   string
 	ErrorLogs string
+	// Timestamp in seconds with 3 decimal places for microsecond
+	Timestamp string
 	// Series is a UUID to distinguish different sets of pings in a series.
 	// In Kubernetes, this is loosely analogous to a Job instance of a CronJob, so we use the
 	// Job's UUID, which will stay stable even on multiple pod retries.
@@ -75,6 +77,7 @@ func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, p
 	Message := event.Message
 	ErrorLogs := logs
 	Series := job.UID
+	eventTime := event.LastTimestamp
 
 	Event, err := TranslatePodEventReasonToTelemteryEventStatus(event)
 	if err != nil {
@@ -84,12 +87,13 @@ func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, p
 	Host := pod.Spec.NodeName
 
 	telemetryEvent := TelemetryEvent{
-		CronJob: CronJob,
-		Event: *Event,
-		Message: Message,
+		CronJob:   CronJob,
+		Event:     *Event,
+		Message:   Message,
 		ErrorLogs: ErrorLogs,
-		Series: &Series,
-		Host: Host,
+		Series:    &Series,
+		Host:      Host,
+		Timestamp: strconv.FormatInt(eventTime.Unix(), 10),
 	}
 
 	if env := pkg.NewCronitorConfigParser(cronjob).GetEnvironment(); env != "" {
@@ -104,6 +108,7 @@ func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, p
 	Message := event.Message
 	ErrorLogs := logs
 	Series := job.UID
+	eventTime := event.LastTimestamp
 
 	Event, err := translateJobEventReasonToTelemetryEventStatus(event)
 	if err != nil {
@@ -119,6 +124,7 @@ func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, p
 		ErrorLogs: ErrorLogs,
 		Series:    &Series,
 		Host:      Host,
+		Timestamp: strconv.FormatInt(eventTime.Unix(), 10),
 	}
 
 	if env := pkg.NewCronitorConfigParser(cronjob).GetEnvironment(); env != "" {
@@ -144,6 +150,9 @@ func (t TelemetryEvent) Encode() string {
 	}
 	if t.Host != "" {
 		q.Add("host", t.Host)
+	}
+	if t.Timestamp != "" {
+		q.Add("stamp", t.Timestamp)
 	}
 	return q.Encode()
 }
