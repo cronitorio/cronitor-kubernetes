@@ -24,11 +24,13 @@ func main() {
 		log.Info("Enabling Sentry instrumentation...")
 		err := sentry.Init(sentry.ClientOptions{
 			Dsn: "https://e36895dc862642deae6ba3773924d1f6@o131626.ingest.sentry.io/6031178",
+			AttachStacktrace: true,
 		})
 		if err != nil {
 			log.Fatalf("sentry.Init: %s", err)
 		}
 		defer sentry.Flush(2 * time.Second)
+		defer sentry.Recover()
 	}
 
 	cmd.Execute()
