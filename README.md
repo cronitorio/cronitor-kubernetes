@@ -4,6 +4,8 @@ _Cronitor's Kubernetes agent and integration_
 
 This repository contains the code and Helm chart for the Kubernetes agent for [Cronitor](cronitor.io), which provides simple monitoring for every type of application. The Cronitor Kubernetes agent helps you automatically instrument, track, and monitor your Kubernetes `CronJob`s in the Cronitor dashboard by automatically tracking every `CronJob` in Kubernetes and relaying related events like job successes and failures back to Cronitor.
 
+Important note: by default, this chart enables Sentry for telemetry to help the Cronitor team identify and debug issues with the agent. If you would like to turn this off, set `config.sentryEnabled` to `false` in your `values.yaml` override.
+
 ### Instructions
 To use the Helm chart:
 
