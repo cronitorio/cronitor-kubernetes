@@ -209,6 +209,9 @@ func (e EventHandler) CheckJobIsWatched(jobNamespace string, jobName string) boo
 		return false
 	}
 
+	if len(job.ObjectMeta.OwnerReferences) == 0 {
+		return false
+	}
 	ownerReference := job.ObjectMeta.OwnerReferences[0]
 	if ownerReference.Kind != "CronJob" {
 		return false
