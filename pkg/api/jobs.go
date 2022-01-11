@@ -19,7 +19,7 @@ type CronitorJob struct {
 	Key         string   `json:"key"`
 	DefaultName string   `json:"defaultName"`
 	Name        string   `json:"name,omitempty"`
-	DefaultNote string   `json:"defaultNote"`
+	DefaultNote string   `json:"defaultNote,omitempty"`
 	Metadata    string   `json:"metadata"` // This is actually a string rather than a map
 	Type_       string   `json:"type"`     // 'job'
 	Schedule    string   `json:"schedule"`
@@ -68,7 +68,6 @@ func convertCronJobToCronitorJob(cronJob *v1beta1.CronJob) CronitorJob {
 	cronitorJob := CronitorJob{
 		Key:         configParser.GetCronitorID(),
 		DefaultName: name,
-		DefaultNote: fmt.Sprintf("created by cronitor-kubernetes, monitors %s in cluster %s", name, cronJob.ObjectMeta.GetClusterName()),
 		Schedule:    cronJob.Spec.Schedule,
 		Metadata:    string(metadataJson),
 		Type_:       "job",
