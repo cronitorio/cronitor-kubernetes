@@ -16,15 +16,19 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type TelemetryEventStatus string
+
+const LogsTruncationLength = 2000
 
 const (
 	Run      TelemetryEventStatus = "run"
 	Complete TelemetryEventStatus = "complete"
 	Fail     TelemetryEventStatus = "fail"
 	Ok       TelemetryEventStatus = "ok"
+	Logs     TelemetryEventStatus = "logs"
 )
 
 type TelemetryEvent struct {
@@ -41,10 +45,22 @@ type TelemetryEvent struct {
 	ExitCode *int
 	Env      string
 	// Host is the Kubernetes node that the pod is running on
-	Host string
+	Host   string
+	Metric string
 }
 
-func TranslatePodEventReasonToTelemteryEventStatus(event *pkg.PodEvent) (*TelemetryEventStatus, error) {
+func (t TelemetryEvent) CreateLogTelemetryEvent() *TelemetryEvent {
+	t.Event = Logs
+	if utf8.RuneCountInString(t.ErrorLogs) > LogsTruncationLength {
+		t.Message = string([]rune(t.ErrorLogs)[:LogsTruncationLength])
+	} else {
+		t.Message = t.ErrorLogs
+	}
+	t.Metric = fmt.Sprintf("length:%d", len(t.ErrorLogs))
+	return &t
+}
+
+func TranslatePodEventReasonToTelemetryEventStatus(event *pkg.PodEvent) (*TelemetryEventStatus, error) {
 	var Event TelemetryEventStatus
 	switch reason := event.Reason; reason {
 	case "Started":
@@ -79,7 +95,7 @@ func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, p
 	Series := job.UID
 	eventTime := event.LastTimestamp
 
-	Event, err := TranslatePodEventReasonToTelemteryEventStatus(event)
+	Event, err := TranslatePodEventReasonToTelemetryEventStatus(event)
 	if err != nil {
 		return nil, err
 	}
@@ -228,11 +244,16 @@ func (api CronitorApi) MakeAndSendTelemetryPodEventAndLogs(event *pkg.PodEvent, 
 		_, err := api.ShipLogData(telemetryEvent)
 		if err != nil {
 			if strings.Contains(err.Error(), "no such host") {
-					// This error is due entirely to logs.cronitor.link not existing yet,
-					// so discard for now
-					return
+				// This error is due entirely to logs.cronitor.link not existing yet,
+				// so discard for now
+				return
 			}
 			log.Errorf("unexpected error sending log data for pod %s/%s: %v", pod.Namespace, pod.Name, err)
+		}
+		logTelemetryEvent := telemetryEvent.CreateLogTelemetryEvent()
+		err = api.sendTelemetryEvent(logTelemetryEvent)
+		if err != nil {
+			log.Errorf("unexpected error sending log telemetry event for pod %s/%s: %v", pod.Namespace, pod.Name, err)
 		}
 	}(telemetryEvent, pod)
 
@@ -257,6 +278,11 @@ func (api CronitorApi) MakeAndSendTelemetryJobEventAndLogs(event *pkg.JobEvent, 
 				return
 			}
 			log.Errorf("unexpected error sending log data for job %s/%s: %v", job.Namespace, job.Name, err)
+		}
+		logTelemetryEvent := telemetryEvent.CreateLogTelemetryEvent()
+		err = api.sendTelemetryEvent(logTelemetryEvent)
+		if err != nil {
+			log.Errorf("unexpected error sending log telemetry event for pod %s/%s: %v", pod.Namespace, pod.Name, err)
 		}
 	}(telemetryEvent, job)
 
