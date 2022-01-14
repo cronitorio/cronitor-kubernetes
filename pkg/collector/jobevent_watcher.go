@@ -252,7 +252,7 @@ func (e EventHandler) OnAdd(obj interface{}) {
 		// If it's not an event we care about, we don't want to do all of the work of calling the Kubernetes API
 		// to get all of the related objects, which would put heavy load on it given all of the pod events.
 		// So we check early against our pod event list, even though it's somewhat redundant.
-		if _, err := api.TranslatePodEventReasonToTelemteryEventStatus(&typedEvent); err != nil {
+		if _, err := api.TranslatePodEventReasonToTelemetryEventStatus(&typedEvent); err != nil {
 			return
 		}
 		podNamespace := typedEvent.InvolvedObject.Namespace
