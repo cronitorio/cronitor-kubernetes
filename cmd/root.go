@@ -34,5 +34,6 @@ func initializeConfig(cmd *cobra.Command, args []string) error {
 	_ = viper.BindPFlag("kubeconfig", cmd.Flags().Lookup("kubeconfig"))
 	_ = viper.BindPFlag("hostname-override", cmd.Flags().Lookup("hostname-override"))
 	_ = viper.BindPFlag("dev", cmd.Flags().Lookup("dev"))
+	_ = viper.BindEnv("version", "APP_VERSION")
 	return nil
 }
