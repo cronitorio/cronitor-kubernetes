@@ -6,6 +6,7 @@ replace github.com/cronitorio/cronitor-cli => github.com/jdotjdot/cronitor-cli v
 
 require (
 	github.com/Masterminds/semver v1.5.0
+	github.com/aquilax/truncate v1.0.0
 	github.com/cronitorio/cronitor-cli v0.0.0-00010101000000-000000000000
 	github.com/getsentry/sentry-go v0.11.0
 	github.com/ghodss/yaml v1.0.0

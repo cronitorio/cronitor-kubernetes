@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/aquilax/truncate"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"k8s.io/api/batch/v1beta1"
 	"strconv"
@@ -41,10 +42,33 @@ func (cronitorJob CronitorJob) GetEnvironment() string {
 	return ""
 }
 
+func truncateDefaultName(name string) string {
+	if len(name) > 100 {
+		name = truncate.Truncator(name, 100, truncate.EllipsisMiddleStrategy{})
+	}
+
+	return name
+}
+
+func GenerateDefaultName(cronJob *v1beta1.CronJob) string {
+	name := fmt.Sprintf("%s/%s", cronJob.Namespace, cronJob.Name)
+	return truncateDefaultName(name)
+}
+
+func ValidateTagName(tagName string) string {
+	name := tagName
+	if len(tagName) > 100 {
+		name = truncate.Truncator(name, 100, truncate.CutEllipsisStrategy{})
+	}
+
+	return name
+}
+
 func convertCronJobToCronitorJob(cronJob *v1beta1.CronJob) CronitorJob {
 	configParser := pkg.NewCronitorConfigParser(cronJob)
 
-	name := fmt.Sprintf("%s/%s", cronJob.Namespace, cronJob.Name)
+	name := GenerateDefaultName(cronJob)
+
 	metadata := make(map[string]string)
 	if cronJob.Spec.ConcurrencyPolicy != "" {
 		metadata["concurrencyPolicy"] = string(cronJob.Spec.ConcurrencyPolicy)
@@ -56,13 +80,13 @@ func convertCronJobToCronitorJob(cronJob *v1beta1.CronJob) CronitorJob {
 
 	allTags := []string{
 		"kubernetes",
-		fmt.Sprintf("kubernetes-namespace:%s", cronJob.Namespace),
+		ValidateTagName(fmt.Sprintf("kubernetes-namespace:%s", cronJob.Namespace)),
 	}
 	for _, tag := range configParser.GetTags() {
-		allTags = append(allTags, tag)
+		allTags = append(allTags, ValidateTagName(tag))
 	}
 	if environment := configParser.GetEnvironment(); environment != "" {
-		allTags = append(allTags, fmt.Sprintf("cluster-env:%s", environment))
+		allTags = append(allTags, ValidateTagName(fmt.Sprintf("cluster-env:%s", environment)))
 	}
 
 	cronitorJob := CronitorJob{

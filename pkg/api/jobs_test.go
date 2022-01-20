@@ -52,7 +52,7 @@ func TestTagList(t *testing.T) {
 
 	expectedTagList := []string{"tag1", "tagname:tagvalue"}
 	for _, value := range expectedTagList {
-		t.Run(fmt.Sprintf("check for presence of `%s`", value), func (t *testing.T) {
+		t.Run(fmt.Sprintf("check for presence of `%s`", value), func(t *testing.T) {
 			for _, tag := range cronJob.Tags {
 				if tag == value {
 					return
@@ -74,5 +74,31 @@ func TestExistingCronitorID(t *testing.T) {
 
 	if cronJob.Key != "uv93823" {
 		t.Errorf("expected cronitorJob key of `uv93823`, got `%s`", cronJob.Key)
+	}
+}
+
+func TestTruncateDefaultName(t *testing.T) {
+	shortName := "abcefgh"
+	if newName := truncateDefaultName(shortName); newName != shortName {
+		t.Errorf("expected truncated name for '%s' to be '%s', got '%s'", shortName, shortName, newName)
+	}
+
+	longName := "this-is-a-very-long-namespace-name-lets-make-it-really-freaking-long/and-a-very-long-job-name-very-very-long-abcdef12345"
+	expectedNewName := "this-is-a-very-long-namespace-name-lets-make-it-re…d-a-very-long-job-name-very-very-long-abcdef12345"
+	if newName := truncateDefaultName(longName); newName != expectedNewName {
+		t.Errorf("expected truncated name for '%s' to be '%s', got '%s'", longName, expectedNewName, newName)
+	}
+}
+
+func TestValidateTagName(t *testing.T) {
+	shortTag := "env:short-tag"
+	if newTag := ValidateTagName(shortTag); newTag != shortTag {
+		t.Errorf("expected validated tag for '%s' to be '%s', got '%s'", shortTag, shortTag, newTag)
+	}
+
+	longTag := "kubernetes-namespace:this-is-a-very-long-namespace-name-lets-make-it-really-freaking-long-not-long-enough-lets-keep-going"
+	expectedNewTag := "kubernetes-namespace:this-is-a-very-long-namespace-name-lets-make-it-really-freaking-long-not-long-…"
+	if newTag := ValidateTagName(longTag); newTag != expectedNewTag {
+		t.Errorf("expected validated tag for '%s' to be '%s', got '%s'", longTag, expectedNewTag, newTag)
 	}
 }
