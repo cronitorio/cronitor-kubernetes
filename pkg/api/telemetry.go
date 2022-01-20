@@ -170,6 +170,9 @@ func (t TelemetryEvent) Encode() string {
 	if t.Timestamp != "" {
 		q.Add("stamp", t.Timestamp)
 	}
+	if t.Metric != "" {
+		q.Add("metric", t.Metric)
+	}
 	return q.Encode()
 }
 
@@ -238,7 +241,7 @@ func (api CronitorApi) MakeAndSendTelemetryPodEventAndLogs(event *pkg.PodEvent, 
 	}
 
 	defer func(telemetryEvent *TelemetryEvent, pod *corev1.Pod) {
-		if !viper.GetBool("ship-logs") {
+		if !viper.GetBool("ship-logs") || len(telemetryEvent.ErrorLogs) == 0 {
 			return
 		}
 		_, err := api.ShipLogData(telemetryEvent)
@@ -267,7 +270,7 @@ func (api CronitorApi) MakeAndSendTelemetryJobEventAndLogs(event *pkg.JobEvent, 
 	}
 
 	defer func(telemetryEvent *TelemetryEvent, job *v1.Job) {
-		if !viper.GetBool("ship-logs") {
+		if !viper.GetBool("ship-logs") || len(telemetryEvent.ErrorLogs) == 0 {
 			return
 		}
 		_, err := api.ShipLogData(telemetryEvent)
