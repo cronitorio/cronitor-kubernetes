@@ -19,6 +19,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+var StartupTime = meta_v1.Now()
+
 type EventHandler struct {
 	collection *CronJobCollection
 	stopper    chan struct{}
@@ -101,8 +103,8 @@ func (e EventHandler) fetchPodByJobName(namespace string, jobName string) (*core
 	}
 }
 
+// fetchJob gets the Job's information from the Kubernetes API.
 func (e EventHandler) fetchJob(namespace string, name string) (*v1.Job, error) {
-	// Grab the Job's information from the Kubernetes API.
 	// Note: this might be a bit expensive, should we memoize it when possible?
 	clientset := e.collection.clientset
 	ctx, cancel := context.WithCancel(context.Background())
@@ -227,10 +229,24 @@ func (e EventHandler) CheckJobIsWatched(jobNamespace string, jobName string) boo
 
 func (e EventHandler) OnAdd(obj interface{}) {
 	event := obj.(*corev1.Event)
+	eventTime := event.EventTime
 
 	switch event.InvolvedObject.Kind {
 	case "Job":
 		typedEvent := pkg.JobEvent(*event)
+
+		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
+		// then ignore the event
+		if eventTime.BeforeTime(&StartupTime) {
+			log.WithFields(log.Fields{
+				"name":         typedEvent.InvolvedObject.Name,
+				"kind":         typedEvent.InvolvedObject.Kind,
+				"eventMessage": typedEvent.Message,
+				"eventReason":  typedEvent.Reason,
+			}).Debugf("Ignored event from the past, happened %v, agent startup time %v", eventTime, StartupTime)
+			return
+		}
+
 		if e.CheckJobIsWatched(typedEvent.InvolvedObject.Namespace, typedEvent.InvolvedObject.Name) {
 			log.WithFields(log.Fields{
 				"name":         typedEvent.InvolvedObject.Name,
@@ -248,6 +264,18 @@ func (e EventHandler) OnAdd(obj interface{}) {
 
 	case "Pod":
 		typedEvent := pkg.PodEvent(*event)
+
+		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
+		// then ignore the event
+		if eventTime.BeforeTime(&StartupTime) {
+			log.WithFields(log.Fields{
+				"name":         typedEvent.InvolvedObject.Name,
+				"kind":         typedEvent.InvolvedObject.Kind,
+				"eventMessage": typedEvent.Message,
+				"eventReason":  typedEvent.Reason,
+			}).Debugf("Ignored event from the past, happened %v, agent startup time %v", eventTime, StartupTime)
+			return
+		}
 
 		// If it's not an event we care about, we don't want to do all of the work of calling the Kubernetes API
 		// to get all of the related objects, which would put heavy load on it given all of the pod events.
