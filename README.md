@@ -1,4 +1,4 @@
-# cronitor-kubernetes
+# Cronitor for Kubernetes
 
 _Cronitor's Kubernetes agent and integration_
 
