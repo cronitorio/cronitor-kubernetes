@@ -34,7 +34,8 @@ jobs:
 
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: 3.9
+          cache: 'pip'
 
 # See: https://github.com/helm/chart-testing-action
 #      - name: Set up chart-testing
@@ -43,7 +44,6 @@ jobs:
       - name: Create Kind cluster
         uses: helm/kind-action@v1.2.0
         with:
-          version: v0.11.1
           node_image: ${{ matrix.kind_image }}
 
 
@@ -58,8 +58,7 @@ jobs:
           kubectl create secret generic cronitor-secret --from-literal=CRONITOR_API_KEY=${{ secrets.CRONITOR_API_KEY }}
 
       - name: Apply test YAML
-        run: |
-          kubectl apply -f ./e2e-test/resources/
+        run: kubectl apply -f ./e2e-test/resources/
 
       - name: Sleep for 5 minutes to let events populate
         run: sleep $((60 * 5))
@@ -72,11 +71,6 @@ jobs:
             --set credentials.secretKey=CRONITOR_API_KEY \
             --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}'
 
-
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-          cache: 'pip'
       - run: pip install -r requirements.txt
         working-directory: ./e2e-test/api/
       
