@@ -54,7 +54,7 @@ jobs:
       # This is _not_ needed for separation, since every Github Actions job in the matrix will
       # run in its own separate environment and Kind cluster.
       - name: Create namespace
-        run: >
+        run: |
           kubectl create ns "${{ steps.generate_random_id.outputs.random_id }}"
           kubectl config set-context --current --namespace="${{ steps.generate_random_id.outputs.random_id }}"
 
