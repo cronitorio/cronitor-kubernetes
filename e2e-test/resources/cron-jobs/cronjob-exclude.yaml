@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: eventrouter-test-croonjob-excluder
   annotations:
-    k8s.cronitor.io/exclude: "true"
+    k8s.cronitor.io/exclude: "false"
 spec:
   schedule: "*/1 * * * *"
   jobTemplate:
