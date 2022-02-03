@@ -32,6 +32,9 @@ jobs:
         with:
           version: v3.7.2
 
+      # Needed because default version is too old
+      - uses: azure/setup-kubectl@v2.0
+
       - uses: actions/setup-python@v2
         with:
           python-version: 3.9
@@ -50,7 +53,7 @@ jobs:
       # we can kind of "cheat" a bit and get unique monitor names
       # This is _not_ needed for separation, since every Github Actions job in the matrix will
       # run in its own separate environment and Kind cluster.
-      - name: Create namespace "${{ steps.generate_random_id.outputs.random_id }}"
+      - name: Create namespace
         run: >
           kubectl create ns "${{ steps.generate_random_id.outputs.random_id }}"
           kubectl config set-context --current --namespace="${{ steps.generate_random_id.outputs.random_id }}"
