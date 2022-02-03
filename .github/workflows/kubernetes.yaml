@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Generate unique random tag for run
         id: generate_random_id
-        run: echo "::set-output name=random_id::RUN--$(date +%s)"
+        run: echo "::set-output name=random_id::run-$(date +%s)"
 
       - uses: actions/checkout@v2.3.4
 
