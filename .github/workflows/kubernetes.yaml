@@ -62,8 +62,8 @@ jobs:
       - name: Apply test YAML
         run: kubectl apply --recursive -f e2e-test/resources/
 
-      - name: Sleep for 5 minutes to let events populate
-        run: sleep $((60 * 5))
+      - name: Sleep for 3 minutes to let events populate
+        run: sleep $((60 * 3))
         shell: bash
 
       - name: Install Cronitor Kubernetes agent
@@ -74,6 +74,10 @@ jobs:
             --set credentials.secretKey=CRONITOR_API_KEY \
             --set config.defaultEnvironment=ci \
             --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}'
+
+      - name: Sleep for 3 more minutes to let the agent run
+        run: sleep $((60 * 3))
+        shell: bash
 
       - run: pip install -r requirements.txt
         working-directory: ./e2e-test/api/
