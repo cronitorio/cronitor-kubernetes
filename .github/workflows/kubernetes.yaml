@@ -7,7 +7,6 @@ on:
 
 jobs:
 
-
   integration-tests:
     runs-on: ubuntu-latest
     strategy:
@@ -22,6 +21,10 @@ jobs:
          - kindest/node:v1.15.12@sha256:b920920e1eda689d9936dfcf7332701e80be12566999152626b2c9d730397a95
          - kindest/node:v1.14.10@sha256:f8a66ef82822ab4f7569e91a5bccaf27bceee135c1457c512e54de8c6f7219f8
     steps:
+      - name: Generate unique random tag for run
+        id: generate_random_id
+        run: RANDOM_ID=RUN--$(date +%s) echo "::set-output name=random_id::$RANDOM_ID"
+
       - uses: actions/checkout@v2.3.4
 
       - name: Set up Helm
@@ -56,7 +59,7 @@ jobs:
 
       - name: Apply test YAML
         run: |
-          kubectl apply -f test-yaml/
+          kubectl apply -f ./e2e-test/resources/
 
       - name: Sleep for 5 minutes to let events populate
         run: sleep $((60 * 5))
@@ -66,4 +69,20 @@ jobs:
         run: |
           helm upgrade --install cronitor-kubernetes ./charts/cronitor-kubernetes/ \
             --set credentials.secretName=cronitor-secret \
-            --set credentials.secretKey=CRONITOR_API_KEY
+            --set credentials.secretKey=CRONITOR_API_KEY \
+            --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}'
+
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+        working-directory: ./e2e-test/api/
+      
+      - name: Delete created monitors
+        working-directory: ./e2e-test/api/
+        env: 
+          CRONITOR_API_KEY: ${{ secrets.CRONITOR_API_KEY }}
+        run: |
+          python main.py --ci-tag 'ci:${{ steps.generate_random_id.outputs.random_id }}'

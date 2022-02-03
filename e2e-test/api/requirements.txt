@@ -1,0 +1,4 @@
+
+cronitor==4.4.3
+requests
+click==8.0.3
