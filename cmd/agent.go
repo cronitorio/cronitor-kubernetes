@@ -28,14 +28,22 @@ func checkVersion() {
 	currentVersion, err := semver.NewVersion(viper.GetString("version"))
 	if err != nil {
 		log.Errorf("Error parsing version: %s", err)
+		return
 	}
-	latestAvailableVersion, err := semver.NewVersion(pkg.GetLatestVersion())
+	latestVersion := pkg.GetLatestVersion()
+	if latestVersion == "" {
+		log.Errorf("Couldn't get version: %s", currentVersion)
+		return
+	}
+	latestAvailableVersion, err := semver.NewVersion(latestVersion)
 	if err != nil {
 		log.Errorf("Error parsing version: %s", err)
+		return
 	}
 	constraint, err := semver.NewConstraint("> " + currentVersion.String())
 	if err != nil {
-		log.Errorf("Erorr parsing version constraint: %s", err)
+		log.Errorf("Error parsing version constraint: %s", err)
+		return
 	}
 	if constraint.Check(latestAvailableVersion) {
 		fmt.Printf(`
