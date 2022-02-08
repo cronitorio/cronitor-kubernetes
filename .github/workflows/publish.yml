@@ -1,40 +1,24 @@
 name: Publish Docker image and Helm chart
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
+  push
 
 jobs:
-
-  publish_helm_chart:
-    name: Create and publish Helm chart to Github pages
+  run_tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Check out the repo
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Configure git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
-      - name: Install Helm
-        uses: azure/setup-helm@v1
-        with:
-          version: v3.4.0
-
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.2.1
-        env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-
+      - name: Test
+        run: go test ./...
 
   create_docker_container:
     name: Push Docker image to Github Registry
+    if: ${{ github.ref_name == 'main' }}
+    needs: [run_tests]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -85,3 +69,28 @@ jobs:
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
+
+  publish_helm_chart:
+    name: Create and publish Helm chart to Github pages
+    needs: [create_docker_container]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.4.0
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.2.1
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

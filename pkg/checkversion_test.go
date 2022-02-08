@@ -156,7 +156,10 @@ generated: "2021-12-31T05:43:35.418728161Z"`
 	if err != nil {
 		t.Error(err)
 	}
-	latestVersion := extractLatestVersionFromList(versions)
+	latestVersion, err := extractLatestVersionFromList(versions)
+	if err != nil {
+		t.Error(err)
+	}
 	if latestVersion != "0.1.11" {
 		t.Errorf(`Unexpected latest version, received "%s"`, latestVersion)
 	}
