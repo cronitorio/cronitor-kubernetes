@@ -229,7 +229,7 @@ func (e EventHandler) CheckJobIsWatched(jobNamespace string, jobName string) boo
 
 func (e EventHandler) OnAdd(obj interface{}) {
 	event := obj.(*corev1.Event)
-	eventTime := event.EventTime
+	eventTime := event.LastTimestamp
 
 	switch event.InvolvedObject.Kind {
 	case "Job":
@@ -237,13 +237,13 @@ func (e EventHandler) OnAdd(obj interface{}) {
 
 		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
 		// then ignore the event
-		if eventTime.BeforeTime(&StartupTime) {
+		if eventTime.Before(&StartupTime) {
 			log.WithFields(log.Fields{
 				"name":         typedEvent.InvolvedObject.Name,
 				"kind":         typedEvent.InvolvedObject.Kind,
 				"eventMessage": typedEvent.Message,
 				"eventReason":  typedEvent.Reason,
-			}).Debugf("Ignored event from the past, happened %v, agent startup time %v", eventTime, StartupTime)
+			}).Infof("Ignored event from the past, happened %v, agent startup time %v", eventTime, StartupTime)
 			return
 		}
 
@@ -267,13 +267,13 @@ func (e EventHandler) OnAdd(obj interface{}) {
 
 		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
 		// then ignore the event
-		if eventTime.BeforeTime(&StartupTime) {
+		if eventTime.Before(&StartupTime) {
 			log.WithFields(log.Fields{
 				"name":         typedEvent.InvolvedObject.Name,
 				"kind":         typedEvent.InvolvedObject.Kind,
 				"eventMessage": typedEvent.Message,
 				"eventReason":  typedEvent.Reason,
-			}).Debugf("Ignored event from the past, happened %v, agent startup time %v", eventTime, StartupTime)
+			}).Infof("Ignored event from the past, happened %v, agent startup time %v", eventTime, StartupTime)
 			return
 		}
 
