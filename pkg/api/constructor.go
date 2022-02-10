@@ -1,7 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"fmt"
+	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"net/http"
 	"os"
 )
@@ -19,12 +22,28 @@ type CronitorApiError struct {
 	Response *http.Response
 }
 
+func (c CronitorApiError) ResponseBody() ([]byte, error) {
+	contents, err := ioutil.ReadAll(c.Response.Body)
+	if err != nil {
+		log.Errorf("could not read response body: %v", err)
+		return []byte{}, err
+	}
+	defer c.Response.Body.Close()
+	c.Response.Body = ioutil.NopCloser(bytes.NewBuffer(contents))
+	return contents, nil
+}
+
 func (c CronitorApiError) Error() string {
 	if c.Response != nil {
 		defer c.Response.Body.Close()
 		// Sometimes the body is already closed here, so we can't read response data, but we can get the URL we tried
 		url := c.Response.Request.URL
-		return fmt.Sprintf("url: %s, error: %s", url, c.Err.Error())
+		body, err := c.ResponseBody()
+		if err != nil {
+			return fmt.Sprintf("url: %s, error: %s", url, c.Err.Error())
+		} else {
+			return fmt.Sprintf("url: %s, body: %s, error: %s", url, body, c.Err.Error())
+		}
 	} else {
 		return c.Err.Error()
 	}

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/cronitorio/cronitor-cli/lib"
@@ -100,6 +101,7 @@ func (api CronitorApi) sendHttpRequest(method string, url string, body string) (
 		return nil, err
 	}
 	defer response.Body.Close()
+	response.Body = ioutil.NopCloser(bytes.NewBuffer(contents))
 
 	return contents, nil
 }
