@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
+	"github.com/getsentry/sentry-go"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/batch/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +38,7 @@ func (coll *CronJobCollection) AddCronJob(cronjob *v1beta1.CronJob) {
 	_, err := coll.cronitorApi.PutCronJob(cronjob)
 	coll.cronjobs[cronjob.GetUID()] = cronjob
 	if err != nil {
+		sentry.CaptureException(err)
 		log.WithFields(log.Fields{
 			"namespace": cronjob.Namespace,
 			"name":      cronjob.Name,
