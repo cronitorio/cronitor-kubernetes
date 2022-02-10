@@ -31,6 +31,12 @@ func main() {
 		}
 		defer sentry.Flush(2 * time.Second)
 		defer sentry.Recover()
+
+		if email := os.Getenv("SUPPORT_EMAIL_ADDRESS"); email != "" {
+			sentry.ConfigureScope(func(scope *sentry.Scope) {
+				scope.SetContext("userEmail", email)
+			})
+		}
 	}
 
 	cmd.Execute()

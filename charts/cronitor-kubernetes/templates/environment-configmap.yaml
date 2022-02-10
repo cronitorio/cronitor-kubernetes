@@ -19,3 +19,7 @@ data:
   SENTRY_RELEASE: 'chart@{{ .Chart.Version }}|app@{{ .Chart.AppVersion }}'
   SENTRY_ENVIRONMENT: 'production'
   {{ end }}
+
+  {{ if .Values.config.yourEmail }}
+  SUPPORT_EMAIL_ADDRESS: {{ .Values.config.yourEmail | quote }}
+  {{ end }}

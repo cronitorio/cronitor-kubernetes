@@ -33,6 +33,10 @@ config:
   # Enable Sentry telemetry to help the Cronitor team catch and debug issues with the agent
   sentryEnabled: true
 
+  # If Sentry is enabled, optionally provide your email address for improved support from the
+  # Cronitor team. If you don't provide this, we will not know who you are and will not be able
+  # to reach out proactively with help.
+  yourEmail: ''
 
 rbac:
   # Specifies whether RBAC resources should be created
