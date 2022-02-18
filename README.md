@@ -46,6 +46,17 @@ Here is the list of supported annotations:
 * `k8s.cronitor.io/cronitor-id` - Manually specify an ID of an existing cron job in Cronitor rather than autogenerate a new one. Use this when you already have jobs you are tracking in Cronitor that you want to keep the history of and you are migrating to the Cronitor agent, or if you are deleting and recreating your `CronJob` objects (e.g., you are migrating clusters or namespaces)
 * `k8s.cronitor.io/tags` - Comma-separated list of tags for this cron job for use within the Cronitor dashboard
 
+### FAQ
+<details>
+    <summary>What if I want just to try out this Kubernetes agent without pulling in <strong>all</strong> of my <code>CronJobs</code>? Can I do that?</summary>
+
+Yes, you definitely can! To <strong>exclude</strong> all of your Kubernetes <code>CronJobs</code> by default and only include the ones you explicitly choose, you can do the following:
+
+1. When deploying the Cronitor Kubernetes agent, set `config.default` to `exclude`. You can do this in your custom `values.yaml` you use to deploy the Helm chart, or by passing the additional parameter `--set config.default=exclude` to Helm when you install or upgrade the release. This will exclude/ignore all of your cron jobs by default.
+2. For any `CronJob` that you would like to be monitored by Cronitor, add the annotation `k8s.cronitor.io/include: true`. The agent honors any annotations explicitly set on `CronJobs` over whatever is set as the configuration default.
+
+</details>
+
 [1]: charts/cronitor-kubernetes/values.yaml
 
 
