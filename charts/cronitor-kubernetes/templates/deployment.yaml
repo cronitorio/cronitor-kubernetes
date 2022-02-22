@@ -37,6 +37,9 @@ spec:
           args:
             - agent
             - "--ship-logs={{ .Values.config.shipLogs | required "config.shipLogs must have a value of true or false" }}"
+            {{ if .Values.config.logLevel }}
+            - "--log-level={{ .Values.config.logLevel }}"
+            {{ end }}
           env:
             - name: NODE_NAME
               valueFrom:
