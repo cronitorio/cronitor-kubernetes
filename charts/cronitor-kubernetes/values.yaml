@@ -38,6 +38,10 @@ config:
   # to reach out proactively with help.
   yourEmail: ''
 
+  # The log level at which the agent will print its own logs.
+  # Available levels: TRACE, DEBUG, INFO, WARN, ERROR
+  logLevel: ''
+
 rbac:
   # Specifies whether RBAC resources should be created
   create: true
