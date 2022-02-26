@@ -25,6 +25,7 @@ func TestNamespaceTag(t *testing.T) {
 }
 
 func TestEnvironmentTag(t *testing.T) {
+	t.Skip("Skipping for now, we've removed cluster-env tag")
 	var jsonBlob v1beta1.CronJob
 	// Provided environment is 'staging'
 	err := json.Unmarshal([]byte(`{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"annotations":{"k8s.cronitor.io/env":"staging","k8s.cronitor.io/tags":"tag1,tagname:tagvalue","kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"batch/v1beta1\",\"kind\":\"CronJob\",\"metadata\":{\"annotations\":{\"k8s.cronitor.io/env\":\"staging\",\"k8s.cronitor.io/tags\":\"tag1,tagname:tagvalue\"},\"name\":\"eventrouter-test-cronjob\",\"namespace\":\"default\"},\"spec\":{\"concurrencyPolicy\":\"Forbid\",\"jobTemplate\":{\"spec\":{\"backoffLimit\":3,\"template\":{\"spec\":{\"containers\":[{\"args\":[\"/bin/sh\",\"-c\",\"date ; sleep 5 ; echo Hello from k8s\"],\"image\":\"busybox\",\"name\":\"hello\"}],\"restartPolicy\":\"OnFailure\"}}}},\"schedule\":\"*/1 * * * *\"}}\n"},"name":"eventrouter-test-cronjob","namespace":"default"},"spec":{"concurrencyPolicy":"Forbid","jobTemplate":{"spec":{"backoffLimit":3,"template":{"spec":{"containers":[{"args":["/bin/sh","-c","date ; sleep 5 ; echo Hello from k8s"],"image":"busybox","name":"hello"}],"restartPolicy":"OnFailure"}}}},"schedule":"*/1 * * * *"}}`), &jsonBlob)
