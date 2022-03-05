@@ -1,7 +1,7 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: test-env-annotation
+  name: test-env-annotation-home
   annotations:
     k8s.cronitor.io/env: 'Home'
 spec:
