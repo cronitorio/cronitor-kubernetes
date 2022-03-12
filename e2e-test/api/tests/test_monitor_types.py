@@ -1,9 +1,8 @@
 import pytest
 from ..kubernetes_wrapper import get_cronjob_by_name
 from ..cronitor_wrapper import cronitor_wrapper_from_environment
-import os
 
-cronitor_wrapper = cronitor_wrapper_from_environment(ci_tag=os.getenv('CI_TAG'))
+cronitor_wrapper = cronitor_wrapper_from_environment()
 
 
 @pytest.mark.parametrize("name", [
@@ -24,10 +23,9 @@ def test_included_cronjobs_present(name: str):
 
 
 EXCLUDED = ['eventrouter-test-croonjob-excluder', ]
-NONEXISTENT = ['this-does-not-exit']
 
 
-@pytest.mark.parametrize("name", EXCLUDED + NONEXISTENT)
+@pytest.mark.parametrize("name", EXCLUDED)
 def test_expected_cronjobs_missing(name: str):
     """Ensure excluded/non-existing cron jobs are _not_ in Cronitor"""
     cronjob = get_cronjob_by_name(name)

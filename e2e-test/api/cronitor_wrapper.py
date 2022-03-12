@@ -35,11 +35,17 @@ class CronitorWrapper:
         response = self.delete(f'https://cronitor.io/api/monitors/{key}')
         response.raise_for_status()
 
+    def get_ping_history_by_monitor(self, monitor_key: str):
+        response = self.get(f'https://cronitor.io/v2/monitors/{monitor_key}/pings').json()
+        return response
 
-def cronitor_wrapper_from_environment(ci_tag: str = 'CI'):
+
+def cronitor_wrapper_from_environment(ci_tag=None):
     CRONITOR_API_KEY = os.getenv('CRONITOR_API_KEY')
     if not CRONITOR_API_KEY:
         raise ValueError("An API key must be supplied.")
+    if not ci_tag:
+        ci_tag = os.getenv('CI_TAG')
     cronitor_wrapper = CronitorWrapper(api_key=CRONITOR_API_KEY,
                                        ci_tag=ci_tag)
     return cronitor_wrapper
