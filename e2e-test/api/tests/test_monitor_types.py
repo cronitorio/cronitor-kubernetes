@@ -1,4 +1,6 @@
 import pytest
+from pytest import assume
+import uuid
 from ..kubernetes_wrapper import get_cronjob_by_name
 from ..cronitor_wrapper import cronitor_wrapper_from_environment
 
@@ -35,4 +37,16 @@ def test_expected_cronjobs_missing(name: str):
                        if m['key'] == key)
 
 
-# Ensure no unexpected monitors or monitors with UID names
+def test_no_monitors_with_uid_names():
+    # Ensure no unexpected monitors or monitors with UID names
+    # We may need to do further testing outside of the tag scope, depending on
+    # if this issue happens in such a way that monitors are auto-created without tags
+    monitors = cronitor_wrapper.get_all_ci_monitors()
+    for monitor in monitors:
+        # pytest-assume allows multiple failures per test
+        with assume:
+            # We want the monitor names NOT to be UUIDs. If they are a UUID,
+            # that means we encountered a bug with the monitor creation somehow
+            # and defaultName was not set.
+            with pytest.raises(ValueError):
+                uuid.UUID(monitor['name'])
