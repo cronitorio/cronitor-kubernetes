@@ -40,6 +40,13 @@ class CronitorWrapper:
                             params={'env': env}).json()
         return response
 
+    def get_monitor_with_events_and_invocations(self, monitor_key: str, env: str):
+        response = self.get(f'https://cronitor.io/api/monitors/{monitor_key}',
+                            params={'env': env,
+                                    'withEvents': 'true',
+                                    'withInvocations': 'true'}).json()
+        return response
+
 
 def cronitor_wrapper_from_environment(ci_tag=None):
     CRONITOR_API_KEY = os.getenv('CRONITOR_API_KEY')
