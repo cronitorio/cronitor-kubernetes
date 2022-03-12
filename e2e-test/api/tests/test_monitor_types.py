@@ -33,3 +33,6 @@ def test_expected_cronjobs_missing(name: str):
     with pytest.raises(StopIteration):
         monitor = next(m for m in cronitor_wrapper.get_all_ci_monitors()
                        if m['key'] == key)
+
+
+# Ensure no unexpected monitors or monitors with UID names

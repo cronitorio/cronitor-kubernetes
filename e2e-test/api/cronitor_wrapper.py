@@ -35,8 +35,9 @@ class CronitorWrapper:
         response = self.delete(f'https://cronitor.io/api/monitors/{key}')
         response.raise_for_status()
 
-    def get_ping_history_by_monitor(self, monitor_key: str):
-        response = self.get(f'https://cronitor.io/v2/monitors/{monitor_key}/pings').json()
+    def get_ping_history_by_monitor(self, monitor_key: str, env: str):
+        response = self.get(f'https://cronitor.io/api/monitors/{monitor_key}/pings',
+                            params={'env': env}).json()
         return response
 
 
