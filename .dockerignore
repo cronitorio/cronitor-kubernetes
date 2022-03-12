@@ -1,8 +1,5 @@
 charts/
-<<<<<<< HEAD
 test-yaml/
-=======
->>>>>>> eaa6f50... Add Cronitor API wrapper, grab created monitors, clean up, include tag on created monitors from Helm chart
 e2e-test/
 .gitignore
 Dockerfile

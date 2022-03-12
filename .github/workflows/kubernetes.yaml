@@ -84,6 +84,13 @@ jobs:
 
       - run: pip install -r requirements.txt
         working-directory: ./e2e-test/api/
+
+      - name: Run tests
+        working-directory: ./e2e-test/api/
+        env:
+          CRONITOR_API_KEY: ${{ secrets.CRONITOR_API_KEY }}
+          CI_TAG: "ci:${{ steps.generate_random_id.outputs.random_id }}"
+        run: pytest
       
       - name: Delete created monitors
         working-directory: ./e2e-test/api/
