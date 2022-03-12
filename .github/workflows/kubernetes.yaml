@@ -90,9 +90,12 @@ jobs:
         env:
           CRONITOR_API_KEY: ${{ secrets.CRONITOR_API_KEY }}
           CI_TAG: "ci:${{ steps.generate_random_id.outputs.random_id }}"
+          KUBERNETES_NAMESPACE: "${{ steps.generate_random_id.outputs.random_id }}"
         run: pytest
       
       - name: Delete created monitors
+        # Always need to clean up the leftover monitors, even with test failures
+        if: always()
         working-directory: ./e2e-test/api/
         env: 
           CRONITOR_API_KEY: ${{ secrets.CRONITOR_API_KEY }}
