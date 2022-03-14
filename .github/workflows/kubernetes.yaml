@@ -1,9 +1,7 @@
 name: Run Kubernetes end-to-end tests
 on:
   pull_request: {}
-  push:
-    branches:
-      - k8s-tests
+  push: {}
 
 jobs:
 
