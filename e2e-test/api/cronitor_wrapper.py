@@ -47,7 +47,8 @@ class CronitorWrapper:
         response = self.get(f'https://cronitor.io/api/monitors/{monitor_key}',
                             params={'env': env,
                                     'withEvents': 'true',
-                                    'withInvocations': 'true'}).json()
+                                    'withInvocations': 'true',
+                                    'withStatus': 'true'}).json()
         return response
 
 
