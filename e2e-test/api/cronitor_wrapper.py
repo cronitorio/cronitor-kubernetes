@@ -17,12 +17,15 @@ class CronitorWrapper:
     get = partialmethod(_request, 'GET')
     delete = partialmethod(_request, 'DELETE')
 
-    def get_all_monitors(self):
-        # Deal with pagination?
-        results = self.get('https://cronitor.io/api/monitors').json().get('monitors', [])
+    @cache
+    def get_all_monitors(self, *, page: int = 1):
+        PAGE_SIZE = 50
+        results = self.get('https://cronitor.io/api/monitors', params={'page': page}).json().get('monitors', [])
+        if len(results) == PAGE_SIZE:
+            additional_results = self.get_all_monitors(page=page+1)
+            results += additional_results
         return results
 
-    @cache
     def get_all_ci_monitors(self):
         results = self.get_all_monitors()
         monitors = [
