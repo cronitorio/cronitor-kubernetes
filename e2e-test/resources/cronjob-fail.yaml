@@ -2,8 +2,6 @@ apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
   name: eventrouter-test-cronjob-fail
-  annotations:
-    k8s.cronitor.io/env: 'staging'
 spec:
   schedule: "*/1 * * * *"
   jobTemplate:
