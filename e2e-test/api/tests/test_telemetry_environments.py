@@ -24,6 +24,7 @@ def test_failing_monitor_should_fail():
     event = result['latest_event']['event']
     assert event == 'fail'
 
+
 def test_successful_monitor_should_succeed():
     cronjob = get_cronjob_by_name('eventrouter-test-cronjob-2')
     key = cronjob['metadata']['uid']

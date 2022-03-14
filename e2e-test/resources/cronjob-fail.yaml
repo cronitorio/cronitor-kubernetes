@@ -8,7 +8,7 @@ spec:
   schedule: "*/1 * * * *"
   jobTemplate:
     spec:
-      backoffLimit: 3
+      backoffLimit: 2
       template:
         spec:
           containers:
