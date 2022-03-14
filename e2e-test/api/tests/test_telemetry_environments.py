@@ -21,19 +21,11 @@ def test_failing_monitor_should_fail():
     cronjob = get_cronjob_by_name('eventrouter-test-cronjob-fail')
     key = cronjob['metadata']['uid']
     result = cronitor_wrapper.get_monitor_with_events_and_invocations(monitor_key=key, env='CI')
-    event = result['latest_event']['event']
-    if event in ('run', 'logs'):
-        pytest.skip(f"Last event was '{event}' due to race conditions or not having finished. "
-                    "Need to find a better way to retrieve monitor status.")
-    assert event == 'fail'
+    assert result['passing'] is False
 
 
 def test_successful_monitor_should_succeed():
     cronjob = get_cronjob_by_name('eventrouter-test-cronjob-2')
     key = cronjob['metadata']['uid']
     result = cronitor_wrapper.get_monitor_with_events_and_invocations(monitor_key=key, env='CI')
-    event = result['latest_event']['event']
-    if event in ('run', 'logs'):
-        pytest.skip(f"Last event was '{event}' due to race conditions or not having finished. "
-                    "Need to find a better way to retrieve monitor status.")
-    assert event == 'complete'
+    assert result['passing'] is True
