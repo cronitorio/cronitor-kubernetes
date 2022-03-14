@@ -30,4 +30,4 @@ def test_successful_monitor_should_succeed():
     key = cronjob['metadata']['uid']
     result = cronitor_wrapper.get_monitor_with_events_and_invocations(monitor_key=key, env='CI')
     event = result['latest_event']['event']
-    assert event == 'run'
+    assert event in ('run', 'complete')
