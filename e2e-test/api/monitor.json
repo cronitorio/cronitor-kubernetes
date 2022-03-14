@@ -1,0 +1,40 @@
+{
+  "attributes": {
+    "group_name": null
+  },
+  "assertions": [],
+  "created": "2020-12-03T00:53:40+00:00",
+  "disabled": false,
+  "failure_tolerance": null,
+  "grace_seconds": 60,
+  "group": null,
+  "initialized": true,
+  "key": "12b981ac-11e1-4ff7-abe8-3de1f3d912e0",
+  "latest_event": null,
+  "latest_events": null,
+  "latest_incident": null,
+  "latest_invocations": null,
+  "metadata": "{\"concurrencyPolicy\":\"Forbid\"}",
+  "name": "12b981ac-11e1-4ff7-abe8-3de1f3d912e0",
+  "next_expected_at": 1647117000.0,
+  "note": "created by cronitor-kubernetes, monitors cronitor/eventrouter-test-croonjob in cluster",
+  "notify": [
+    "default"
+  ],
+  "passing": true,
+  "paused": false,
+  "platform": "cron",
+  "realert_interval": "every 8 hours",
+  "request": null,
+  "running": false,
+  "schedule": "*/1 * * * *",
+  "schedule_tolerance": null,
+  "tags": [
+    "kubernetes"
+  ],
+  "timezone": null,
+  "type": "job",
+  "environments": [
+    "production"
+  ]
+}

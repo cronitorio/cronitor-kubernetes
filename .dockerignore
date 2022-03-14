@@ -1,5 +1,6 @@
 charts/
 test-yaml/
+e2e-test/
 .gitignore
 Dockerfile
 Makefile

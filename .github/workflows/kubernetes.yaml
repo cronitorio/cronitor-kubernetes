@@ -1,0 +1,103 @@
+name: Run Kubernetes end-to-end tests
+on:
+  push: {}
+
+jobs:
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        kind_image:
+         - kindest/node:v1.23.4@sha256:0e34f0d0fd448aa2f2819cfd74e99fe5793a6e4938b328f657c8e3f81ee0dfb9
+         - kindest/node:v1.22.7@sha256:1dfd72d193bf7da64765fd2f2898f78663b9ba366c2aa74be1fd7498a1873166
+         - kindest/node:v1.21.10@sha256:84709f09756ba4f863769bdcabe5edafc2ada72d3c8c44d6515fc581b66b029c
+         - kindest/node:v1.20.15@sha256:393bb9096c6c4d723bb17bceb0896407d7db581532d11ea2839c80b28e5d8deb
+         - kindest/node:v1.19.16@sha256:81f552397c1e6c1f293f967ecb1344d8857613fb978f963c30e907c32f598467
+         - kindest/node:v1.18.20@sha256:e3dca5e16116d11363e31639640042a9b1bd2c90f85717a7fc66be34089a8169
+         - kindest/node:v1.17.17@sha256:66f1d0d91a88b8a001811e2f1054af60eef3b669a9a74f9b6db871f2f1eeed00
+         - kindest/node:v1.16.15@sha256:83067ed51bf2a3395b24687094e283a7c7c865ccc12a8b1d7aa673ba0c5e8861
+         - kindest/node:v1.15.12@sha256:b920920e1eda689d9936dfcf7332701e80be12566999152626b2c9d730397a95
+         - kindest/node:v1.14.10@sha256:f8a66ef82822ab4f7569e91a5bccaf27bceee135c1457c512e54de8c6f7219f8
+    steps:
+      - name: Generate unique random tag for run
+        id: generate_random_id
+        run: echo "::set-output name=random_id::run-$(date +%s)-$RANDOM"
+
+      - uses: actions/checkout@v2.3.4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.7.2
+
+      # Needed because default version is too old
+      - uses: azure/setup-kubectl@v2.0
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+          cache: 'pip'
+
+# See: https://github.com/helm/chart-testing-action
+#      - name: Set up chart-testing
+#        uses: helm/chart-testing-action@v2.2.0
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.2.0
+        with:
+          node_image: ${{ matrix.kind_image }}
+
+      # We need to have the names in Cronitor be separate, so if we use separate namespaces,
+      # we can kind of "cheat" a bit and get unique monitor names
+      # This is _not_ needed for separation, since every Github Actions job in the matrix will
+      # run in its own separate environment and Kind cluster.
+      - name: Create namespace
+        run: |
+          kubectl create ns "${{ steps.generate_random_id.outputs.random_id }}"
+          kubectl config set-context --current --namespace="${{ steps.generate_random_id.outputs.random_id }}"
+
+      - name: Add API key
+        run: >
+          kubectl create secret generic cronitor-secret --from-literal=CRONITOR_API_KEY=${{ secrets.CRONITOR_API_KEY }}
+
+      - name: Apply test YAML
+        run: kubectl apply --recursive -f e2e-test/resources/
+
+      - name: Sleep for 3 minutes to let events populate
+        run: sleep $((60 * 3))
+        shell: bash
+
+      - name: Install Cronitor Kubernetes agent
+        run: |
+          helm upgrade --install cronitor-kubernetes ./charts/cronitor-kubernetes/ \
+            --namespace "${{ steps.generate_random_id.outputs.random_id }}" \
+            --set credentials.secretName=cronitor-secret \
+            --set credentials.secretKey=CRONITOR_API_KEY \
+            --set config.defaultEnvironment=CI \
+            --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}'
+
+      - name: Sleep for 3 more minutes to let the agent run
+        run: sleep $((60 * 3))
+        shell: bash
+
+      - run: pip install -r requirements.txt
+        working-directory: ./e2e-test/api/
+
+      - name: Run tests
+        working-directory: ./e2e-test/api/
+        env:
+          CRONITOR_API_KEY: ${{ secrets.CRONITOR_API_KEY }}
+          CI_TAG: "ci:${{ steps.generate_random_id.outputs.random_id }}"
+          KUBERNETES_NAMESPACE: "${{ steps.generate_random_id.outputs.random_id }}"
+        run: pytest
+      
+      - name: Delete created monitors
+        # Always need to clean up the leftover monitors, even with test failures
+        if: always()
+        working-directory: ./e2e-test/api/
+        env: 
+          CRONITOR_API_KEY: ${{ secrets.CRONITOR_API_KEY }}
+        run: |
+          python main.py --ci-tag 'ci:${{ steps.generate_random_id.outputs.random_id }}'
