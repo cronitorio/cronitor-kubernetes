@@ -1,6 +1,5 @@
 name: Run Kubernetes end-to-end tests
 on:
-  pull_request: {}
   push: {}
 
 jobs:
