@@ -12,7 +12,7 @@ To use the Helm chart:
     helm repo add cronitor https://cronitorio.github.io/cronitor-kubernetes/
 
 
-A valid Cronitor API key is required. Before deploying the agent, create a
+A valid Cronitor API key with the ability to configure monitors is required. Before deploying the agent, create a
 Kubernetes `Secret` in the namespace in which you plan to deploy this Helm chart, and store your API key in that `Secret`. You will then put the name of the `Secret` and the key within the `Secret` at which the API key can be found into the following chart values:
 * `credentials.secretName`
 * `credentials.secretKey`
