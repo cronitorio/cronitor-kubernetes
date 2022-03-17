@@ -9,6 +9,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        test_configuration:
+         - default
+         - single_namespace_rbac
         kind_image:
          - kindest/node:v1.23.4@sha256:0e34f0d0fd448aa2f2819cfd74e99fe5793a6e4938b328f657c8e3f81ee0dfb9
          - kindest/node:v1.22.7@sha256:1dfd72d193bf7da64765fd2f2898f78663b9ba366c2aa74be1fd7498a1873166
@@ -77,6 +80,7 @@ jobs:
             --set credentials.secretKey=CRONITOR_API_KEY \
             --set config.defaultEnvironment=CI \
             --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
+            -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
             --wait
 
       - name: Sleep for 3 more minutes to let the agent run
@@ -85,6 +89,8 @@ jobs:
 
       - run: pip install -r requirements.txt
         working-directory: ./e2e-test/api/
+
+      # TODO: Ensure agent is actually running / hasn't crashed
 
       - name: Run tests
         working-directory: ./e2e-test/api/
