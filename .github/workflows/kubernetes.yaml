@@ -76,7 +76,8 @@ jobs:
             --set credentials.secretName=cronitor-secret \
             --set credentials.secretKey=CRONITOR_API_KEY \
             --set config.defaultEnvironment=CI \
-            --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}'
+            --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
+            --wait
 
       - name: Sleep for 3 more minutes to let the agent run
         run: sleep $((60 * 3))
