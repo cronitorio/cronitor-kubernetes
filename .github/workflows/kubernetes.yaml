@@ -83,11 +83,19 @@ jobs:
             -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
             --wait
 
+      - name: Print logs on failure
+        if: failure()
+        run: |
+          echo "::group::Failing Kubernetes agent logs"
+          kubectl logs $(kubectl get po -l app.kubernetes.io/name=cronitor-kubernetes -o name)
+          echo "::endgroup::"
+
       - name: Sleep for 3 more minutes to let the agent run
         run: sleep $((60 * 3))
         shell: bash
 
       - run: pip install -r requirements.txt
+        if: always()
         working-directory: ./e2e-test/api/
 
       # TODO: Ensure agent is actually running / hasn't crashed
