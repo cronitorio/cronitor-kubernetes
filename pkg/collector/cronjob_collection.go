@@ -13,24 +13,26 @@ import (
 )
 
 type CronJobCollection struct {
-	clientset   *kubernetes.Clientset
-	cronitorApi *api.CronitorApi
-	cronjobs    map[types.UID]*v1beta1.CronJob
-	loaded      bool
-	stopper     func()
+	clientset           *kubernetes.Clientset
+	cronitorApi         *api.CronitorApi
+	cronjobs            map[types.UID]*v1beta1.CronJob
+	kubernetesNamespace string
+	loaded              bool
+	stopper             func()
 }
 
-func NewCronJobCollection(pathToKubeconfig string, cronitorApi *api.CronitorApi) (*CronJobCollection, error) {
+func NewCronJobCollection(pathToKubeconfig string, namespace string, cronitorApi *api.CronitorApi) (*CronJobCollection, error) {
 	config, err := GetConfig(pathToKubeconfig)
 	if err != nil {
 		return nil, err
 	}
 	clientset := GetClientSet(config)
 	return &CronJobCollection{
-		clientset:   clientset,
-		cronitorApi: cronitorApi,
-		cronjobs:    make(map[types.UID]*v1beta1.CronJob),
-		loaded:      false,
+		clientset:           clientset,
+		cronitorApi:         cronitorApi,
+		kubernetesNamespace: namespace,
+		cronjobs:            make(map[types.UID]*v1beta1.CronJob),
+		loaded:              false,
 	}, nil
 }
 
@@ -67,7 +69,8 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 	listOptions := meta_v1.ListOptions{}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cronjobs, err := api.CronJobs("").List(ctx, listOptions)
+	// note that if it's global, kubernetesNamespace will be ""
+	cronjobs, err := api.CronJobs(coll.kubernetesNamespace).List(ctx, listOptions)
 	if err != nil {
 		return err
 	}

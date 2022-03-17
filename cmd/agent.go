@@ -68,7 +68,8 @@ func agentRun(cmd *cobra.Command, args []string) error {
 	if kubeconfig == "" {
 		log.Info("no kubeconfig provided, defaulting to in-cluster...")
 	}
-	collection, err := collector.NewCronJobCollection(kubeconfig, &cronitorApi)
+	namespace := viper.GetString("namespace")
+	collection, err := collector.NewCronJobCollection(kubeconfig, namespace, &cronitorApi)
 	if err != nil {
 		return err
 	}
@@ -98,6 +99,7 @@ func init() {
 
 	//// Features
 	agentCmd.Flags().Bool("ship-logs", false, "Collect and archive the logs from each CronJob run upon completion or failure")
+	agentCmd.Flags().String("namespace", "", "Scope agent collection to only a single Kubernetes namespace")
 
 	RootCmd.AddCommand(agentCmd)
 }
@@ -106,6 +108,7 @@ func initializeAgentConfig(agentCmd *cobra.Command, args []string) error {
 	_ = viper.BindPFlag("dryrun", agentCmd.Flags().Lookup("dryrun"))
 	_ = viper.BindEnv("ship-logs", "CRONITOR_AGENT_SHIP_LOGS")
 	_ = viper.BindPFlag("ship-logs", agentCmd.Flags().Lookup("ship-logs"))
+	_ = viper.BindPFlag("namespace", agentCmd.Flags().Lookup("namespace"))
 
 	// We need to add this because declaring PersistentPreRunE in this command
 	// overrides the run coming from Root; it doesn't run both

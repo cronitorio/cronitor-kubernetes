@@ -1,8 +1,9 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: test-cronjob
+  name: test-cronjob-namespace
   annotations: {}
+  namespace: extra-namespace
 spec:
   schedule: "*/1 * * * *"
   jobTemplate:

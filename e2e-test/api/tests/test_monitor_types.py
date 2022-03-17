@@ -8,7 +8,8 @@ cronitor_wrapper = cronitor_wrapper_from_environment()
 
 
 @pytest.mark.parametrize("name", [
-    'eventrouter-test-cronjob-2',
+    'test-cronjob',
+    'test-cronjob-namespace',
     'test-env-annotation',
     'test-env-annotation-home',
     'eventrouter-test-cronjob-fail',

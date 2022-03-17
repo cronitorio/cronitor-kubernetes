@@ -59,6 +59,7 @@ jobs:
       - name: Create namespace
         run: |
           kubectl create ns "${{ steps.generate_random_id.outputs.random_id }}"
+          kubectl create ns extra-namespace
           kubectl config set-context --current --namespace="${{ steps.generate_random_id.outputs.random_id }}"
 
       - name: Add API key
@@ -72,34 +73,6 @@ jobs:
         run: sleep $((60 * 3))
         shell: bash
 
-      - name: Get scoped service account
-        if: matrix.test_configuration == 'single_namespace_rbac'
-        run: |
-          CERTIFICATE="$(kubectl get secret "$(kubectl get sa namespace-scoped-user -o jsonpath='{.secrets[0].name}')" -o "jsonpath={.data['ca\.crt']}" | base64 -d | tr -d '\n')"
-          TOKEN="$(kubectl get secret "$(kubectl get sa namespace-scoped-user -o jsonpath='{.secrets[0].name}')" -o "jsonpath={.data.token}" | base64 -d)"
-          echo <<EOF > scoped-kubeconfig.yaml
-            apiVersion: v1
-            clusters:
-              - cluster:
-                  certificate-authority-data: <place certificate string here>
-                  server: <Kubernetes cluster API endpoint>
-                name: example
-            contexts:
-              - context:
-                  cluster: example
-                  namespace: example
-                  user: example-user
-                name: example
-            current-context: example
-            kind: Config
-            preferences: {}
-            users:
-              - name: example-user
-                user:
-                  client-key-data: $CERTIFICATE
-                  token: $TOKEN
-          EOF
-
       - name: Install Cronitor Kubernetes agent
         run: |
           helm upgrade --install cronitor-kubernetes ./charts/cronitor-kubernetes/ \
@@ -109,7 +82,6 @@ jobs:
             --set config.defaultEnvironment=CI \
             --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
             -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
-            ${{ matrix.test_configuration == 'single_namespace_rbac' && '--kubeconfig scoped-kubeconfig.yaml' || '' }} \
             --wait
 
       - name: Print logs on failure
