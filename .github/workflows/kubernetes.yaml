@@ -75,8 +75,8 @@ jobs:
       - name: Get scoped service account
         if: matrix.test_configuration == 'single_namespace_rbac'
         run: |
-          CERTIFICATE="$(kubectl get secret "$(kubectl get sa namespace-scoped-user -o jsonpath='{.secrets[0].name}')" -o "jsonpath={.data['ca\.crt']}" | base64 -D | tr -d '\n')"
-          TOKEN="$(kubectl get secret "$(kubectl get sa namespace-scoped-user -o jsonpath='{.secrets[0].name}')" -o "jsonpath={.data.token}" | base64 -D)"
+          CERTIFICATE="$(kubectl get secret "$(kubectl get sa namespace-scoped-user -o jsonpath='{.secrets[0].name}')" -o "jsonpath={.data['ca\.crt']}" | base64 -d | tr -d '\n')"
+          TOKEN="$(kubectl get secret "$(kubectl get sa namespace-scoped-user -o jsonpath='{.secrets[0].name}')" -o "jsonpath={.data.token}" | base64 -d)"
           echo <<EOF > scoped-kubeconfig.yaml
             apiVersion: v1
             clusters:
