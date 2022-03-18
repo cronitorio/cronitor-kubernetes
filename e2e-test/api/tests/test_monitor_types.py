@@ -13,7 +13,7 @@ cronitor_wrapper = cronitor_wrapper_from_environment()
     ['test-cronjob', None],
     pytest.param('test-cronjob-namespace', os.getenv('KUBERNETES_EXTRA_NAMESPACE'),
                  marks=pytest.mark.xfail(os.getenv("TEST_CONFIGURATION") == 'single_namespace_rbac',
-                                         raises=AssertionError,
+                                         raises=StopIteration,
                                          reason="The specially namespaced job should not be present in "
                                                 "the 'single_namespace_rbac' test configuration.")),
     ['test-env-annotation', None],
