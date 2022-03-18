@@ -75,10 +75,13 @@ jobs:
           kubectl apply -f e2e-test/resources/extra-namespace/ -n "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
 
       - name: Build docker container
-        env:
-          DOCKER_BUILDKIT: "1"
-        run: |
-          docker build -t "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" .
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: false
+          tags: "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Load docker image to Kind
         run: |
@@ -100,6 +103,7 @@ jobs:
             --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
             -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
             --set image="local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" \
+            --set imagePullPolicy=Never \
             --wait
 
       - name: Sleep for 3 more minutes to let the agent run
