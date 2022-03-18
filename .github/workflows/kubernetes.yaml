@@ -80,6 +80,7 @@ jobs:
           context: .
           push: false
           tags: "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}"
+          load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
