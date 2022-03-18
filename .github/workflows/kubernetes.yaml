@@ -6,6 +6,11 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
     strategy:
       fail-fast: false
       matrix:
@@ -79,7 +84,7 @@ jobs:
         with:
           context: .
           push: false
-          tags: "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}"
+          tags: "localhost:5000/local-docker-build:${{ steps.generate_random_id.outputs.random_id }}"
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -102,8 +107,7 @@ jobs:
             --set config.defaultEnvironment=CI \
             --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
             -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
-            --set image="local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" \
-            --set imagePullPolicy=Never \
+            --set image=localhost:5000/local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" \
             --wait
 
       - name: Sleep for 3 more minutes to let the agent run
