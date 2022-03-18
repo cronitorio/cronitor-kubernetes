@@ -12,7 +12,9 @@ cronitor_wrapper = cronitor_wrapper_from_environment()
 @pytest.mark.parametrize("name,namespace", [
     ['test-cronjob', None],
     pytest.param('test-cronjob-namespace', 'extra-namespace',
-                 marks=pytest.mark.xfail(os.getenv("TEST_CONFIGURATION") == 'single_namespace_rbac')),
+                 marks=pytest.mark.xfail(os.getenv("TEST_CONFIGURATION") == 'single_namespace_rbac',
+                                         reason="The specially namespaced job should not be present in "
+                                                "the 'single_namespace_rbac' test configuration.")),
     ['test-env-annotation', None],
     ['test-env-annotation-home', None],
     ['eventrouter-test-cronjob-fail', None],
