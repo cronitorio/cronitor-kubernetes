@@ -51,8 +51,10 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Build docker container
+        env:
+          DOCKER_BUILDKIT: "1"
         run: |
-          docker build -t local-docker-build .
+          docker build -t "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" .
 
       - name: Create Kind cluster
         uses: helm/kind-action@v1.2.0
@@ -82,6 +84,10 @@ jobs:
         run: sleep $((60 * 3))
         shell: bash
 
+      - name: Load docker image to Kind
+        run: |
+          kind load docker-image "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}"
+
       - name: Install Cronitor Kubernetes agent
         run: |
           helm upgrade --install cronitor-kubernetes ./charts/cronitor-kubernetes/ \
@@ -91,7 +97,7 @@ jobs:
             --set config.defaultEnvironment=CI \
             --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
             -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
-            --set imageTag=local-docker-build \
+            --set image="local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" \
             --wait
 
       - name: Sleep for 3 more minutes to let the agent run
