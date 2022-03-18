@@ -25,7 +25,7 @@ def test_failing_monitor_should_fail():
 
 
 def test_successful_monitor_should_succeed():
-    cronjob = get_cronjob_by_name('eventrouter-test-cronjob-2')
+    cronjob = get_cronjob_by_name('test-cronjob')
     key = cronjob['metadata']['uid']
     result = cronitor_wrapper.get_monitor_with_events_and_invocations(monitor_key=key, env='CI')
     assert result['passing'] is True
