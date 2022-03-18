@@ -15,7 +15,7 @@ cronitor_wrapper = cronitor_wrapper_from_environment()
     ['test-env-annotation-home', None],
     ['eventrouter-test-cronjob-fail', None],
 ])
-def test_included_cronjobs_present(name: str, namespace: Optional[str] = None):
+def test_included_cronjobs_present(name: str, namespace: Optional[str]):
     """Ensure that each CronJob properly exists in Cronitor by name, with key"""
     cronjob = get_cronjob_by_name(name, namespace)
     key = cronjob['metadata']['uid']
