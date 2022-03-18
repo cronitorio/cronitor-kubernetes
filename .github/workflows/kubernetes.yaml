@@ -84,10 +84,10 @@ jobs:
             -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
             --wait
 
-      - name: Print logs on failure
-        if: failure()
+      - name: Print logs always
+        if: always()
         run: |
-          echo "::group::Failing Kubernetes agent logs"
+          echo "::group::Kubernetes agent logs"
           kubectl logs $(kubectl get po -l app.kubernetes.io/name=cronitor-kubernetes -o name)
           echo "::endgroup::"
 

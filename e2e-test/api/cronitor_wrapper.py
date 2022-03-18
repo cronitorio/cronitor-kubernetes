@@ -17,6 +17,11 @@ class CronitorWrapper:
     get = partialmethod(_request, 'GET')
     delete = partialmethod(_request, 'DELETE')
 
+    def delete_all_monitors(self):
+        monitors = self.get_all_monitors()
+        for monitor in monitors:
+            self.delete_monitor_by_key(monitor['key'])
+
     @cache
     def get_all_monitors(self, *, page: int = 1):
         PAGE_SIZE = 50
