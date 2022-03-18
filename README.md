@@ -48,6 +48,22 @@ Here is the list of supported annotations:
 
 ### FAQ
 <details>
+    <summary>Does this pull in all my <code>CronJobs</code> across my cluster by default?</summary>
+
+By default, the agent will monitor all `CronJobs` in your Kubernetes cluster, but this 
+is easily changeable. See below in the FAQ for additional information on how to handle various
+circumstances of `CronJob` inclusion or exclusion by annotation or namespace.
+</details>
+<details>
+    <summary>The Kubernetes cluster I want to monitor is locked down with RBAC, and I only have access
+to one or a couple of namespaces. What do I do?</summary>
+
+You can configure the agent to only monitor a single namespace rather than the entire cluster. To do this, when deploying the agent, set `rbac.clusterScope` to `"namespace"` in [`values.yaml`][1]. In this setup, the agent will only monitor `CronJobs` within the namespace in which it is deployed, and it will not attempt to monitor anything outside of that namespace. It will not request permissions outside of its namespace either, using `Role` instead of `ClusterRole`.
+
+If you have more than one namespace you need to monitor with this setup, you'll need to deploy multiple copies of the Cronitor Kubernetes agent, one in each namespace. Please note that since Kubernetes Deployments can only access Secrets in the same namespace, you will also need to create a copy of the Secret containing your Cronitor API key in each namespace.
+
+</details>
+<details>
     <summary>What if I want just to try out this Kubernetes agent without pulling in <strong>all</strong> of my <code>CronJobs</code>? Can I do that?</summary>
 
 Yes, you definitely can! To <strong>exclude</strong> all of your Kubernetes <code>CronJobs</code> by default and only include the ones you explicitly choose, you can do the following:

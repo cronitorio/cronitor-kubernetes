@@ -17,11 +17,18 @@ class CronitorWrapper:
     get = partialmethod(_request, 'GET')
     delete = partialmethod(_request, 'DELETE')
 
+    def delete_all_monitors(self):
+        monitors = self.get_all_monitors()
+        for monitor in monitors:
+            self.delete_monitor_by_key(monitor['key'])
+
     @cache
     def get_all_monitors(self, *, page: int = 1):
         PAGE_SIZE = 50
-        results = self.get('https://cronitor.io/api/monitors', params={'page': page}).json().get('monitors', [])
-        if len(results) == PAGE_SIZE:
+        response = self.get('https://cronitor.io/api/monitors', params={'page': page}).json()
+        results = response.get('monitors', [])
+        # Previously, if we had _exactly_ 50 monitors, we'd hit an infinite loop
+        if len(results) == PAGE_SIZE and response['total_monitor_count'] != PAGE_SIZE:
             additional_results = self.get_all_monitors(page=page+1)
             results += additional_results
         return results

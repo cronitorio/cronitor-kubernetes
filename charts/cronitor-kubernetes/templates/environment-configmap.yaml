@@ -10,6 +10,7 @@ data:
   CHART_VERSION: {{ .Chart.Version | quote }}
   APP_VERSION: {{ .Chart.AppVersion | quote }}
   KUBERNETES_VERSION: {{ .Capabilities.KubeVersion | quote }}
+  KUBERNETES_NAMESPACE: {{ .Release.Namespace | quote }}
   DEFAULT_BEHAVIOR: {{ .Values.config.default | quote }}
   DEFAULT_ENV: {{ .Values.config.defaultEnvironment | quote }}
   TAGS: {{ .Values.config.tags | quote }}

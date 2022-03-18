@@ -1,0 +1,4 @@
+
+rbac:
+  create: true
+  clusterScope: namespace

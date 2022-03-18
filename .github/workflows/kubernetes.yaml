@@ -9,6 +9,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        test_configuration:
+         - default
+         - single_namespace_rbac
         kind_image:
          - kindest/node:v1.23.4@sha256:0e34f0d0fd448aa2f2819cfd74e99fe5793a6e4938b328f657c8e3f81ee0dfb9
          - kindest/node:v1.22.7@sha256:1dfd72d193bf7da64765fd2f2898f78663b9ba366c2aa74be1fd7498a1873166
@@ -44,6 +47,9 @@ jobs:
 #      - name: Set up chart-testing
 #        uses: helm/chart-testing-action@v2.2.0
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
       - name: Create Kind cluster
         uses: helm/kind-action@v1.2.0
         with:
@@ -56,6 +62,7 @@ jobs:
       - name: Create namespace
         run: |
           kubectl create ns "${{ steps.generate_random_id.outputs.random_id }}"
+          kubectl create ns "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
           kubectl config set-context --current --namespace="${{ steps.generate_random_id.outputs.random_id }}"
 
       - name: Add API key
@@ -63,10 +70,28 @@ jobs:
           kubectl create secret generic cronitor-secret --from-literal=CRONITOR_API_KEY=${{ secrets.CRONITOR_API_KEY }}
 
       - name: Apply test YAML
-        run: kubectl apply --recursive -f e2e-test/resources/
+        run: |
+          kubectl apply -f e2e-test/resources/main/
+          kubectl apply -f e2e-test/resources/extra-namespace/ -n "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
 
-      - name: Sleep for 3 minutes to let events populate
-        run: sleep $((60 * 3))
+      - name: Build docker container
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: false
+          tags: "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}"
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Load docker image to Kind
+        run: |
+          kind load docker-image "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" --name chart-testing
+
+      # We've already used a lot of time building the docker container
+      # and loading the image to kind
+      - name: Sleep for 1 minute to let events populate
+        run: sleep $((60 * 1))
         shell: bash
 
       - name: Install Cronitor Kubernetes agent
@@ -76,14 +101,28 @@ jobs:
             --set credentials.secretName=cronitor-secret \
             --set credentials.secretKey=CRONITOR_API_KEY \
             --set config.defaultEnvironment=CI \
-            --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}'
+            --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
+            -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
+            --set image="local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" \
+            --set imagePullPolicy=Never \
+            --wait
 
       - name: Sleep for 3 more minutes to let the agent run
         run: sleep $((60 * 3))
         shell: bash
 
+      - name: Print logs always
+        if: always()
+        run: |
+          echo "::group::Kubernetes agent logs"
+          kubectl logs $(kubectl get po -l app.kubernetes.io/name=cronitor-kubernetes -o name)
+          echo "::endgroup::"
+
       - run: pip install -r requirements.txt
+        if: always()
         working-directory: ./e2e-test/api/
+
+      # TODO: Ensure agent is actually running / hasn't crashed
 
       - name: Run tests
         working-directory: ./e2e-test/api/
@@ -91,6 +130,8 @@ jobs:
           CRONITOR_API_KEY: ${{ secrets.CRONITOR_API_KEY }}
           CI_TAG: "ci:${{ steps.generate_random_id.outputs.random_id }}"
           KUBERNETES_NAMESPACE: "${{ steps.generate_random_id.outputs.random_id }}"
+          KUBERNETES_EXTRA_NAMESPACE: "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
+          TEST_CONFIGURATION: ${{ matrix.test_configuration }}
         run: pytest
       
       - name: Delete created monitors

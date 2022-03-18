@@ -1,5 +1,7 @@
 import pytest
 from pytest import assume
+from typing import Optional
+import os
 import uuid
 from ..kubernetes_wrapper import get_cronjob_by_name
 from ..cronitor_wrapper import cronitor_wrapper_from_environment
@@ -7,15 +9,20 @@ from ..cronitor_wrapper import cronitor_wrapper_from_environment
 cronitor_wrapper = cronitor_wrapper_from_environment()
 
 
-@pytest.mark.parametrize("name", [
-    'eventrouter-test-cronjob-2',
-    'test-env-annotation',
-    'test-env-annotation-home',
-    'eventrouter-test-cronjob-fail',
+@pytest.mark.parametrize("name,namespace", [
+    ['test-cronjob', None],
+    pytest.param('test-cronjob-namespace', os.getenv('KUBERNETES_EXTRA_NAMESPACE'),
+                 marks=pytest.mark.xfail(os.getenv("TEST_CONFIGURATION") == 'single_namespace_rbac',
+                                         raises=StopIteration,
+                                         reason="The specially namespaced job should not be present in "
+                                                "the 'single_namespace_rbac' test configuration.")),
+    ['test-env-annotation', None],
+    ['test-env-annotation-home', None],
+    ['eventrouter-test-cronjob-fail', None],
 ])
-def test_included_cronjobs_present(name: str):
+def test_included_cronjobs_present(name: str, namespace: Optional[str]):
     """Ensure that each CronJob properly exists in Cronitor by name, with key"""
-    cronjob = get_cronjob_by_name(name)
+    cronjob = get_cronjob_by_name(name, namespace)
     key = cronjob['metadata']['uid']
     monitor = next(m for m in cronitor_wrapper.get_all_ci_monitors()
                    if m['key'] == key)

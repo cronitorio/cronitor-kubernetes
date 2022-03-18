@@ -85,7 +85,12 @@ func (c CronJobWatcher) StopWatching() {
 
 func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
 	clientset := coll.clientset
-	factory := informers.NewSharedInformerFactory(clientset, 0)
+	var factory informers.SharedInformerFactory
+	if coll.kubernetesNamespace == "" {
+		factory = informers.NewSharedInformerFactory(clientset, 0)
+	} else {
+		factory = informers.NewSharedInformerFactoryWithOptions(clientset, 0, informers.WithNamespace(coll.kubernetesNamespace))
+	}
 	informer := factory.Batch().V1beta1().CronJobs().Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{

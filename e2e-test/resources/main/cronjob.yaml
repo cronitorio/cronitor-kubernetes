@@ -1,7 +1,7 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: eventrouter-test-cronjob-2
+  name: test-cronjob
   annotations: {}
 spec:
   schedule: "*/1 * * * *"

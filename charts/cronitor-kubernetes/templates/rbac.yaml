@@ -1,10 +1,19 @@
 {{- if .Values.rbac.create -}}
 apiVersion: rbac.authorization.k8s.io/v1
+{{ if eq .Values.rbac.clusterScope "cluster" -}}
 kind: ClusterRole
+{{ else if eq .Values.rbac.clusterScope "namespace" -}}
+kind: Role
+{{ else -}}
+{{- fail (printf "rbac.clusterScope must be 'cluster' or 'namespace', received '%s'" .Values.rbac.clusterScope) -}}
+{{- end -}}
 metadata:
   name: {{ include "cronitor-kubernetes-agent.fullname" . }}
+  {{- if eq .Values.rbac.clusterScope "namespace" }}
+  namespace: {{ .Release.Namespace | quote }}
+  {{- end }}
   labels:
-    {{ include "cronitor-kubernetes-agent.labels" . | nindent 4 }}
+    {{- include "cronitor-kubernetes-agent.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources:
@@ -24,18 +33,28 @@ rules:
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1
+{{- if eq .Values.rbac.clusterScope "cluster" }}
 kind: ClusterRoleBinding
+{{- else if eq .Values.rbac.clusterScope "namespace" }}
+kind: RoleBinding
+{{- end }}
 metadata:
+  {{- if eq .Values.rbac.clusterScope "namespace" }}
+  namespace: {{ .Release.Namespace | quote }}
+  {{- end }}
   labels:
-    {{ include "cronitor-kubernetes-agent.labels" . | nindent 4 }}
+    {{- include "cronitor-kubernetes-agent.labels" . | nindent 4 }}
   name: {{ include "cronitor-kubernetes-agent.fullname" . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
+  {{- if eq .Values.rbac.clusterScope "cluster" }}
   kind: ClusterRole
+  {{- else if eq .Values.rbac.clusterScope "namespace" }}
+  kind: Role
+  {{- end }}
   name: {{ include "cronitor-kubernetes-agent.fullname" . }}
 subjects:
   - kind: ServiceAccount
     name: {{ template "cronitor-kubernetes-agent.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
-
+    namespace: {{ .Release.Namespace | quote }}
 {{- end -}}

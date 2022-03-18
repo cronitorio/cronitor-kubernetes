@@ -364,7 +364,12 @@ func (e EventHandler) OnUpdate(oldObj interface{}, newObj interface{}) {
 
 func NewJobsEventWatcher(collection *CronJobCollection) *EventHandler {
 	clientset := collection.clientset
-	factory := informers.NewSharedInformerFactory(clientset, 0)
+	var factory informers.SharedInformerFactory
+	if collection.kubernetesNamespace == "" {
+		factory = informers.NewSharedInformerFactory(clientset, 0)
+	} else {
+		factory = informers.NewSharedInformerFactoryWithOptions(clientset, 0, informers.WithNamespace(collection.kubernetesNamespace))
+	}
 	informer := factory.Core().V1().Events().Informer()
 
 	eventHandler := &EventHandler{

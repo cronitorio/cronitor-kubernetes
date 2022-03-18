@@ -46,6 +46,12 @@ rbac:
   # Specifies whether RBAC resources should be created
   create: true
 
+  # Specifies the scope within the cluster of the RBAC access. For cluster-wide access, use
+  # "cluster" (the default). If you want the Cronitor agent to only have access to objects within
+  # the namespace in which it is deployed, use "namespace". This will change the RBAC permissions
+  # from ClusterRole to Role and cause all Kubernetes API requests to be namespace-scoped.
+  clusterScope: cluster
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: true

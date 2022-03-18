@@ -18,9 +18,13 @@ def cleanup(ci_tag):
                                        ci_tag=ci_tag)
     monitors = cronitor_wrapper.get_all_ci_monitors()
     logger.info("Deleting %d monitors.", len(monitors))
-    for monitor in monitors:
-        logger.info("Deleting: %s", monitor['key'])
-        cronitor_wrapper.delete_monitor_by_key(monitor['key'])
+    # Sometimes we end up with duplicates somehow, so want to make sure it's unique
+    monitor_keys = list(set([
+        monitor['key'] for monitor in monitors
+    ]))
+    for key in monitor_keys:
+        logger.info("Deleting: %s", key)
+        cronitor_wrapper.delete_monitor_by_key(key)
 
 
 if __name__ == '__main__':
