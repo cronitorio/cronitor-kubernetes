@@ -50,12 +50,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Build docker container
-        env:
-          DOCKER_BUILDKIT: "1"
-        run: |
-          docker build -t "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" .
-
       - name: Create Kind cluster
         uses: helm/kind-action@v1.2.0
         with:
@@ -80,13 +74,21 @@ jobs:
           kubectl apply -f e2e-test/resources/main/
           kubectl apply -f e2e-test/resources/extra-namespace/ -n "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
 
-      - name: Sleep for 3 minutes to let events populate
-        run: sleep $((60 * 3))
-        shell: bash
+      - name: Build docker container
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: |
+          docker build -t "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" .
 
       - name: Load docker image to Kind
         run: |
-          kind load docker-image "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}"
+          kind load docker-image "local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" --name chart-testing
+
+      # We've already used a lot of time building the docker container
+      # and loading the image to kind
+      - name: Sleep for 1 minute to let events populate
+        run: sleep $((60 * 1))
+        shell: bash
 
       - name: Install Cronitor Kubernetes agent
         run: |
