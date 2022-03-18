@@ -1,6 +1,7 @@
 import pytest
 from pytest import assume
 from typing import Optional
+import os
 import uuid
 from ..kubernetes_wrapper import get_cronjob_by_name
 from ..cronitor_wrapper import cronitor_wrapper_from_environment
@@ -10,7 +11,8 @@ cronitor_wrapper = cronitor_wrapper_from_environment()
 
 @pytest.mark.parametrize("name,namespace", [
     ['test-cronjob', None],
-    ['test-cronjob-namespace', 'extra-namespace'],
+    pytest.param('test-cronjob-namespace', 'extra-namespace',
+                 marks=pytest.mark.xfail(os.getenv("TEST_CONFIGURATION") == 'single_namespace_rbac')),
     ['test-env-annotation', None],
     ['test-env-annotation-home', None],
     ['eventrouter-test-cronjob-fail', None],

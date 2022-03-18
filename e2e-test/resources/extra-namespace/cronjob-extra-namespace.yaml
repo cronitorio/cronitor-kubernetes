@@ -3,7 +3,6 @@ kind: CronJob
 metadata:
   name: test-cronjob-namespace
   annotations: {}
-  namespace: extra-namespace
 spec:
   schedule: "*/1 * * * *"
   jobTemplate:

@@ -47,6 +47,13 @@ jobs:
 #      - name: Set up chart-testing
 #        uses: helm/chart-testing-action@v2.2.0
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build docker container
+        run: |
+          docker build -t local-docker-build .
+
       - name: Create Kind cluster
         uses: helm/kind-action@v1.2.0
         with:
@@ -59,7 +66,7 @@ jobs:
       - name: Create namespace
         run: |
           kubectl create ns "${{ steps.generate_random_id.outputs.random_id }}"
-          kubectl create ns extra-namespace
+          kubectl create ns "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
           kubectl config set-context --current --namespace="${{ steps.generate_random_id.outputs.random_id }}"
 
       - name: Add API key
@@ -67,7 +74,9 @@ jobs:
           kubectl create secret generic cronitor-secret --from-literal=CRONITOR_API_KEY=${{ secrets.CRONITOR_API_KEY }}
 
       - name: Apply test YAML
-        run: kubectl apply --recursive -f e2e-test/resources/
+        run: |
+          kubectl apply -f e2e-test/resources/main/
+          kubectl apply -f e2e-test/resources/extra-namespace/ -n "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
 
       - name: Sleep for 3 minutes to let events populate
         run: sleep $((60 * 3))
@@ -82,7 +91,12 @@ jobs:
             --set config.defaultEnvironment=CI \
             --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
             -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
+            --set imageTag=local-docker-build \
             --wait
+
+      - name: Sleep for 3 more minutes to let the agent run
+        run: sleep $((60 * 3))
+        shell: bash
 
       - name: Print logs always
         if: always()
@@ -90,10 +104,6 @@ jobs:
           echo "::group::Kubernetes agent logs"
           kubectl logs $(kubectl get po -l app.kubernetes.io/name=cronitor-kubernetes -o name)
           echo "::endgroup::"
-
-      - name: Sleep for 3 more minutes to let the agent run
-        run: sleep $((60 * 3))
-        shell: bash
 
       - run: pip install -r requirements.txt
         if: always()
@@ -107,6 +117,8 @@ jobs:
           CRONITOR_API_KEY: ${{ secrets.CRONITOR_API_KEY }}
           CI_TAG: "ci:${{ steps.generate_random_id.outputs.random_id }}"
           KUBERNETES_NAMESPACE: "${{ steps.generate_random_id.outputs.random_id }}"
+          KUBERNETES_EXTRA_NAMESPACE: "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
+          TEST_CONFIGURATION: ${{ matrix.test_configuration }}
         run: pytest
       
       - name: Delete created monitors
