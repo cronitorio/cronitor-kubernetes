@@ -40,6 +40,9 @@ spec:
             {{ if .Values.config.logLevel }}
             - "--log-level={{ .Values.config.logLevel }}"
             {{ end }}
+            {{ if eq .Values.rbac.clusterScope "namespace" }}
+            - "--namespace={{ .Release.Namespace }}"
+            {{ end }}
           env:
             - name: NODE_NAME
               valueFrom:
