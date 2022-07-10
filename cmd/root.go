@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"
+	"regexp"
 )
 
 var RootCmd = &cobra.Command{
@@ -31,13 +33,25 @@ func init() {
 }
 
 func initializeConfig(cmd *cobra.Command, args []string) error {
-	_ = viper.BindEnv("apikey", "CRONITOR_API_KEY")
-	_ = viper.BindPFlag("apikey", cmd.Flags().Lookup("apikey"))
 	_ = viper.BindPFlag("kubeconfig", cmd.Flags().Lookup("kubeconfig"))
 	_ = viper.BindPFlag("hostname-override", cmd.Flags().Lookup("hostname-override"))
 	_ = viper.BindPFlag("dev", cmd.Flags().Lookup("dev"))
 	_ = viper.BindPFlag("log-level", cmd.Flags().Lookup("log-level"))
 	_ = viper.BindEnv("version", "APP_VERSION")
+
+	_ = viper.BindEnv("apikey", "CRONITOR_API_KEY")
+	_ = viper.BindPFlag("apikey", cmd.Flags().Lookup("apikey"))
+	apiKey := viper.GetString("apikey")
+
+	if apiKey == "<api key>" {
+		message := "A valid api key is required. You used the string '<api key>' as the api key, which is invalid"
+		log.Error(message)
+		return errors.New(message)
+	} else if matched, _ := regexp.MatchString(`[\w0-9]+`, apiKey); !matched {
+		message := "you have provided an invalid API key. Cronitor API keys are comprised only of number and letter characters"
+		log.Error(message)
+		return errors.New(message)
+	}
 
 	logLevel := viper.GetString("log-level")
 	if logLevel != "" {
