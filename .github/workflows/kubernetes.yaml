@@ -53,7 +53,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Create Kind cluster
-        uses: helm/kind-action@v1.2.0
+        uses: helm/kind-action@v1.4.0
         with:
           node_image: ${{ matrix.kind_image }}
 
