@@ -4,16 +4,23 @@ resources:
   - extra-namespace/cronjob-extra-namespace.yaml
   - main/cronjob.yaml
   - main/cronjob-env-annotation.yaml
+<<<<<<< HEAD
   - main/cronjob-cronitor-id.yaml
   - main/cronjob-cronitor-name.yaml
   - main/cronjob-env-home.yaml
   - main/cronjob-exclude.yaml
   - main/cronjob-fail.yaml
   - main/scoped-serviceaccount.yaml
+=======
+  - main/cronjob-env-home.yaml
+  - main/cronjob-exclude.yaml
+  - main/cronjob-fail.yaml
+>>>>>>> a681353... Don't write and read to same file
 
 patches:
   - target:
       kind: CronJob
+<<<<<<< HEAD
       name: test-id-annotation
     patch: |-
       - op: replace
@@ -28,6 +35,12 @@ patches:
       - op: replace
         path: /metadata/annotations/k8s.cronitor.io~1cronitor-name
         value: "annotation-test-name-${RANDOM_ID}"
+=======
+    patch: |-
+      - op: replace
+        path: /apiVersion
+        value: batch/v1beta1
+>>>>>>> a681353... Don't write and read to same file
 
   - target:
       kind: CronJob
