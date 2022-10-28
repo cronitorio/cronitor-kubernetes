@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io/ioutil"
-	"k8s.io/api/batch/v1beta1"
+	v1 "k8s.io/api/batch/v1"
 	"net/http"
 	"strings"
 	"time"
@@ -26,11 +26,11 @@ func (api CronitorApi) monitorUrl() string {
 	return fmt.Sprintf("%s/monitors", api.mainApiUrl())
 }
 
-func (api CronitorApi) PutCronJob(cronJob *v1beta1.CronJob) ([]*lib.Monitor, error) {
-	return api.PutCronJobs([]*v1beta1.CronJob{cronJob})
+func (api CronitorApi) PutCronJob(cronJob *v1.CronJob) ([]*lib.Monitor, error) {
+	return api.PutCronJobs([]*v1.CronJob{cronJob})
 }
 
-func (api CronitorApi) PutCronJobs(cronJobs []*v1beta1.CronJob) ([]*lib.Monitor, error) {
+func (api CronitorApi) PutCronJobs(cronJobs []*v1.CronJob) ([]*lib.Monitor, error) {
 	// Some of this borrowed from https://github.com/cronitorio/cronitor-cli/blob/a5e2b681c89ff8fd5803551206d7ce9674122bd1/lib/cronitor.go
 	url := api.monitorUrl()
 	if api.IsAutoDiscover {

@@ -1,6 +1,8 @@
 package collector
 
 import (
+	"fmt"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -26,4 +28,12 @@ func GetConfig(pathToKubeconfig string) (*rest.Config, error) {
 func GetClientSet(config *rest.Config) *kubernetes.Clientset {
 	clientset := kubernetes.NewForConfigOrDie(config)
 	return clientset
+}
+
+func GetDiscoveryClient(config *rest.Config) *discovery.DiscoveryClient {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		fmt.Printf(" error in discoveryClient %v", err)
+	}
+	return discoveryClient
 }

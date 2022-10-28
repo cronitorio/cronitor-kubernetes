@@ -3,14 +3,14 @@ package collector
 import (
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/batch/v1beta1"
+	v1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
 
 func onAdd(coll CronJobCollection, obj interface{}) {
-	cronjob := obj.(*v1beta1.CronJob)
+	cronjob := obj.(*v1.CronJob)
 	configParser := pkg.NewCronitorConfigParser(cronjob)
 	included, err := configParser.IsCronJobIncluded()
 	if err != nil {
@@ -26,8 +26,8 @@ func onAdd(coll CronJobCollection, obj interface{}) {
 }
 
 func onUpdate(coll CronJobCollection, oldObj interface{}, newObj interface{}) {
-	cronjobOld := oldObj.(*v1beta1.CronJob)
-	cronjobNew := newObj.(*v1beta1.CronJob)
+	cronjobOld := oldObj.(*v1.CronJob)
+	cronjobNew := newObj.(*v1.CronJob)
 	configParserOld := pkg.NewCronitorConfigParser(cronjobOld)
 	configParserNew := pkg.NewCronitorConfigParser(cronjobNew)
 	wasIncluded, err := configParserOld.IsCronJobIncluded()
@@ -50,7 +50,7 @@ func onUpdate(coll CronJobCollection, oldObj interface{}, newObj interface{}) {
 }
 
 func onDelete(coll CronJobCollection, obj interface{}) {
-	cronjob := obj.(*v1beta1.CronJob)
+	cronjob := obj.(*v1.CronJob)
 	configParser := pkg.NewCronitorConfigParser(cronjob)
 	included, err := configParser.IsCronJobIncluded()
 	if err != nil {
@@ -91,7 +91,7 @@ func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
 	} else {
 		factory = informers.NewSharedInformerFactoryWithOptions(clientset, 0, informers.WithNamespace(coll.kubernetesNamespace))
 	}
-	informer := factory.Batch().V1beta1().CronJobs().Informer()
+	informer := factory.Batch().V1().CronJobs().Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {

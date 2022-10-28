@@ -2,7 +2,7 @@ package pkg
 
 import (
 	"fmt"
-	"k8s.io/api/batch/v1beta1"
+	v1 "k8s.io/api/batch/v1"
 	"os"
 	"strconv"
 	"strings"
@@ -55,10 +55,10 @@ const (
 )
 
 type CronitorConfigParser struct {
-	cronjob *v1beta1.CronJob
+	cronjob *v1.CronJob
 }
 
-func NewCronitorConfigParser(cronjob *v1beta1.CronJob) CronitorConfigParser {
+func NewCronitorConfigParser(cronjob *v1.CronJob) CronitorConfigParser {
 	return CronitorConfigParser{
 		cronjob: cronjob,
 	}
