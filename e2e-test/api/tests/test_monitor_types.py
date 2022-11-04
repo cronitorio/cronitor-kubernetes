@@ -57,3 +57,11 @@ def test_no_monitors_with_uid_names():
             # and defaultName was not set.
             with pytest.raises(ValueError):
                 uuid.UUID(monitor['name'])
+
+
+def test_monitor_created_with_new_id():
+    random_id = os.getenv("RANDOM_ID")
+    monitor_key = "annotation-test-id-{RANDOM_ID}".format(RANDOM_ID=random_id)
+
+    monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
+    assert monitor is not None, f"no monitor with key {monitor_key} exists but one should"

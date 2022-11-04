@@ -71,9 +71,13 @@ jobs:
           kubectl create secret generic cronitor-secret --from-literal=CRONITOR_API_KEY=${{ secrets.CRONITOR_API_KEY }}
 
       - name: Apply test YAML
+        env:
+          EXTRA_NAMESPACE: "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
+          RANDOM_ID: "${{ steps.generate_random_id.outputs.random_id }}"
         run: |
-          kubectl apply -f e2e-test/resources/main/
-          kubectl apply -f e2e-test/resources/extra-namespace/ -n "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
+            envsubst < e2e-test/resources/kustomization-sub.yaml > e2e-test/resources/kustomization.yaml
+            cd e2e-test/resources/
+            kubectl apply -k .
 
       - name: Build docker container
         uses: docker/build-push-action@v2
@@ -133,6 +137,7 @@ jobs:
           KUBERNETES_NAMESPACE: "${{ steps.generate_random_id.outputs.random_id }}"
           KUBERNETES_EXTRA_NAMESPACE: "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
           TEST_CONFIGURATION: ${{ matrix.test_configuration }}
+          RANDOM_ID: "${{ steps.generate_random_id.outputs.random_id }}"
         run: pytest
       
       - name: Delete created monitors

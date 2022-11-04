@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - extra-namespace/cronjob-extra-namespace.yaml
+  - main/cronjob.yaml
+  - main/cronjob-env-annotation.yaml
+  - main/cronjob-cronitor-id.yaml
+  - main/cronjob-env-home.yaml
+  - main/cronjob-exclude.yaml
+  - main/cronjob-fail.yaml
+  - main/scoped-serviceaccount.yaml
+
+patches:
+  - target:
+      kind: CronJob
+      name: test-id-annotation
+    patch: |-
+      - op: replace
+        # forward slash is escaped in JSON patches as "~1"
+        path: /metadata/annotations/k8s.cronitor.io~1cronitor-id
+        value: "annotation-test-id-${RANDOM_ID}"
+
+  - target:
+      kind: CronJob
+      name: test-cronjob-namespace
+    patch: |-
+      - op: replace
+        path: /metadata/namespace
+        value: "${EXTRA_NAMESPACE}"
