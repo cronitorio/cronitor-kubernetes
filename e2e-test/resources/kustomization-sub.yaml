@@ -5,6 +5,7 @@ resources:
   - main/cronjob.yaml
   - main/cronjob-env-annotation.yaml
   - main/cronjob-cronitor-id.yaml
+  - main/cronjob-cronitor-name.yaml
   - main/cronjob-env-home.yaml
   - main/cronjob-exclude.yaml
   - main/cronjob-fail.yaml
@@ -19,6 +20,14 @@ patches:
         # forward slash is escaped in JSON patches as "~1"
         path: /metadata/annotations/k8s.cronitor.io~1cronitor-id
         value: "annotation-test-id-${RANDOM_ID}"
+
+  - target:
+      kind: CronJob
+      name: test-name-annotation
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/k8s.cronitor.io~1cronitor-name
+        value: "annotation-test-name-${RANDOM_ID}"
 
   - target:
       kind: CronJob

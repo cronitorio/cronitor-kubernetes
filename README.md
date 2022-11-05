@@ -44,6 +44,7 @@ Here is the list of supported annotations:
 * `k8s.cronitor.io/exclude` - Override this CronJob to be explicitly **not** tracked by Cronitor. Values are "true" or "false". (The agent default behavior is `config.default` in [`values.yaml`][1].)
 * `k8s.cronitor.io/env` - Override the environment for this CronJob. Shows up in the Cronitor dashboard as the `cluster-env` tag
 * `k8s.cronitor.io/cronitor-id` - Manually specify an ID of an existing cron job in Cronitor rather than autogenerate a new one. Use this when you already have jobs you are tracking in Cronitor that you want to keep the history of and you are migrating to the Cronitor agent, or if you are deleting and recreating your `CronJob` objects (e.g., you are migrating clusters or namespaces)
+* `k8s.cronitor.io/cronitor-name` - Manually specify the name within the Cronitor dashboard for this CronJob
 * `k8s.cronitor.io/tags` - Comma-separated list of tags for this cron job for use within the Cronitor dashboard
 
 ### FAQ

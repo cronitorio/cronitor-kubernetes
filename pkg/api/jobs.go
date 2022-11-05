@@ -97,6 +97,10 @@ func convertCronJobToCronitorJob(cronJob *v1beta1.CronJob) CronitorJob {
 		Rules: []string{},
 	}
 
+	if name := configParser.GetSpecifiedCronitorName(); name != "" {
+		cronitorJob.Name = name
+	}
+
 	return cronitorJob
 }
 

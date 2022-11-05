@@ -46,6 +46,12 @@ const (
 	// having the Cronitor agent watch some CronJobs that are already present in Cronitor
 	// via manual instrumentation, and you'd like to use the same Monitor object.
 	AnnotationCronitorID CronitorAnnotation = "k8s.cronitor.io/cronitor-id"
+
+	// AnnotationCronitorName lets you override the defaultName created by the agent to
+	// create the monitor in Cronitor with a custom specified name. This is especially useful
+	// if you are attaching the same CronJob across multiple namespaces/clusters to a single
+	// Cronitor Monitor across multiple environments
+	AnnotationCronitorName CronitorAnnotation = "k8s.cronitor.io/cronitor-name"
 )
 
 type CronitorConfigParser struct {
@@ -105,6 +111,16 @@ func (cronitorParser CronitorConfigParser) GetCronitorID() string {
 		return specifiedId
 	}
 	return string(cronitorParser.cronjob.GetUID())
+}
+
+// GetSpecifiedCronitorName returns the pre-specified Cronitor monitor name, if provided as an annotation
+// on the CronJob object. If not provided, returns an empty string
+func (cronitorParser CronitorConfigParser) GetSpecifiedCronitorName() string {
+	if assignedName, ok := cronitorParser.cronjob.Annotations[string(AnnotationCronitorName)]; ok && assignedName != "" {
+		return assignedName
+	}
+
+	return ""
 }
 
 // Inclusion/exclusion behavior
