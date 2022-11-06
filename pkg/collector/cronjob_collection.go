@@ -6,6 +6,7 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
+	"github.com/cronitorio/cronitor-kubernetes/pkg/normalizer"
 	"github.com/getsentry/sentry-go"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/batch/v1"
@@ -75,22 +76,39 @@ func (coll *CronJobCollection) RemoveCronJob(cronjob *v1.CronJob) {
 
 func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 	clientset := coll.clientset
-	api := clientset.BatchV1()
 	listOptions := meta_v1.ListOptions{}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// note that if it's global, kubernetesNamespace will be ""
-	cronjobs, err := api.CronJobs(coll.kubernetesNamespace).List(ctx, listOptions)
-	if err != nil {
+	// note that if it's global, coll.kubernetesNamespace will be "" (empty string)
+
+	var cronjobs []v1.CronJob
+	if version, err := coll.GetPreferredBatchApiVersion(); err != nil {
 		return err
+	} else if version == "v1" {
+		api := clientset.BatchV1()
+		cronJobList, err := api.CronJobs(coll.kubernetesNamespace).List(ctx, listOptions)
+		if err != nil {
+			return err
+		}
+		cronjobs = cronJobList.Items
+	} else if version == "v1beta1" {
+		api := clientset.BatchV1beta1()
+		cronJobList, err := api.CronJobs(coll.kubernetesNamespace).List(ctx, listOptions)
+		if err != nil {
+			return err
+		}
+		for _, cj := range cronJobList.Items {
+			cronjobs = append(cronjobs, *normalizer.CronJobConvertV1Beta1ToV1(cj))
+		}
 	}
-	for _, cronjob := range cronjobs.Items {
+
+	for _, cronjob := range cronjobs {
 		if included, err := pkg.NewCronitorConfigParser(&cronjob).IsCronJobIncluded(); err == nil && included {
 			coll.AddCronJob(&cronjob)
 		}
 	}
 	coll.loaded = true
-	log.Infof("Existing CronJobs have loaded. %d found; %d included based on configuration.", len(cronjobs.Items), len(coll.cronjobs))
+	log.Infof("Existing CronJobs have loaded. %d found; %d included based on configuration.", len(cronjobs), len(coll.cronjobs))
 	return nil
 }
 
@@ -120,6 +138,8 @@ func (coll CronJobCollection) GetAllWatchedCronJobUIDs() []types.UID {
 	return outList
 }
 
+// CompareServerVersion will return 1 if the server version is higher than the compared version,
+// -1 if it is lower than the compared version, or 0 if they are the same
 func (coll CronJobCollection) CompareServerVersion(major int, minor int) (int, error) {
 	serverVersion, err := semver.NewVersion(fmt.Sprintf("%s.%s", coll.serverVersion.Major, coll.serverVersion.Minor))
 	if err != nil {
@@ -131,4 +151,14 @@ func (coll CronJobCollection) CompareServerVersion(major int, minor int) (int, e
 	}
 
 	return serverVersion.Compare(compareVersion), nil
+}
+
+func (coll CronJobCollection) GetPreferredBatchApiVersion() (string, error) {
+	if result, err := coll.CompareServerVersion(1, 24); err != nil {
+		return "", err
+	} else if result >= 0 {
+		return "v1", nil
+	} else {
+		return "v1beta1", nil
+	}
 }

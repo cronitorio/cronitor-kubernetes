@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"fmt"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/batch/v1"
@@ -91,8 +92,20 @@ func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
 	} else {
 		factory = informers.NewSharedInformerFactoryWithOptions(clientset, 0, informers.WithNamespace(coll.kubernetesNamespace))
 	}
-	informer := factory.Batch().V1().CronJobs().Informer()
 
+	var informer cache.SharedIndexInformer
+	if version, err := coll.GetPreferredBatchApiVersion(); err != nil {
+		panic(err)
+	} else if version == "v1" {
+		informer = factory.Batch().V1().CronJobs().Informer()
+	} else if version == "v1beta1" {
+		informer = factory.Batch().V1beta1().CronJobs().Informer()
+	} else {
+		panic(fmt.Sprintf("Invalid ApiVersion %s requested", version))
+	}
+
+	// Since v1beta1.CronJob and v1.CronJob have the same properties, we _should_ be able to just coerce
+	// everything to v1.CronJob from the informer, regardless of which ApiVersion we're actually getting it from
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			onAdd(coll, obj)
