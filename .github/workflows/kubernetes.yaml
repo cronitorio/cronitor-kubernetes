@@ -70,7 +70,7 @@ jobs:
         run: >
           kubectl create secret generic cronitor-secret --from-literal=CRONITOR_API_KEY=${{ secrets.CRONITOR_API_KEY }}
 
-      # Since k8s versions 1.25+ don't support the batch/v1beta2 apiVersion anymore,
+      # Since k8s versions 1.25+ don't support the batch/v1beta1 apiVersion anymore,
       # we need to special case the resources for older versions of k8s using kustomize until they
       # are all deprecated.
       - name: Apply test YAML
