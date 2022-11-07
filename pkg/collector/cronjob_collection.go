@@ -98,7 +98,7 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 			return err
 		}
 		for _, cj := range cronJobList.Items {
-			cronjobs = append(cronjobs, *normalizer.CronJobConvertV1Beta1ToV1(cj))
+			cronjobs = append(cronjobs, *normalizer.CronJobConvertV1Beta1ToV1(&cj))
 		}
 	}
 

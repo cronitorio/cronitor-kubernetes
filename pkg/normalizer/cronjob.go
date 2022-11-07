@@ -10,7 +10,7 @@ type VersionedCronJobWrapper struct {
 	BatchV1CronJob      *v1.CronJob
 }
 
-func CronJobConvertV1Beta1ToV1(v1beta1CJ v1beta1.CronJob) *v1.CronJob {
+func CronJobConvertV1Beta1ToV1(v1beta1CJ *v1beta1.CronJob) *v1.CronJob {
 	newCronJob := new(v1.CronJob)
 	newCronJob.TypeMeta = v1beta1CJ.TypeMeta
 	newCronJob.ObjectMeta = v1beta1CJ.ObjectMeta

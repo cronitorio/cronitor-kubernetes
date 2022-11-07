@@ -3,15 +3,16 @@ package collector
 import (
 	"fmt"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
+	"github.com/cronitorio/cronitor-kubernetes/pkg/normalizer"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/batch/v1"
+	"k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
 
-func onAdd(coll CronJobCollection, obj interface{}) {
-	cronjob := obj.(*v1.CronJob)
+func onAdd(coll CronJobCollection, cronjob *v1.CronJob) {
 	configParser := pkg.NewCronitorConfigParser(cronjob)
 	included, err := configParser.IsCronJobIncluded()
 	if err != nil {
@@ -26,9 +27,7 @@ func onAdd(coll CronJobCollection, obj interface{}) {
 	coll.AddCronJob(cronjob)
 }
 
-func onUpdate(coll CronJobCollection, oldObj interface{}, newObj interface{}) {
-	cronjobOld := oldObj.(*v1.CronJob)
-	cronjobNew := newObj.(*v1.CronJob)
+func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.CronJob) {
 	configParserOld := pkg.NewCronitorConfigParser(cronjobOld)
 	configParserNew := pkg.NewCronitorConfigParser(cronjobNew)
 	wasIncluded, err := configParserOld.IsCronJobIncluded()
@@ -50,8 +49,7 @@ func onUpdate(coll CronJobCollection, oldObj interface{}, newObj interface{}) {
 	}
 }
 
-func onDelete(coll CronJobCollection, obj interface{}) {
-	cronjob := obj.(*v1.CronJob)
+func onDelete(coll CronJobCollection, cronjob *v1.CronJob) {
 	configParser := pkg.NewCronitorConfigParser(cronjob)
 	included, err := configParser.IsCronJobIncluded()
 	if err != nil {
@@ -84,6 +82,18 @@ func (c CronJobWatcher) StopWatching() {
 	c.jobsWatcher.Stop()
 }
 
+func coerceObjToV1CronJob(version string, obj interface{}) *v1.CronJob {
+	var cronjob *v1.CronJob
+	if version == "v1" {
+		cronjob = obj.(*v1.CronJob)
+	} else if version == "v1beta1" {
+		temp := obj.(*v1beta1.CronJob)
+		cronjob = normalizer.CronJobConvertV1Beta1ToV1(temp)
+	}
+
+	return cronjob
+}
+
 func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
 	clientset := coll.clientset
 	var factory informers.SharedInformerFactory
@@ -94,7 +104,8 @@ func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
 	}
 
 	var informer cache.SharedIndexInformer
-	if version, err := coll.GetPreferredBatchApiVersion(); err != nil {
+	version, err := coll.GetPreferredBatchApiVersion()
+	if err != nil {
 		panic(err)
 	} else if version == "v1" {
 		informer = factory.Batch().V1().CronJobs().Informer()
@@ -104,17 +115,15 @@ func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
 		panic(fmt.Sprintf("Invalid ApiVersion %s requested", version))
 	}
 
-	// Since v1beta1.CronJob and v1.CronJob have the same properties, we _should_ be able to just coerce
-	// everything to v1.CronJob from the informer, regardless of which ApiVersion we're actually getting it from
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			onAdd(coll, obj)
+			onAdd(coll, coerceObjToV1CronJob(version, obj))
 		},
 		DeleteFunc: func(obj interface{}) {
-			onDelete(coll, obj)
+			onDelete(coll, coerceObjToV1CronJob(version, obj))
 		},
 		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-			onUpdate(coll, oldObj, newObj)
+			onUpdate(coll, coerceObjToV1CronJob(version, oldObj), coerceObjToV1CronJob(version, newObj))
 		},
 	})
 
