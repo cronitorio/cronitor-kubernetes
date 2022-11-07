@@ -30,5 +30,3 @@ func CronJobConvertV1Beta1ToV1(v1beta1CJ *v1beta1.CronJob) *v1.CronJob {
 
 	return newCronJob
 }
-
-//func JobConvertV1Beta1ToV1(v1beta1J Job)

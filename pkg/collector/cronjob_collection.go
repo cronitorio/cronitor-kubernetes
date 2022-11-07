@@ -100,6 +100,8 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 		for _, cj := range cronJobList.Items {
 			cronjobs = append(cronjobs, *normalizer.CronJobConvertV1Beta1ToV1(&cj))
 		}
+	} else {
+		log.Fatalf("Unexpected apiVersion %s returned", version)
 	}
 
 	for _, cronjob := range cronjobs {
