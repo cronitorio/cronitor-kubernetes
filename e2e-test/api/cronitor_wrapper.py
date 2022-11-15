@@ -41,6 +41,13 @@ class CronitorWrapper:
         logger.info("Monitors found: %s", [m['key'] for m in monitors])
         return monitors
 
+    def get_ci_monitor_by_key(self, key: str):
+        monitors = self.get_all_ci_monitors()
+        try:
+            return next(monitor for monitor in monitors if monitor['key'] == key)
+        except StopIteration:
+            return None
+
     def delete_monitor_by_key(self, key: str):
         response = self.delete(f'https://cronitor.io/api/monitors/{key}')
         response.raise_for_status()

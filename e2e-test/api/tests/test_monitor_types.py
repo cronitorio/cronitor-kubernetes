@@ -46,7 +46,7 @@ def test_expected_cronjobs_missing(name: str):
 
 def test_no_monitors_with_uid_names():
     # Ensure no unexpected monitors or monitors with UID names
-    # We may need to do further testing outside of the tag scope, depending on
+    # We may need to do further testing outside the tag scope, depending on
     # if this issue happens in such a way that monitors are auto-created without tags
     monitors = cronitor_wrapper.get_all_ci_monitors()
     for monitor in monitors:
@@ -57,3 +57,19 @@ def test_no_monitors_with_uid_names():
             # and defaultName was not set.
             with pytest.raises(ValueError):
                 uuid.UUID(monitor['name'])
+
+
+def test_monitor_created_with_new_id():
+    random_id = os.getenv("RANDOM_ID")
+    monitor_key = "annotation-test-id-{RANDOM_ID}".format(RANDOM_ID=random_id)
+
+    monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
+    assert monitor is not None, f"no monitor with key {monitor_key} exists but one should"
+
+
+def test_monitor_created_with_specified_name():
+    random_id = os.getenv("RANDOM_ID")
+    monitor_name = "annotation-test-name-{RANDOM_ID}".format(RANDOM_ID=random_id)
+    monitors = cronitor_wrapper.get_all_ci_monitors()
+
+    _ = next(monitor for monitor in monitors if monitor["name"] == monitor_name)

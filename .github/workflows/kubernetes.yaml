@@ -13,7 +13,7 @@ jobs:
          - default
          - single_namespace_rbac
         kind_image:
-         - kindest/node:v1.25.2@sha256:9be91e9e9cdf116809841fc77ebdb8845443c4c72fe5218f3ae9eb57fdb4bace
+#         - kindest/node:v1.25.2@sha256:9be91e9e9cdf116809841fc77ebdb8845443c4c72fe5218f3ae9eb57fdb4bace
          - kindest/node:v1.24.6@sha256:97e8d00bc37a7598a0b32d1fabd155a96355c49fa0d4d4790aab0f161bf31be1
          - kindest/node:v1.23.12@sha256:9402cf1330bbd3a0d097d2033fa489b2abe40d479cc5ef47d0b6a6960613148a
          - kindest/node:v1.22.15@sha256:bfd5eaae36849bfb3c1e3b9442f3da17d730718248939d9d547e86bbac5da586
@@ -71,9 +71,13 @@ jobs:
           kubectl create secret generic cronitor-secret --from-literal=CRONITOR_API_KEY=${{ secrets.CRONITOR_API_KEY }}
 
       - name: Apply test YAML
+        env:
+          EXTRA_NAMESPACE: "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
+          RANDOM_ID: "${{ steps.generate_random_id.outputs.random_id }}"
         run: |
-          kubectl apply -f e2e-test/resources/main/
-          kubectl apply -f e2e-test/resources/extra-namespace/ -n "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
+            envsubst < e2e-test/resources/kustomization-sub.yaml > e2e-test/resources/kustomization.yaml
+            cd e2e-test/resources/
+            kubectl apply -k .
 
       - name: Build docker container
         uses: docker/build-push-action@v2
@@ -133,6 +137,7 @@ jobs:
           KUBERNETES_NAMESPACE: "${{ steps.generate_random_id.outputs.random_id }}"
           KUBERNETES_EXTRA_NAMESPACE: "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
           TEST_CONFIGURATION: ${{ matrix.test_configuration }}
+          RANDOM_ID: "${{ steps.generate_random_id.outputs.random_id }}"
         run: pytest
       
       - name: Delete created monitors
