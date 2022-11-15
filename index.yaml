@@ -2,6 +2,16 @@ apiVersion: v1
 entries:
   cronitor-kubernetes:
   - apiVersion: v1
+    appVersion: 0.3.9
+    created: "2022-11-15T17:42:32.698752778Z"
+    description: 'Helm chart to deploy the Cronitor Kubernetes agent to automatically
+      monitor your CronJobs '
+    digest: e5306bc178f538c7ffb37cd3dbf1c699754a8d04a3d78e44f51372aa1c45e7be
+    name: cronitor-kubernetes
+    urls:
+    - https://github.com/cronitorio/cronitor-kubernetes/releases/download/cronitor-kubernetes-0.3.9/cronitor-kubernetes-0.3.9.tgz
+    version: 0.3.9
+  - apiVersion: v1
     appVersion: 0.3.8
     created: "2022-07-15T17:28:16.135238772Z"
     description: 'Helm chart to deploy the Cronitor Kubernetes agent to automatically
@@ -291,4 +301,4 @@ entries:
     urls:
     - https://github.com/cronitorio/cronitor-kubernetes/releases/download/cronitor-kubernetes-0.1.1/cronitor-kubernetes-0.1.1.tgz
     version: 0.1.1
-generated: "2022-07-15T17:28:16.135496673Z"
+generated: "2022-11-15T17:42:32.699315253Z"
