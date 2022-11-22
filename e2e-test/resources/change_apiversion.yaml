@@ -1,6 +1,0 @@
-- target:
-    kind: CronJob
-  patch: |-
-    - op: replace
-      path: /apiVersion
-      value: batch/v1beta1

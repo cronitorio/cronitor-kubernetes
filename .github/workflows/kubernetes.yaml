@@ -78,9 +78,13 @@ jobs:
           EXTRA_NAMESPACE: "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
           RANDOM_ID: "${{ steps.generate_random_id.outputs.random_id }}"
         run: |
-            envsubst < e2e-test/resources/kustomization-sub.yaml > e2e-test/resources/kustomization.yaml
+            envsubst < e2e-test/resources/kustomize/kustomization-sub.yaml > e2e-test/resources/kustomize/kustomization.yaml
             cd e2e-test/resources/
-            kubectl apply -k .
+            if echo "${{ matrix.kind_image }}" | grep -q -e v1.15 -e v1.16 -e v1.17 -e v1.18 -e v1.19 -e v1.20 -e v1.21 -e v1.22 -e v1.23 ; then
+              kubectl apply -k kustomize/pre-batchv1/
+            else 
+              kubectl apply -k kustomize/current/
+            fi
 
       - name: Build docker container
         uses: docker/build-push-action@v2
