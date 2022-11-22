@@ -1,0 +1,11 @@
+
+resources:
+  - extra-namespace/cronjob-extra-namespace.yaml
+  - main/cronjob.yaml
+  - main/cronjob-env-annotation.yaml
+  - main/cronjob-cronitor-id.yaml
+  - main/cronjob-cronitor-name.yaml
+  - main/cronjob-env-home.yaml
+  - main/cronjob-exclude.yaml
+  - main/cronjob-fail.yaml
+  - main/scoped-serviceaccount.yaml
