@@ -79,7 +79,7 @@ jobs:
           RANDOM_ID: "${{ steps.generate_random_id.outputs.random_id }}"
         run: |
             envsubst < e2e-test/kustomize/base/kustomization-sub.yaml > e2e-test/kustomize/base/kustomization.yaml
-            cd e2e-test/resources/
+            cd e2e-test/
             if echo "${{ matrix.kind_image }}" | grep -q -e v1.15 -e v1.16 -e v1.17 -e v1.18 -e v1.19 -e v1.20 -e v1.21 -e v1.22 -e v1.23 ; then
               kubectl apply -k kustomize/pre-batchv1/
             else 
