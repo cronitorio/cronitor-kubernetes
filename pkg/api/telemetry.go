@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/viper"
 	"io/ioutil"
 	v1 "k8s.io/api/batch/v1"
-	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"net/http"
@@ -32,7 +31,7 @@ const (
 )
 
 type TelemetryEvent struct {
-	CronJob   *v1beta1.CronJob
+	CronJob   *v1.CronJob
 	Event     TelemetryEventStatus
 	Message   string
 	ErrorLogs string
@@ -88,7 +87,7 @@ func translateJobEventReasonToTelemetryEventStatus(event *pkg.JobEvent) (*Teleme
 	return &Event, nil
 }
 
-func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) (*TelemetryEvent, error) {
+func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1.CronJob) (*TelemetryEvent, error) {
 	CronJob := cronjob
 	Message := event.Message
 	ErrorLogs := logs
@@ -119,7 +118,7 @@ func NewTelemetryEventFromKubernetesPodEvent(event *pkg.PodEvent, logs string, p
 	return &telemetryEvent, nil
 }
 
-func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) (*TelemetryEvent, error) {
+func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1.CronJob) (*TelemetryEvent, error) {
 	CronJob := cronjob
 	Message := event.Message
 	ErrorLogs := logs
@@ -234,7 +233,7 @@ func (api CronitorApi) sendTelemetryEvent(t *TelemetryEvent) error {
 	return nil
 }
 
-func (api CronitorApi) MakeAndSendTelemetryPodEventAndLogs(event *pkg.PodEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
+func (api CronitorApi) MakeAndSendTelemetryPodEventAndLogs(event *pkg.PodEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1.CronJob) error {
 	telemetryEvent, err := NewTelemetryEventFromKubernetesPodEvent(event, logs, pod, job, cronjob)
 	if err != nil {
 		return err
@@ -263,7 +262,7 @@ func (api CronitorApi) MakeAndSendTelemetryPodEventAndLogs(event *pkg.PodEvent, 
 	return api.sendTelemetryEvent(telemetryEvent)
 }
 
-func (api CronitorApi) MakeAndSendTelemetryJobEventAndLogs(event *pkg.JobEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1beta1.CronJob) error {
+func (api CronitorApi) MakeAndSendTelemetryJobEventAndLogs(event *pkg.JobEvent, logs string, pod *corev1.Pod, job *v1.Job, cronjob *v1.CronJob) error {
 	telemetryEvent, err := NewTelemetryEventFromKubernetesJobEvent(event, logs, pod, job, cronjob)
 	if err != nil {
 		return err

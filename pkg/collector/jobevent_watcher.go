@@ -10,7 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	v1 "k8s.io/api/batch/v1"
-	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -117,7 +116,7 @@ func (e EventHandler) fetchJob(namespace string, name string) (*v1.Job, error) {
 	return job, nil
 }
 
-func (e EventHandler) fetchCronJob(uid types.UID) (*v1beta1.CronJob, error) {
+func (e EventHandler) fetchCronJob(uid types.UID) (*v1.CronJob, error) {
 	cronjobs := e.collection.cronjobs
 	if val, ok := cronjobs[uid]; ok {
 		return val, nil
@@ -148,7 +147,7 @@ func (e EventHandler) fetchPodLogs(pod *corev1.Pod) (string, error) {
 	return str, nil
 }
 
-func (e EventHandler) FetchObjectsFromPodEvent(event *pkg.PodEvent) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1beta1.CronJob, err error) {
+func (e EventHandler) FetchObjectsFromPodEvent(event *pkg.PodEvent) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1.CronJob, err error) {
 	namespace := event.InvolvedObject.Namespace
 	podName := event.InvolvedObject.Name
 
@@ -176,7 +175,7 @@ func (e EventHandler) FetchObjectsFromPodEvent(event *pkg.PodEvent) (pod *corev1
 	return
 }
 
-func (e EventHandler) FetchObjectsFromJobEvent(event *pkg.JobEvent) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1beta1.CronJob, err error) {
+func (e EventHandler) FetchObjectsFromJobEvent(event *pkg.JobEvent) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1.CronJob, err error) {
 	namespace := event.InvolvedObject.Namespace
 	jobName := event.InvolvedObject.Name
 	job, err = e.fetchJob(namespace, jobName)

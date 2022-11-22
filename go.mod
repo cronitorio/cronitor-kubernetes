@@ -10,7 +10,6 @@ require (
 	github.com/cronitorio/cronitor-cli v0.0.0-00010101000000-000000000000
 	github.com/getsentry/sentry-go v0.12.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-logr/logr v0.3.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.3 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
@@ -19,13 +18,8 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.6
 	github.com/spf13/viper v1.6.2
-	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	gopkg.in/yaml.v2 v2.3.0 // indirect
-	k8s.io/api v0.19.3
-	k8s.io/apimachinery v0.19.3
-	k8s.io/client-go v0.19.3
-	k8s.io/klog/v2 v2.4.0 // indirect
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.0.2 // indirect
+	k8s.io/api v0.25.3
+	k8s.io/apimachinery v0.25.3
+	k8s.io/client-go v0.25.3
 )

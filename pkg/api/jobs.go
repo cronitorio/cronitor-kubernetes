@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/aquilax/truncate"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
-	"k8s.io/api/batch/v1beta1"
+	v1 "k8s.io/api/batch/v1"
 	"strconv"
 	"strings"
 )
@@ -50,7 +50,7 @@ func truncateDefaultName(name string) string {
 	return name
 }
 
-func GenerateDefaultName(cronJob *v1beta1.CronJob) string {
+func GenerateDefaultName(cronJob *v1.CronJob) string {
 	name := fmt.Sprintf("%s/%s", cronJob.Namespace, cronJob.Name)
 	return truncateDefaultName(name)
 }
@@ -64,7 +64,7 @@ func ValidateTagName(tagName string) string {
 	return name
 }
 
-func convertCronJobToCronitorJob(cronJob *v1beta1.CronJob) CronitorJob {
+func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 	configParser := pkg.NewCronitorConfigParser(cronJob)
 
 	name := GenerateDefaultName(cronJob)
@@ -104,7 +104,7 @@ func convertCronJobToCronitorJob(cronJob *v1beta1.CronJob) CronitorJob {
 	return cronitorJob
 }
 
-func convertCronJobsToCronitorJobs(jobs []*v1beta1.CronJob) []CronitorJob {
+func convertCronJobsToCronitorJobs(jobs []*v1.CronJob) []CronitorJob {
 	outputList := make([]CronitorJob, len(jobs))
 	for _, job := range jobs {
 		outputList = append(outputList, convertCronJobToCronitorJob(job))

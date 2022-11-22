@@ -13,7 +13,7 @@ jobs:
          - default
          - single_namespace_rbac
         kind_image:
-#         - kindest/node:v1.25.2@sha256:9be91e9e9cdf116809841fc77ebdb8845443c4c72fe5218f3ae9eb57fdb4bace
+         - kindest/node:v1.25.2@sha256:9be91e9e9cdf116809841fc77ebdb8845443c4c72fe5218f3ae9eb57fdb4bace
          - kindest/node:v1.24.6@sha256:97e8d00bc37a7598a0b32d1fabd155a96355c49fa0d4d4790aab0f161bf31be1
          - kindest/node:v1.23.12@sha256:9402cf1330bbd3a0d097d2033fa489b2abe40d479cc5ef47d0b6a6960613148a
          - kindest/node:v1.22.15@sha256:bfd5eaae36849bfb3c1e3b9442f3da17d730718248939d9d547e86bbac5da586
@@ -37,7 +37,7 @@ jobs:
           version: v3.7.2
 
       # Needed because default version is too old
-      - uses: azure/setup-kubectl@v2.0
+      - uses: azure/setup-kubectl@v3
 
       - uses: actions/setup-python@v2
         with:
@@ -70,14 +70,21 @@ jobs:
         run: >
           kubectl create secret generic cronitor-secret --from-literal=CRONITOR_API_KEY=${{ secrets.CRONITOR_API_KEY }}
 
+      # Since k8s versions 1.25+ don't support the batch/v1beta1 apiVersion anymore,
+      # we need to special case the resources for older versions of k8s using kustomize until they
+      # are all deprecated.
       - name: Apply test YAML
         env:
           EXTRA_NAMESPACE: "extra-namespace-${{ steps.generate_random_id.outputs.random_id }}"
           RANDOM_ID: "${{ steps.generate_random_id.outputs.random_id }}"
         run: |
-            envsubst < e2e-test/resources/kustomization-sub.yaml > e2e-test/resources/kustomization.yaml
-            cd e2e-test/resources/
-            kubectl apply -k .
+            envsubst < e2e-test/kustomize/base/kustomization-sub.yaml > e2e-test/kustomize/base/kustomization.yaml
+            cd e2e-test/
+            if echo "${{ matrix.kind_image }}" | grep -q -e v1.15 -e v1.16 -e v1.17 -e v1.18 -e v1.19 -e v1.20 -e v1.21 -e v1.22 -e v1.23 ; then
+              kubectl apply -k kustomize/pre-batchv1/
+            else 
+              kubectl apply -k kustomize/current/
+            fi
 
       - name: Build docker container
         uses: docker/build-push-action@v2
