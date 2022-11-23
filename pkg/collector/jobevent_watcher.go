@@ -8,6 +8,7 @@ import (
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"io"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -199,7 +200,9 @@ func (e EventHandler) FetchObjectsFromJobEvent(event *pkg.JobEvent) (pod *corev1
 
 	// Logs may not be available because the pod hasn't started yet, or maybe logs just aren't available.
 	// In that case, ignore. Logs are retrieved on a best-effort basis.
-	logs, _ = e.fetchPodLogs(pod)
+	if viper.GetBool("ship-logs") {
+		logs, _ = e.fetchPodLogs(pod)
+	}
 	return
 }
 
