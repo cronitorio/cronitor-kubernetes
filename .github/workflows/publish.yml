@@ -17,7 +17,7 @@ jobs:
 
   create_docker_container:
     name: Push Docker image to Github Registry
-    if: ${{ github.ref_name == 'main' }}
+    if: ${{ github.ref_name == 'main' || github.ref_name == 'watcher-vs-informer' }}
     needs: [run_tests]
     runs-on: ubuntu-latest
     steps:
@@ -74,7 +74,7 @@ jobs:
     name: Create and publish Helm chart to Github pages
     needs: [create_docker_container]
     runs-on: ubuntu-latest
-    if: ${{ github.ref_name == 'main' }}
+    if: ${{ github.ref_name == 'main' || github.ref_name == 'watcher-vs-informer' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
