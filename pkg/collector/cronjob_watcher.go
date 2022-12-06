@@ -67,7 +67,7 @@ func onDelete(coll CronJobCollection, obj interface{}) {
 type CronJobWatcher struct {
 	informer    cache.SharedIndexInformer
 	stopper     chan struct{}
-	jobsWatcher *EventHandler
+	jobsWatcher *WatchWrapper
 }
 
 func (c CronJobWatcher) StartWatching() {
@@ -105,11 +105,11 @@ func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
 		},
 	})
 
-	eventHandler := NewJobsEventWatcher(&coll)
+	jobsWatcher := NewJobsEventWatcher(&coll)
 
 	return CronJobWatcher{
 		informer:    informer,
 		stopper:     make(chan struct{}),
-		jobsWatcher: eventHandler,
+		jobsWatcher: jobsWatcher,
 	}
 }
