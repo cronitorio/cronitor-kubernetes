@@ -240,7 +240,7 @@ func (api CronitorApi) MakeAndSendTelemetryPodEventAndLogs(event *pkg.PodEvent, 
 		return err
 	}
 
-	defer func(telemetryEvent *TelemetryEvent, pod *corev1.Pod) {
+	go func(telemetryEvent *TelemetryEvent, pod *corev1.Pod) {
 		if !viper.GetBool("ship-logs") || len(telemetryEvent.ErrorLogs) == 0 {
 			return
 		}
@@ -269,7 +269,7 @@ func (api CronitorApi) MakeAndSendTelemetryJobEventAndLogs(event *pkg.JobEvent, 
 		return err
 	}
 
-	defer func(telemetryEvent *TelemetryEvent, job *v1.Job) {
+	go func(telemetryEvent *TelemetryEvent, job *v1.Job) {
 		if !viper.GetBool("ship-logs") || len(telemetryEvent.ErrorLogs) == 0 {
 			return
 		}
