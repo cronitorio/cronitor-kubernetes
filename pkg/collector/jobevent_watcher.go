@@ -25,27 +25,54 @@ type EventHandler struct {
 }
 
 func (e EventHandler) fetchPod(namespace string, podName string) (*corev1.Pod, error) {
+	log.WithFields(log.Fields{
+		"namespace": namespace,
+		"podName":   podName,
+	}).Trace("initiating fetching pod by name")
 	clientset := e.collection.clientset
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	podsClient := clientset.CoreV1().Pods(namespace)
 	pod, err := podsClient.Get(ctx, podName, meta_v1.GetOptions{})
 	if err != nil {
+		log.WithFields(log.Fields{
+			"namespace": namespace,
+			"podName":   podName,
+		}).Trace("failed to fetch pod by name")
 		return nil, err
 	}
+
+	log.WithFields(log.Fields{
+		"namespace": namespace,
+		"podName":   podName,
+	}).Trace("successfully fetched pod by name")
 
 	return pod, nil
 }
 
 func (e EventHandler) fetchJobByPod(namespace string, podName string) (*v1.Job, error) {
+	log.WithFields(log.Fields{
+		"namespace": namespace,
+		"podName":   podName,
+	}).Trace("initiating fetching pod by name to fetch job")
+
 	clientset := e.collection.clientset
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	podsClient := clientset.CoreV1().Pods(namespace)
 	pod, err := podsClient.Get(ctx, podName, meta_v1.GetOptions{})
 	if err != nil {
+		log.WithFields(log.Fields{
+			"namespace": namespace,
+			"podName":   podName,
+		}).Trace("Failed to fetch pod by name to fetch job")
 		return nil, PodNotFoundError{namespace, podName, err}
 	}
+
+	log.WithFields(log.Fields{
+		"namespace": namespace,
+		"podName":   podName,
+	}).Trace("Successfully fetched pod by name to fetch job")
 
 	var ownerReference = new(meta_v1.OwnerReference)
 	for _, ref := range pod.OwnerReferences {
@@ -66,6 +93,11 @@ func (e EventHandler) fetchJobByPod(namespace string, podName string) (*v1.Job, 
 
 // fetchPodByJobName grabs the Pod metadata from the Kubernetes API
 func (e EventHandler) fetchPodByJobName(namespace string, jobName string) (*corev1.Pod, error) {
+	log.WithFields(log.Fields{
+		"namespace": namespace,
+		"jobName":   jobName,
+	}).Trace("Initiating pod by job name")
+
 	// This could potentially be moved off of EventHandler into its own kube package
 	clientset := e.collection.clientset
 	ctx, cancel := context.WithCancel(context.Background())
@@ -76,21 +108,40 @@ func (e EventHandler) fetchPodByJobName(namespace string, jobName string) (*core
 	}
 	pods, err := podsClient.List(ctx, listOptions)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"namespace": namespace,
+			"jobName":   jobName,
+		}).Trace("Failed to fetch pod by job name, other error")
 		return nil, err
 	}
 
 	switch itemsLength := len(pods.Items); itemsLength {
 	case 0:
+		log.WithFields(log.Fields{
+			"namespace": namespace,
+			"jobName":   jobName,
+		}).Trace("Failed to fetch pod by job name, no pods found")
 		return nil, fmt.Errorf("no pod matching job name %s found", jobName)
 	case 1:
+		log.WithFields(log.Fields{
+			"namespace": namespace,
+			"jobName":   jobName,
+		}).Trace("Succesfully fetched pod by job name")
 		return &pods.Items[0], nil
 	default:
 		return nil, fmt.Errorf("more than one pod matching job name %s, %d found", jobName, itemsLength)
 	}
+
 }
 
 // fetchJob gets the Job's information from the Kubernetes API.
 func (e EventHandler) fetchJob(namespace string, name string) (*v1.Job, error) {
+
+	log.WithFields(log.Fields{
+		"namespace": namespace,
+		"name":      name,
+	}).Trace("Attempting to fetch job")
+
 	// Note: this might be a bit expensive, should we memoize it when possible?
 	clientset := e.collection.clientset
 	ctx, cancel := context.WithCancel(context.Background())
@@ -100,6 +151,12 @@ func (e EventHandler) fetchJob(namespace string, name string) (*v1.Job, error) {
 	if err != nil {
 		return nil, JobNotFoundError{namespace, name, err}
 	}
+
+	log.WithFields(log.Fields{
+		"namespace": namespace,
+		"name":      name,
+		"jobUid":    job.UID,
+	}).Trace("Successfully fetched job")
 	return job, nil
 }
 
