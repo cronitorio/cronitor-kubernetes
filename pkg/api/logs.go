@@ -20,7 +20,6 @@ Host:  https://logs.cronitor.link/<api key>/<monitor key>/?series=<same series a
 Body: <gzipped log message>
 */
 
-
 func (api CronitorApi) logPresignUrl() string {
 	url := fmt.Sprintf("%s/logs/presign", api.mainApiUrl())
 	if dev := viper.GetBool("dev"); dev {
@@ -52,7 +51,7 @@ func (api CronitorApi) ShipLogData(params *TelemetryEvent) ([]byte, error) {
 
 	jsonBytes, err := json.Marshal(map[string]string{
 		"job_key": cronitorID,
-		"series": seriesID,
+		"series":  seriesID,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't encode job and series IDs to JSON")
