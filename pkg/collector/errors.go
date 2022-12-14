@@ -2,8 +2,8 @@ package collector
 
 type PodNotFoundError struct {
 	podNamespace string
-	podName string
-	Err error
+	podName      string
+	Err          error
 }
 
 func (e PodNotFoundError) Error() string {
@@ -16,8 +16,8 @@ func (e PodNotFoundError) Unwrap() error {
 
 type JobNotFoundError struct {
 	jobNamespace string
-	jobName string
-	Err error
+	jobName      string
+	Err          error
 }
 
 func (e JobNotFoundError) Error() string {

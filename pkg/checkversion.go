@@ -61,7 +61,7 @@ func extractLatestVersionFromList(versions []string) (string, error) {
 	for i, r := range versions {
 		v, err := semver.NewVersion(r)
 		if err != nil {
-			log.Errorf("Error parsing version: %s", err)
+			log.Errorf("error parsing chart version: %v", err)
 		}
 
 		vs[i] = v
