@@ -25,9 +25,14 @@ var agentCmd = &cobra.Command{
 }
 
 func checkVersion() {
-	currentVersion, err := semver.NewVersion(viper.GetString("version"))
+	viperVersion := viper.GetString("version")
+	if viperVersion == "" {
+		return
+	}
+
+	currentVersion, err := semver.NewVersion(viperVersion)
 	if err != nil {
-		log.Errorf("Error parsing version: %s", err)
+		log.Errorf("Error parsing version from viper %s: %v", viperVersion, err)
 		return
 	}
 	latestVersion := pkg.GetLatestVersion()
@@ -37,7 +42,7 @@ func checkVersion() {
 	}
 	latestAvailableVersion, err := semver.NewVersion(latestVersion)
 	if err != nil {
-		log.Errorf("Error parsing version: %s", err)
+		log.Errorf("Error parsing latest available version %s: %v", latestVersion, err)
 		return
 	}
 	constraint, err := semver.NewConstraint("> " + currentVersion.String())
@@ -112,8 +117,8 @@ func initializeAgentConfig(agentCmd *cobra.Command, args []string) error {
 
 	// We need to add this because declaring PersistentPreRunE in this command
 	// overrides the run coming from Root; it doesn't run both
-	if RootCmd.PersistentPreRunE != nil {
-		return RootCmd.PersistentPreRunE(agentCmd.Parent(), args)
+	if agentCmd.Parent().PersistentPreRunE != nil {
+		return agentCmd.Parent().PersistentPreRunE(agentCmd.Parent(), args)
 	}
 
 	return nil

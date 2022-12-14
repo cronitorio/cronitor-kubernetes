@@ -3,7 +3,6 @@ package collector
 import (
 	"context"
 	"fmt"
-	"github.com/Masterminds/semver"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/normalizer"
@@ -143,16 +142,8 @@ func (coll CronJobCollection) GetAllWatchedCronJobUIDs() []types.UID {
 // CompareServerVersion will return 1 if the server version is higher than the compared version,
 // -1 if it is lower than the compared version, or 0 if they are the same
 func (coll CronJobCollection) CompareServerVersion(major int, minor int) (int, error) {
-	serverVersion, err := semver.NewVersion(fmt.Sprintf("%s.%s", coll.serverVersion.Major, coll.serverVersion.Minor))
-	if err != nil {
-		return 0, err
-	}
-	compareVersion, err := semver.NewVersion(fmt.Sprintf("%d.%d", major, minor))
-	if err != nil {
-		return 0, err
-	}
-
-	return serverVersion.Compare(compareVersion), nil
+	serverVersionString := fmt.Sprintf("v%s.%s", coll.serverVersion.Major, coll.serverVersion.Minor)
+	return version.CompareKubeAwareVersionStrings(fmt.Sprintf("v%d.%d", major, minor), serverVersionString), nil
 }
 
 func (coll CronJobCollection) GetPreferredBatchApiVersion() (string, error) {

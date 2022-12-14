@@ -30,9 +30,12 @@ func TestRightBatchApiVersion(t *testing.T) {
 		ExpectedApiVersion string
 	}{
 		{version.Info{Major: "1", Minor: "25"}, "v1"},
+		{version.Info{Major: "1", Minor: "25+"}, "v1"},
 		{version.Info{Major: "1", Minor: "24"}, "v1"},
 		{version.Info{Major: "1", Minor: "23"}, "v1beta1"},
 		{version.Info{Major: "1", Minor: "22"}, "v1beta1"},
+		{version.Info{Major: "1", Minor: "20+"}, "v1beta1"},
+		{version.Info{Major: "1", Minor: "19.alpha-2"}, "v1beta1"},
 	}
 
 	for _, s := range tests {
@@ -43,7 +46,7 @@ func TestRightBatchApiVersion(t *testing.T) {
 				t.Error(err)
 			}
 			if version != s.ExpectedApiVersion {
-				t.Errorf("for server %s.%s expecting %s got %s", s.Version.Major, s.Version.Major, s.ExpectedApiVersion, version)
+				t.Errorf("for server %s.%s expecting %s got %s", s.Version.Major, s.Version.Minor, s.ExpectedApiVersion, version)
 			}
 		})
 	}
