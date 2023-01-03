@@ -339,7 +339,6 @@ func (w WatchWrapper) Stop() {
 
 func NewJobsEventWatcher(collection *CronJobCollection) *WatchWrapper {
 	clientset := collection.clientset
-	// timeOut := int64(10)
 	namespace := corev1.NamespaceAll
 	if collection.kubernetesNamespace != "" {
 		namespace = collection.kubernetesNamespace
