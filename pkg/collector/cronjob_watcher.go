@@ -2,6 +2,7 @@ package collector
 
 import (
 	"fmt"
+
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/normalizer"
 	log "github.com/sirupsen/logrus"
@@ -35,6 +36,7 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 		panic(err)
 	}
 	nowIncluded, err := configParserNew.IsCronJobIncluded()
+	scheduleChanged := configParserOld.GetSchedule() != configParserNew.GetSchedule()
 	if err != nil {
 		panic(err)
 	}
@@ -46,6 +48,9 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 		// Otherwise, if we're keeping it around, check if there are any changes to
 		// configurable annotations and handle accordingly.
 		// Right now we don't actually have any logic to put here, but we might down the line.
+		if scheduleChanged {
+			onAdd(coll, cronjobNew)
+		}
 	}
 }
 
