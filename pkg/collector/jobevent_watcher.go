@@ -5,17 +5,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"io"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/watch"
+	apiWatch "k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/watch"
 )
 
 var StartupTime = meta_v1.Now()
@@ -315,7 +318,7 @@ func (e EventHandler) OnAdd(obj interface{}) {
 }
 
 type WatchWrapper struct {
-	watcher watch.Interface
+	watcher apiWatch.Interface
 	onAdd   func(obj interface{})
 }
 
@@ -326,6 +329,7 @@ func (w WatchWrapper) Start() {
 	for event := range ch {
 		w.onAdd(event.Object)
 	}
+	panic("The job watcher stopped unexpectedly!")
 }
 
 func (w WatchWrapper) Stop() {
@@ -335,11 +339,19 @@ func (w WatchWrapper) Stop() {
 
 func NewJobsEventWatcher(collection *CronJobCollection) *WatchWrapper {
 	clientset := collection.clientset
-	var watcher watch.Interface
-	if collection.kubernetesNamespace == "" {
-		watcher, _ = clientset.CoreV1().Events(corev1.NamespaceAll).Watch(context.Background(), meta_v1.ListOptions{})
-	} else {
-		watcher, _ = clientset.CoreV1().Events(collection.kubernetesNamespace).Watch(context.Background(), meta_v1.ListOptions{})
+	// timeOut := int64(10)
+	namespace := corev1.NamespaceAll
+	if collection.kubernetesNamespace != "" {
+		namespace = collection.kubernetesNamespace
+	}
+	watchFunc := func(options meta_v1.ListOptions) (apiWatch.Interface, error) {
+		// Return watcher with 10m timeout
+		return clientset.CoreV1().Events(namespace).Watch(context.Background(), meta_v1.ListOptions{})
+	}
+
+	watcher, err := watch.NewRetryWatcher("1", &cache.ListWatch{WatchFunc: watchFunc})
+	if err != nil {
+		panic(err)
 	}
 
 	eventHandler := &EventHandler{
