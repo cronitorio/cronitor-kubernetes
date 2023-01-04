@@ -21,7 +21,7 @@ import (
 	"k8s.io/client-go/tools/watch"
 )
 
-var StartupTime = meta_v1.Now()
+var startupTime = meta_v1.Now()
 
 type EventHandler struct {
 	collection *CronJobCollection
@@ -228,13 +228,13 @@ func (e EventHandler) OnAdd(obj interface{}) {
 
 		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
 		// then ignore the event
-		if eventTime.Before(&StartupTime) {
+		if eventTime.Before(&startupTime) {
 			log.WithFields(log.Fields{
 				"name":         typedEvent.InvolvedObject.Name,
 				"kind":         typedEvent.InvolvedObject.Kind,
 				"eventMessage": typedEvent.Message,
 				"eventReason":  typedEvent.Reason,
-			}).Infof("Ignored event from the past, happened %v, agent startup time %v", eventTime, StartupTime)
+			}).Infof("Ignored event from the past, happened %v, watch startup time %v", eventTime, startupTime)
 			return
 		}
 
@@ -258,13 +258,13 @@ func (e EventHandler) OnAdd(obj interface{}) {
 
 		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
 		// then ignore the event
-		if eventTime.Before(&StartupTime) {
+		if eventTime.Before(&startupTime) {
 			log.WithFields(log.Fields{
 				"name":         typedEvent.InvolvedObject.Name,
 				"kind":         typedEvent.InvolvedObject.Kind,
 				"eventMessage": typedEvent.Message,
 				"eventReason":  typedEvent.Reason,
-			}).Infof("Ignored event from the past, happened %v, agent startup time %v", eventTime, StartupTime)
+			}).Infof("Ignored event from the past, happened %v, watch startup time %v", eventTime, startupTime)
 			return
 		}
 
@@ -344,7 +344,8 @@ func NewJobsEventWatcher(collection *CronJobCollection) *WatchWrapper {
 		namespace = collection.kubernetesNamespace
 	}
 	watchFunc := func(options meta_v1.ListOptions) (apiWatch.Interface, error) {
-		// Return watcher with 10m timeout
+		// Setting the time here *should* be safe, as when watchFunc runs, the watch handler by definition is stopped
+		startupTime = meta_v1.Now()
 		return clientset.CoreV1().Events(namespace).Watch(context.Background(), meta_v1.ListOptions{})
 	}
 
