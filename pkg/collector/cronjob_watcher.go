@@ -36,7 +36,6 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 		panic(err)
 	}
 	nowIncluded, err := configParserNew.IsCronJobIncluded()
-	scheduleChanged := configParserOld.GetSchedule() != configParserNew.GetSchedule()
 	if err != nil {
 		panic(err)
 	}
@@ -45,10 +44,8 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 	} else if wasIncluded && !nowIncluded {
 		onDelete(coll, cronjobOld)
 	} else if wasIncluded && nowIncluded {
-		// Otherwise, if we're keeping it around, check if there are any changes to
-		// configurable annotations and handle accordingly.
-		// Right now we don't actually have any logic to put here, but we might down the line.
-		if scheduleChanged {
+		// If the schedule is updated
+		if configParserOld.GetSchedule() != configParserNew.GetSchedule() {
 			onAdd(coll, cronjobNew)
 		}
 	}

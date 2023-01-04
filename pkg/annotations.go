@@ -76,9 +76,6 @@ func (cronitorParser CronitorConfigParser) GetEnvironment() string {
 }
 
 func (cronitorParser CronitorConfigParser) GetSchedule() string {
-	if env, ok := cronitorParser.cronjob.Annotations[string(AnnotationEnvironment)]; ok && env != "" {
-		return env
-	}
 	return cronitorParser.cronjob.Spec.Schedule
 }
 

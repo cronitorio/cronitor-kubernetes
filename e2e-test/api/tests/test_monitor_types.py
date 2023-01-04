@@ -3,7 +3,7 @@ from pytest import assume
 from typing import Optional
 import os
 import uuid
-from ..kubernetes_wrapper import get_cronjob_by_name
+from ..kubernetes_wrapper import get_cronjob_by_name, patch_cronjob_by_name
 from ..cronitor_wrapper import cronitor_wrapper_from_environment
 
 cronitor_wrapper = cronitor_wrapper_from_environment()
@@ -65,6 +65,19 @@ def test_monitor_created_with_new_id():
 
     monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
     assert monitor is not None, f"no monitor with key {monitor_key} exists but one should"
+
+
+def test_monitor_schedule_gets_updated():
+    random_id = os.getenv("RANDOM_ID")
+    monitor_key = "test-schedule_change-{RANDOM_ID}".format(RANDOM_ID=random_id)
+    monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
+    assert monitor is not None, f"no monitor with key {monitor_key} exists"
+    assert monitor['schedule'] == "*/5 */10 * * *", f"expected monitor schedule '*/5 */10 * * *', got '{monitor['schedule']}'"
+
+    new_schedule = "*/10 */50 * * *"
+    patch_cronjob_by_name("test-schedule_change", None, {"spec": {"schedule": new_schedule}})
+    monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
+    assert monitor['schedule'] == new_schedule, f"expected monitor schedule '{new_schedule}', got '{monitor['schedule']}'"
 
 
 def test_monitor_created_with_specified_name():
