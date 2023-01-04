@@ -28,7 +28,7 @@ patches:
     patch: |-
       - op: replace
         path: /metadata/annotations/k8s.cronitor.io~1cronitor-id
-        value: "test-schedule-change-{RANDOM_ID}"
+        value: "test-schedule-change-${RANDOM_ID}"
 
   - target:
       kind: CronJob
