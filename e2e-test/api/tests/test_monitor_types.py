@@ -77,6 +77,7 @@ def test_monitor_schedule_gets_updated():
 
     new_schedule = "*/10 */50 * * *"
     patch_cronjob_by_name("test-schedule-change", None, {"spec": {"schedule": new_schedule}})
+    cronitor_wrapper.bust_monitor_cache()
     time.sleep(3)
     monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
     assert monitor['schedule'] == new_schedule, f"expected monitor schedule '{new_schedule}', got '{monitor['schedule']}'"

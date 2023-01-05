@@ -14,7 +14,6 @@ import subprocess
 from typing import Optional, Dict
 import json
 
-
 class CronJobNotFound(BaseException):
     pass
 
@@ -31,6 +30,7 @@ def patch_cronjob_by_name(name: str, namespace: Optional[str] = None, patch: Opt
             '--patch', json.dumps(patch),
             '-o', 'json'
         ])
+
     except subprocess.CalledProcessError as err:
         # Generally if we get an error here with kubectl exiting 1,
         # it's because the CronJob we're fetching doesn't exist.

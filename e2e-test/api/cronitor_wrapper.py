@@ -22,6 +22,9 @@ class CronitorWrapper:
         for monitor in monitors:
             self.delete_monitor_by_key(monitor['key'])
 
+    def bust_monitor_cache(self):
+        self.get_all_monitors.cache_clear()
+
     @cache
     def get_all_monitors(self, *, page: int = 1):
         PAGE_SIZE = 50
