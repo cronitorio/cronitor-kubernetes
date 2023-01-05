@@ -44,6 +44,16 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 	} else if wasIncluded && !nowIncluded {
 		onDelete(coll, cronjobOld)
 	} else if wasIncluded && nowIncluded {
+		log.WithFields(log.Fields{
+			"namespace":   cronjobNew.Namespace,
+			"name":        cronjobNew.Name,
+			"UID":         cronjobNew.UID,
+			"oldSchedule": cronjobOld.Spec.Schedule,
+			"newSchedule": cronjobNew.Spec.Schedule,
+			"configOld":   configParserOld.GetSchedule(),
+			"configNew":   configParserNew.GetSchedule(),
+		}).Info("cronjob updated")
+
 		// If the schedule is updated
 		onAdd(coll, cronjobNew)
 		//if configParserOld.GetSchedule() != configParserNew.GetSchedule() {
