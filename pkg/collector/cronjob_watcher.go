@@ -55,10 +55,9 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 		}).Info("cronjob updated")
 
 		// If the schedule is updated
-		onAdd(coll, cronjobNew)
-		//if configParserOld.GetSchedule() != configParserNew.GetSchedule() {
-		//	onAdd(coll, cronjobNew)
-		//}
+		if configParserOld.GetSchedule() != configParserNew.GetSchedule() {
+		  onAdd(coll, cronjobNew)
+		}
 	}
 }
 
