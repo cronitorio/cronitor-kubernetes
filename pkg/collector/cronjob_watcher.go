@@ -2,6 +2,7 @@ package collector
 
 import (
 	"fmt"
+
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/normalizer"
 	log "github.com/sirupsen/logrus"
@@ -43,9 +44,20 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 	} else if wasIncluded && !nowIncluded {
 		onDelete(coll, cronjobOld)
 	} else if wasIncluded && nowIncluded {
-		// Otherwise, if we're keeping it around, check if there are any changes to
-		// configurable annotations and handle accordingly.
-		// Right now we don't actually have any logic to put here, but we might down the line.
+		log.WithFields(log.Fields{
+			"namespace":   cronjobNew.Namespace,
+			"name":        cronjobNew.Name,
+			"UID":         cronjobNew.UID,
+			"oldSchedule": cronjobOld.Spec.Schedule,
+			"newSchedule": cronjobNew.Spec.Schedule,
+			"configOld":   configParserOld.GetSchedule(),
+			"configNew":   configParserNew.GetSchedule(),
+		}).Info("cronjob updated")
+
+		// If the schedule is updated
+		if configParserOld.GetSchedule() != configParserNew.GetSchedule() {
+		  onAdd(coll, cronjobNew)
+		}
 	}
 }
 

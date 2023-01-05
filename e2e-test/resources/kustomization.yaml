@@ -9,3 +9,4 @@ resources:
   - main/cronjob-exclude.yaml
   - main/cronjob-fail.yaml
   - main/scoped-serviceaccount.yaml
+  - main/cronjob-schedule-change.yaml

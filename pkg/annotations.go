@@ -2,10 +2,11 @@ package pkg
 
 import (
 	"fmt"
-	v1 "k8s.io/api/batch/v1"
 	"os"
 	"strconv"
 	"strings"
+
+	v1 "k8s.io/api/batch/v1"
 )
 
 type defaultBehaviorValue string
@@ -72,6 +73,10 @@ func (cronitorParser CronitorConfigParser) GetEnvironment() string {
 		return defaultEnvironment
 	}
 	return ""
+}
+
+func (cronitorParser CronitorConfigParser) GetSchedule() string {
+	return cronitorParser.cronjob.Spec.Schedule
 }
 
 func (cronitorParser CronitorConfigParser) GetTags() []string {
