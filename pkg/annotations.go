@@ -36,14 +36,14 @@ const (
 
 	// AnnotationEnvironment is the environment name that should be sent to Cronitor
 	// for the CronJob.
-	// Optional. Overrides the default chart-wide environment if present.
+	// Overrides the default chart-wide environment if present.
 	AnnotationEnvironment CronitorAnnotation = "k8s.cronitor.io/env"
 
 	// AnnotationTags is a comma-separated list of Cronitor tags for the CronJob.
-	// Optional. Appends to any chart-wide tags.
+	// Appends to any chart-wide tags.
 	AnnotationTags CronitorAnnotation = "k8s.cronitor.io/tags"
 
-	// AnnotationCronitorID is a pre-existing Cronitor monitor ID, for use if you are
+	// AnnotationCronitorID is a pre-existing Cronitor monitor key, for use if you are
 	// having the Cronitor agent watch some CronJobs that are already present in Cronitor
 	// via manual instrumentation, and you'd like to use the same Monitor object.
 	AnnotationCronitorID CronitorAnnotation = "k8s.cronitor.io/cronitor-id"
@@ -51,8 +51,16 @@ const (
 	// AnnotationCronitorName lets you override the defaultName created by the agent to
 	// create the monitor in Cronitor with a custom specified name. This is especially useful
 	// if you are attaching the same CronJob across multiple namespaces/clusters to a single
-	// Cronitor Monitor across multiple environments
+	// Cronitor Monitor across multiple environments.
 	AnnotationCronitorName CronitorAnnotation = "k8s.cronitor.io/cronitor-name"
+
+	// AnnotationCronitorGroup lets you provide the key for a Group within the Cronitor application.
+	// This is useful if you want to organize monitors within the Cronitor application as they are first created.
+	AnnotationCronitorGroup CronitorAnnotation = "k8s.cronitor.io/cronitor-group"
+
+	// AnnotationCronitorNotify lets you provide a comma-separated list of Notification List
+	// keys (https://cronitor.io/app/settings/alerts) to be used for dispatching alerts when a job fails/recovers.
+	AnnotationCronitorNotify CronitorAnnotation = "k8s.cronitor.io/cronitor-notify"
 )
 
 type CronitorConfigParser struct {
@@ -85,14 +93,14 @@ func (cronitorParser CronitorConfigParser) GetTags() []string {
 	// Get tags from Helm chart (via the environment)
 	if stringEnvTagList := os.Getenv("TAGS"); stringEnvTagList != "" {
 		for _, value := range strings.Split(stringEnvTagList, ",") {
-			tagList = append(tagList, value)
+			tagList = append(tagList, strings.TrimSpace(value))
 		}
 	}
 
 	// Get tags from CronJob annotations
 	if stringTagList, ok := cronitorParser.cronjob.Annotations[string(AnnotationTags)]; ok && stringTagList != "" {
 		for _, value := range strings.Split(stringTagList, ",") {
-			tagList = append(tagList, value)
+			tagList = append(tagList, strings.TrimSpace(value))
 		}
 	}
 
@@ -161,4 +169,22 @@ func (cronitorParser CronitorConfigParser) IsCronJobIncluded() (bool, error) {
 	default:
 		return false, fmt.Errorf("invalid DEFAULT_BEHAVIOR value of \"%s\" provided", defaultBehavior)
 	}
+}
+
+func (cronitorParser CronitorConfigParser) GetNotify() []string {
+	var notifications []string
+
+	if stringNotificationList, ok := cronitorParser.cronjob.Annotations[string(AnnotationCronitorNotify)]; ok {
+		for _, value := range strings.Split(stringNotificationList, ",") {
+			notifications = append(notifications, strings.TrimSpace(value))
+		}
+	}
+	return notifications
+}
+
+func (cronitorParser CronitorConfigParser) GetGroup() string {
+	if group, ok := cronitorParser.cronjob.Annotations[string(AnnotationCronitorGroup)]; ok {
+		return group
+	}
+	return ""
 }
