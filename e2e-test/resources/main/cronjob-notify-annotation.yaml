@@ -3,6 +3,7 @@ kind: CronJob
 metadata:
   name: test-notify-annotation
   annotations:
+    k8s.cronitor.io/cronitor-id: ''
     k8s.cronitor.io/cronitor-notify: 'devops-slack, infra-teams'
 spec:
   schedule: "*/1 * * * *"
