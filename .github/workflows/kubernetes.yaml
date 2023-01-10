@@ -1,4 +1,4 @@
-name: Run Kubernetes end-to-end tests
+name: Tests
 on:
   push: {}
 
