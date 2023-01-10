@@ -10,3 +10,5 @@ resources:
   - main/cronjob-fail.yaml
   - main/scoped-serviceaccount.yaml
   - main/cronjob-schedule-change.yaml
+  - main/cronjob-notify-annotation.yaml
+  - main/cronjob-group-annotation.yaml

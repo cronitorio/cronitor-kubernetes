@@ -37,3 +37,19 @@ patches:
       - op: replace
         path: /metadata/namespace
         value: "${EXTRA_NAMESPACE}"
+
+  - target:
+      kind: CronJob
+      name: test-group-annotation
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/k8s.cronitor.io~1cronitor-id
+        value: "test-group-annotation-${RANDOM_ID}"
+
+  - target:
+      kind: CronJob
+      name: test-notify-annotation
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/k8s.cronitor.io~1cronitor-id
+        value: "test-notify-annotation-${RANDOM_ID}"
