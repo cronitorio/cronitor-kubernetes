@@ -89,3 +89,18 @@ def test_monitor_created_with_specified_name():
     monitors = cronitor_wrapper.get_all_ci_monitors()
 
     _ = next(monitor for monitor in monitors if monitor["name"] == monitor_name)
+
+
+def test_monitor_created_with_group():
+    random_id = os.getenv("RANDOM_ID")
+    monitor_key = "test-group-annotation-{RANDOM_ID}".format(RANDOM_ID=random_id)
+    monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
+    assert monitor is not None, f"no monitor with key {monitor_key} exists"
+    assert monitor['group'] == "test-group", f"expected monitor group 'test-group', got '{monitor['group']}'"
+
+def test_monitor_created_with_notify():
+    random_id = os.getenv("RANDOM_ID")
+    monitor_key = "test-notify-annotation-{RANDOM_ID}".format(RANDOM_ID=random_id)
+    monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
+    assert monitor is not None, f"no monitor with key {monitor_key} exists"
+    assert monitor['notify'] == ["devops-slack", "infra-teams"], f"expected ['devops-slack', 'infra-teams'] got '{monitor['notify']}'"

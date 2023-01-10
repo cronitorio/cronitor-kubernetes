@@ -3,11 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/aquilax/truncate"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	v1 "k8s.io/api/batch/v1"
-	"strconv"
-	"strings"
 )
 
 /*
@@ -25,7 +26,8 @@ type CronitorJob struct {
 	Type_       string   `json:"type"`     // 'job'
 	Schedule    string   `json:"schedule"`
 	Tags        []string `json:"tags,omitempty"`
-	Rules       []string `json:"rules"`
+	Notify      []string `json:"notify,omitempty"`
+	Group       string   `json:"group,omitempty"`
 }
 
 func (cronitorJob CronitorJob) GetEnvironment() string {
@@ -93,8 +95,8 @@ func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 		Metadata:    string(metadataJson),
 		Type_:       "job",
 		Tags:        allTags,
-		// An empty rules array is required
-		Rules: []string{},
+		Notify:      configParser.GetNotify(),
+		Group:       configParser.GetGroup(),
 	}
 
 	if name := configParser.GetSpecifiedCronitorName(); name != "" {

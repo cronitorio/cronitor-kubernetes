@@ -3,8 +3,9 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	v1 "k8s.io/api/batch/v1"
 	"testing"
+
+	v1 "k8s.io/api/batch/v1"
 )
 
 func TestNamespaceTag(t *testing.T) {
@@ -89,6 +90,34 @@ func TestEmptyCronitorIDAnnotation(t *testing.T) {
 
 	if cronJob.Key != string(jsonBlob.GetUID()) {
 		t.Errorf("expected cronitorJob key of default `%s`, got `%s`", jsonBlob.GetUID(), cronJob.Key)
+	}
+}
+
+func TestCronitorGroupAnnotation(t *testing.T) {
+	var jsonBlob v1.CronJob
+	err := json.Unmarshal([]byte(`{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"annotations":{"k8s.cronitor.io/cronitor-group":"test-group","k8s.cronitor.io/env":"staging","kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"batch/v1beta1\",\"kind\":\"CronJob\",\"metadata\":{\"annotations\":{\"k8s.cronitor.io/cronitor-id\":\"uv93823\",\"k8s.cronitor.io/env\":\"staging\"},\"name\":\"eventrouter-test-cronjob\",\"namespace\":\"default\"},\"spec\":{\"concurrencyPolicy\":\"Forbid\",\"jobTemplate\":{\"spec\":{\"backoffLimit\":3,\"template\":{\"spec\":{\"containers\":[{\"args\":[\"/bin/sh\",\"-c\",\"date ; sleep 5 ; echo Hello from k8s\"],\"image\":\"busybox\",\"name\":\"hello\"}],\"restartPolicy\":\"OnFailure\"}}}},\"schedule\":\"*/1 * * * *\"}}\n"},"name":"eventrouter-test-cronjob","namespace":"default"},"spec":{"concurrencyPolicy":"Forbid","jobTemplate":{"spec":{"backoffLimit":3,"template":{"spec":{"containers":[{"args":["/bin/sh","-c","date ; sleep 5 ; echo Hello from k8s"],"image":"busybox","name":"hello"}],"restartPolicy":"OnFailure"}}}},"schedule":"*/1 * * * *"}}`), &jsonBlob)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cronJob := convertCronJobToCronitorJob(&jsonBlob)
+
+	if cronJob.Group != string(jsonBlob.Annotations["k8s.cronitor.io/cronitor-group"]) {
+		t.Errorf("expected cronitor-group `%s`, got `%s`", jsonBlob.Annotations["k8s.cronitor.io/cronitor-group"], cronJob.Group)
+	}
+}
+
+func TestCronitorNotificationsAnnotation(t *testing.T) {
+	var jsonBlob v1.CronJob
+	err := json.Unmarshal([]byte(`{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"annotations":{"k8s.cronitor.io/cronitor-notify":"devops-slack, infra-teams","k8s.cronitor.io/env":"staging","kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"batch/v1beta1\",\"kind\":\"CronJob\",\"metadata\":{\"annotations\":{\"k8s.cronitor.io/cronitor-id\":\"uv93823\",\"k8s.cronitor.io/env\":\"staging\"},\"name\":\"eventrouter-test-cronjob\",\"namespace\":\"default\"},\"spec\":{\"concurrencyPolicy\":\"Forbid\",\"jobTemplate\":{\"spec\":{\"backoffLimit\":3,\"template\":{\"spec\":{\"containers\":[{\"args\":[\"/bin/sh\",\"-c\",\"date ; sleep 5 ; echo Hello from k8s\"],\"image\":\"busybox\",\"name\":\"hello\"}],\"restartPolicy\":\"OnFailure\"}}}},\"schedule\":\"*/1 * * * *\"}}\n"},"name":"eventrouter-test-cronjob","namespace":"default"},"spec":{"concurrencyPolicy":"Forbid","jobTemplate":{"spec":{"backoffLimit":3,"template":{"spec":{"containers":[{"args":["/bin/sh","-c","date ; sleep 5 ; echo Hello from k8s"],"image":"busybox","name":"hello"}],"restartPolicy":"OnFailure"}}}},"schedule":"*/1 * * * *"}}`), &jsonBlob)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cronJob := convertCronJobToCronitorJob(&jsonBlob)
+
+	var expected = []string{"devops-slack", "infra-teams"}
+
+	if cronJob.Notify[0] != expected[0] {
+		t.Errorf("expected cronitor-notify `%s`, got `%s`", expected, cronJob.Notify)
 	}
 }
 
