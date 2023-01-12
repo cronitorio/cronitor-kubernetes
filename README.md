@@ -50,7 +50,7 @@ Here is the list of supported annotations:
 * `k8s.cronitor.io/tags` - Comma-separated list of tags for this cron job for use within the Cronitor application.
 * `k8s.cronitor.io/notify` - Comma-separated list of Notification List `key`s to assign alert destinations.
 * `k8s.cronitor.io/group` - Group `key` attribute for grouping the monitor within the Cronitor application.
-* `k8s.cronitor.io/grace-seconds` - Number of seconds to wait beyond the scheduled execution time to wait before sending an alert.
+* `k8s.cronitor.io/grace-seconds` - The number of seconds that Cronitor should wait after the scheduled execution time before sending an alert. If the monitor is healthy at the end of the period no alert will be sent.
 
 ### FAQ
 <details>
