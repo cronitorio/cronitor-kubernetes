@@ -28,7 +28,7 @@ type CronitorJob struct {
 	Tags         []string `json:"tags,omitempty"`
 	Notify       []string `json:"notify,omitempty"`
 	Group        string   `json:"group,omitempty"`
-	GraceSeconds int      `json:"graceSeconds,omitempty"`
+	GraceSeconds int      `json:"grace_seconds,omitempty"`
 }
 
 func (cronitorJob CronitorJob) GetEnvironment() string {
