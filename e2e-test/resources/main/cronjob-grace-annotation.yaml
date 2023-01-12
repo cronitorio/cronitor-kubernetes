@@ -1,9 +1,9 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: test-notify-annotation
+  name: test-grace-seconds-annotation
   annotations:
-    k8s.cronitor.io/cronitor-notify: 'devops-slack, infra-teams'
+    k8s.cronitor.io/cronitor-grace-seconds: 305
 spec:
   schedule: "*/1 * * * *"
   jobTemplate:

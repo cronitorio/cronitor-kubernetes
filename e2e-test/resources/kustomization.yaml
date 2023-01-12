@@ -12,3 +12,4 @@ resources:
   - main/cronjob-schedule-change.yaml
   - main/cronjob-notify-annotation.yaml
   - main/cronjob-group-annotation.yaml
+  - main/cronjob-grace-annotation.yaml

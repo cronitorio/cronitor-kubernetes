@@ -106,7 +106,7 @@ func TestCronitorGroupAnnotation(t *testing.T) {
 	}
 }
 
-func TestCronitorNotificationsAnnotation(t *testing.T) {
+func TestCronitorNotifyAnnotation(t *testing.T) {
 	var jsonBlob v1.CronJob
 	err := json.Unmarshal([]byte(`{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"annotations":{"k8s.cronitor.io/cronitor-notify":"devops-slack, infra-teams","k8s.cronitor.io/env":"staging","kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"batch/v1beta1\",\"kind\":\"CronJob\",\"metadata\":{\"annotations\":{\"k8s.cronitor.io/cronitor-id\":\"uv93823\",\"k8s.cronitor.io/env\":\"staging\"},\"name\":\"eventrouter-test-cronjob\",\"namespace\":\"default\"},\"spec\":{\"concurrencyPolicy\":\"Forbid\",\"jobTemplate\":{\"spec\":{\"backoffLimit\":3,\"template\":{\"spec\":{\"containers\":[{\"args\":[\"/bin/sh\",\"-c\",\"date ; sleep 5 ; echo Hello from k8s\"],\"image\":\"busybox\",\"name\":\"hello\"}],\"restartPolicy\":\"OnFailure\"}}}},\"schedule\":\"*/1 * * * *\"}}\n"},"name":"eventrouter-test-cronjob","namespace":"default"},"spec":{"concurrencyPolicy":"Forbid","jobTemplate":{"spec":{"backoffLimit":3,"template":{"spec":{"containers":[{"args":["/bin/sh","-c","date ; sleep 5 ; echo Hello from k8s"],"image":"busybox","name":"hello"}],"restartPolicy":"OnFailure"}}}},"schedule":"*/1 * * * *"}}`), &jsonBlob)
 	if err != nil {
@@ -118,6 +118,19 @@ func TestCronitorNotificationsAnnotation(t *testing.T) {
 
 	if cronJob.Notify[0] != expected[0] {
 		t.Errorf("expected cronitor-notify `%s`, got `%s`", expected, cronJob.Notify)
+	}
+}
+
+func TestCronitorGraceSecondsAnnotation(t *testing.T) {
+	var jsonBlob v1.CronJob
+	err := json.Unmarshal([]byte(`{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"annotations":{"k8s.cronitor.io/cronitor-grace-seconds":"120","k8s.cronitor.io/env":"staging","kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"batch/v1beta1\",\"kind\":\"CronJob\",\"metadata\":{\"annotations\":{\"k8s.cronitor.io/cronitor-id\":\"uv93823\",\"k8s.cronitor.io/env\":\"staging\"},\"name\":\"eventrouter-test-cronjob\",\"namespace\":\"default\"},\"spec\":{\"concurrencyPolicy\":\"Forbid\",\"jobTemplate\":{\"spec\":{\"backoffLimit\":3,\"template\":{\"spec\":{\"containers\":[{\"args\":[\"/bin/sh\",\"-c\",\"date ; sleep 5 ; echo Hello from k8s\"],\"image\":\"busybox\",\"name\":\"hello\"}],\"restartPolicy\":\"OnFailure\"}}}},\"schedule\":\"*/1 * * * *\"}}\n"},"name":"eventrouter-test-cronjob","namespace":"default"},"spec":{"concurrencyPolicy":"Forbid","jobTemplate":{"spec":{"backoffLimit":3,"template":{"spec":{"containers":[{"args":["/bin/sh","-c","date ; sleep 5 ; echo Hello from k8s"],"image":"busybox","name":"hello"}],"restartPolicy":"OnFailure"}}}},"schedule":"*/1 * * * *"}}`), &jsonBlob)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cronJob := convertCronJobToCronitorJob(&jsonBlob)
+
+	if cronJob.GraceSeconds != 120 {
+		t.Errorf("expected cronitor-grace-seconds `%d`, got `%d`", 120, cronJob.GraceSeconds)
 	}
 }
 
