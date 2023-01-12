@@ -18,16 +18,17 @@ import (
 
 // https://docs.google.com/document/d/1erh-fvTkF14jyJGv3DYuN2UalWe6AN49XOUsWHJccso/edit#heading=h.ylm2gai335jy
 type CronitorJob struct {
-	Key         string   `json:"key"`
-	DefaultName string   `json:"defaultName"`
-	Name        string   `json:"name,omitempty"`
-	DefaultNote string   `json:"defaultNote,omitempty"`
-	Metadata    string   `json:"metadata"` // This is actually a string rather than a map
-	Type_       string   `json:"type"`     // 'job'
-	Schedule    string   `json:"schedule"`
-	Tags        []string `json:"tags,omitempty"`
-	Notify      []string `json:"notify,omitempty"`
-	Group       string   `json:"group,omitempty"`
+	Key          string   `json:"key"`
+	DefaultName  string   `json:"defaultName"`
+	Name         string   `json:"name,omitempty"`
+	DefaultNote  string   `json:"defaultNote,omitempty"`
+	Metadata     string   `json:"metadata"` // This is actually a string rather than a map
+	Type_        string   `json:"type"`     // 'job'
+	Schedule     string   `json:"schedule"`
+	Tags         []string `json:"tags,omitempty"`
+	Notify       []string `json:"notify,omitempty"`
+	Group        string   `json:"group,omitempty"`
+	GraceSeconds int      `json:"graceSeconds,omitempty"`
 }
 
 func (cronitorJob CronitorJob) GetEnvironment() string {
@@ -101,6 +102,10 @@ func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 
 	if name := configParser.GetSpecifiedCronitorName(); name != "" {
 		cronitorJob.Name = name
+	}
+
+	if graceSeconds := configParser.GetGraceSeconds(); graceSeconds != -1 {
+		cronitorJob.GraceSeconds = graceSeconds
 	}
 
 	return cronitorJob

@@ -61,6 +61,9 @@ const (
 	// AnnotationCronitorNotify lets you provide a comma-separated list of Notification List
 	// keys (https://cronitor.io/app/settings/alerts) to be used for dispatching alerts when a job fails/recovers.
 	AnnotationCronitorNotify CronitorAnnotation = "k8s.cronitor.io/cronitor-notify"
+
+	//AnnotationCronitorGraceSeconds lets you provide the number of seconds to wait before sending a failure alert.
+	AnnotationCronitorGraceSeconds CronitorAnnotation = "k8s.cronitor.io/cronitor-grace-seconds"
 )
 
 type CronitorConfigParser struct {
@@ -187,4 +190,15 @@ func (cronitorParser CronitorConfigParser) GetGroup() string {
 		return group
 	}
 	return ""
+}
+
+func (cronitorParser CronitorConfigParser) GetGraceSeconds() int {
+	if graceSeconds, ok := cronitorParser.cronjob.Annotations[string(AnnotationCronitorGraceSeconds)]; ok {
+		graceSecondsInt, err := strconv.Atoi(graceSeconds)
+		if err != nil {
+			return -1
+		}
+		return graceSecondsInt
+	}
+	return -1
 }
