@@ -33,29 +33,30 @@ helm upgrade --install <release name> cronitor/cronitor-kubernetes --namespace <
     --set credentials.secretKey=CRONITOR_API_KEY
 ```
 
-You can customize your installation of the Cronitor Kubernetes agent by overriding the default values found in `values.yaml`, either with `--set` or by creating an additional values file of your own and passing it into Helm. For more information on this, see the [Helm documentation on values](https://helm.sh/docs/chart_template_guide/values_files/). 
+You can customize your installation of the Cronitor Kubernetes agent by overriding the default values found in `values.yaml`, either with `--set` or by creating an additional values file of your own and passing it into Helm. For more information on this, see the [Helm documentation on values](https://helm.sh/docs/chart_template_guide/values_files/).
 
-To learn what options are customizable in the chart, please see [this repository's documented `values.yaml`][1] file. 
+To learn what options are customizable in the chart, please see [this repository's documented `values.yaml`][1] file.
 
 ### CronJob annotations
 
-The Cronitor Kubernetes agent's behavior has a number of defaults that are configurable via the chart's `values.yaml`. However, in certain situations you may want to override the defaults on a per-`CronJob` basis. You can do so using Kubernetes annotations on your `CronJob` objects as you create them. 
+The Cronitor Kubernetes agent's behavior has a number of defaults that are configurable via the chart's `values.yaml`. However, in certain situations you may want to override the defaults on a per-`CronJob` basis. You can do so using Kubernetes annotations on your `CronJob` objects as you create them.
 
 Here is the list of supported annotations:
 * `k8s.cronitor.io/include` - Override this CronJob to be explicitly tracked by Cronitor. Values are "true" or "false". (The agent default behavior is `config.default` in [`values.yaml`][1].)
 * `k8s.cronitor.io/exclude` - Override this CronJob to be explicitly **not** tracked by Cronitor. Values are "true" or "false". (The agent default behavior is `config.default` in [`values.yaml`][1].)
-* `k8s.cronitor.io/env` - Override the environment for this CronJob. Shows up in the Cronitor dashboard as the `cluster-env` tag
+* `k8s.cronitor.io/env` - Override the environment for this CronJob.
 * `k8s.cronitor.io/cronitor-id` - Manually specify an ID for your monitor in Cronitor rather than autogenerating a new one. Use this when you already have jobs you are tracking in Cronitor that you want to keep the history of and you are migrating to the Cronitor agent, or if you are deleting and recreating your `CronJob` objects (e.g., you are migrating clusters or namespaces). You may also use this if you have a single CronJob that you run in different environments (staging, prod, etc.) and you want them all to report to the same monitor in Cronitor in different Cronitor environments.
 * `k8s.cronitor.io/cronitor-name` - Manually specify the name within the Cronitor dashboard for this CronJob. Please note if you are using `k8s.cronitor.io/cronitor-id` you must ensure that CronJobs with the same ID also have the same name, or the different names will overwrite each other.
-* `k8s.cronitor.io/tags` - Comma-separated list of tags for this cron job for use within the Cronitor application
-* `k8s.cronitor.io/notify` - Comma-separated list of Notification List `key`s to assign alert destinations
-* `k8s.cronitor.io/group` - Group `key` attribute for grouping the monitor within the Cronitor application
+* `k8s.cronitor.io/tags` - Comma-separated list of tags for this cron job for use within the Cronitor application.
+* `k8s.cronitor.io/notify` - Comma-separated list of Notification List `key`s to assign alert destinations.
+* `k8s.cronitor.io/group` - Group `key` attribute for grouping the monitor within the Cronitor application.
+* `k8s.cronitor.io/grace-seconds` - Number of seconds to wait beyond the scheduled execution time to wait before sending an alert.
 
 ### FAQ
 <details>
     <summary>Does this pull in all my <code>CronJobs</code> across my cluster by default?</summary>
 
-By default, the agent will monitor all `CronJobs` in your Kubernetes cluster, but this 
+By default, the agent will monitor all `CronJobs` in your Kubernetes cluster, but this
 is easily changeable. See below in the FAQ for additional information on how to handle various
 circumstances of `CronJob` inclusion or exclusion by annotation or namespace.
 </details>
