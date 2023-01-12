@@ -53,3 +53,11 @@ patches:
       - op: replace
         path: /metadata/annotations/k8s.cronitor.io~1cronitor-id
         value: "test-notify-annotation-${RANDOM_ID}"
+
+  - target:
+      kind: CronJob
+      name: test-grace-seconds-annotation
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/k8s.cronitor.io~1cronitor-id
+        value: "test-grace-seconds-annotation-${RANDOM_ID}"
