@@ -98,6 +98,7 @@ def test_monitor_created_with_group():
     assert monitor is not None, f"no monitor with key {monitor_key} exists"
     assert monitor['group'] == "test-group", f"expected monitor group 'test-group', got '{monitor['group']}'"
 
+
 def test_monitor_created_with_notify():
     random_id = os.getenv("RANDOM_ID")
     monitor_key = "test-notify-annotation-{RANDOM_ID}".format(RANDOM_ID=random_id)
@@ -105,9 +106,26 @@ def test_monitor_created_with_notify():
     assert monitor is not None, f"no monitor with key {monitor_key} exists"
     assert monitor['notify'] == ["devops-slack", "infra-teams"], f"expected ['devops-slack', 'infra-teams'] got '{monitor['notify']}'"
 
+
 def test_monitor_created_with_grace_seconds():
     random_id = os.getenv("RANDOM_ID")
     monitor_key = "test-grace-seconds-annotation-{RANDOM_ID}".format(RANDOM_ID=random_id)
     monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
     assert monitor is not None, f"no monitor with key {monitor_key} exists"
     assert monitor['grace_seconds'] == 305, f"expected monitor grace_seconds '305', got '{monitor['grace_seconds']}'"
+
+
+def test_same_id_should_result_one_monitor():
+    random_id = os.getenv("RANDOM_ID")
+    monitor_key = "test-id-annotation-multiple-{RANDOM_ID}".format(RANDOM_ID=random_id)
+    monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
+    assert monitor is not None, f"no monitor with {monitor_key} exists"
+
+    ci_monitors = cronitor_wrapper.get_all_ci_monitors()
+    monitors_with_relevant_name = [
+        monitor for monitor in ci_monitors
+        if 'multiple' in monitor['key']
+    ]
+    how_many = len(monitors_with_relevant_name)
+    names = ', '.join([monitor['name'] for monitor in monitors_with_relevant_name])
+    assert how_many == 1, f"There isn't 1 monitor with 'multiple' in the key, there are {how_many}: {names}"
