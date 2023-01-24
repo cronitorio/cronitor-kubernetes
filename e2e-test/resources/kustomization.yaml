@@ -13,3 +13,4 @@ resources:
   - main/cronjob-notify-annotation.yaml
   - main/cronjob-group-annotation.yaml
   - main/cronjob-grace-annotation.yaml
+  - main/cronjob-cronitor-id-multi.yaml

@@ -61,3 +61,19 @@ patches:
       - op: replace
         path: /metadata/annotations/k8s.cronitor.io~1cronitor-id
         value: "test-grace-seconds-annotation-${RANDOM_ID}"
+
+  - target:
+      kind: CronJob
+      name: test-id-annotation-multiple-env1
+    patch: &multi-anchor |-
+      - op: replace
+        path: /metadata/annotations/k8s.cronitor.io~1cronitor-id
+        value: "test-id-annotation-multiple-${RANDOM_ID}"
+      - op: replace
+        path: /metadata/annotations/k8s.cronitor.io~1cronitor-name
+        value: "test-name-annotation-multiple-${RANDOM_ID}"
+
+  - target:
+      kind: CronJob
+      name: test-id-annotation-multiple-env2
+    patch: *multi-anchor
