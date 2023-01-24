@@ -129,3 +129,10 @@ def test_same_id_should_result_one_monitor():
     how_many = len(monitors_with_relevant_name)
     names = ', '.join([monitor['name'] for monitor in monitors_with_relevant_name])
     assert how_many == 1, f"There isn't 1 monitor with 'multiple' in the key, there are {how_many}: {names}"
+
+    pings = cronitor_wrapper.get_ping_history_by_monitor(monitor_key=monitor_key, env='env1')
+    assert len(pings[monitor_key]) > 0
+    pings = cronitor_wrapper.get_ping_history_by_monitor(monitor_key=monitor_key, env='env2')
+    assert len(pings[monitor_key]) > 0
+
+
