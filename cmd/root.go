@@ -37,6 +37,7 @@ func initializeConfig(cmd *cobra.Command, args []string) error {
 	_ = viper.BindPFlag("hostname-override", cmd.Flags().Lookup("hostname-override"))
 	_ = viper.BindPFlag("dev", cmd.Flags().Lookup("dev"))
 	_ = viper.BindPFlag("log-level", cmd.Flags().Lookup("log-level"))
+	_ = viper.BindPFlag("pod-filter", cmd.Flags().Lookup("pod-filter"))
 	_ = viper.BindEnv("version", "APP_VERSION")
 
 	_ = viper.BindEnv("apikey", "CRONITOR_API_KEY")
@@ -53,8 +54,7 @@ func initializeConfig(cmd *cobra.Command, args []string) error {
 		return errors.New(message)
 	}
 
-	logLevel := viper.GetString("log-level")
-	if logLevel != "" {
+	if logLevel := viper.GetString("log-level"); logLevel != "" {
 		level, err := log.ParseLevel(logLevel)
 		if err != nil {
 			return err

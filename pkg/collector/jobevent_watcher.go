@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
+	"regexp"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
 	log "github.com/sirupsen/logrus"
@@ -23,8 +23,18 @@ import (
 
 var watchStartTime = meta_v1.Now()
 
+var podFilter = createPodFilter()
+
 type EventHandler struct {
 	collection *CronJobCollection
+}
+
+func createPodFilter() *regexp.Regexp {
+	if podFilter := viper.GetString("pod-filter"); podFilter != "" {
+		return regexp.MustCompile(podFilter)
+	}
+
+	return nil
 }
 
 func (e EventHandler) fetchPod(namespace string, podName string) (*corev1.Pod, error) {
@@ -172,6 +182,7 @@ func (e EventHandler) FetchObjectsFromJobEvent(event *pkg.JobEvent) (pod *corev1
 	if err != nil {
 		return
 	}
+
 	ownerReference := job.ObjectMeta.OwnerReferences[0]
 	if ownerReference.Kind != "CronJob" {
 		err = fmt.Errorf("expected ownerReference of CronJob, got %s", ownerReference.Kind)
@@ -184,6 +195,10 @@ func (e EventHandler) FetchObjectsFromJobEvent(event *pkg.JobEvent) (pod *corev1
 
 	pod, err = e.fetchPodByJobName(namespace, jobName)
 	if err != nil {
+		return
+	}
+
+	if e.CheckPodFilter(pod.Name) == false {
 		return
 	}
 
@@ -216,6 +231,13 @@ func (e EventHandler) CheckJobIsWatched(jobNamespace string, jobName string) boo
 		}
 	}
 	return false
+}
+
+func (e EventHandler) CheckPodFilter(podName string) bool {
+	if podFilter == nil {
+		return true
+	}
+	return podFilter.MatchString(podName)
 }
 
 func (e EventHandler) OnAdd(obj interface{}) {
@@ -255,6 +277,13 @@ func (e EventHandler) OnAdd(obj interface{}) {
 
 	case "Pod":
 		typedEvent := pkg.PodEvent(*event)
+
+		// Before we do any additional work loading objects from the API, check our pod filter.
+		// Users with busy clusters can use the pod filter to reduce API load
+		if e.CheckPodFilter(typedEvent.InvolvedObject.Name) == false {
+			log.Debugf("pod %s excluded by pod filter", typedEvent.InvolvedObject.Name)
+			return
+		}
 
 		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
 		// then ignore the event
