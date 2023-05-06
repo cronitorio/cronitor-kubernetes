@@ -37,12 +37,12 @@ func initializeConfig(cmd *cobra.Command, args []string) error {
 	_ = viper.BindPFlag("hostname-override", cmd.Flags().Lookup("hostname-override"))
 	_ = viper.BindPFlag("dev", cmd.Flags().Lookup("dev"))
 	_ = viper.BindPFlag("log-level", cmd.Flags().Lookup("log-level"))
-	_ = viper.BindPFlag("pod-filter", cmd.Flags().Lookup("pod-filter"))
 	_ = viper.BindEnv("version", "APP_VERSION")
 
 	_ = viper.BindEnv("apikey", "CRONITOR_API_KEY")
 	_ = viper.BindPFlag("apikey", cmd.Flags().Lookup("apikey"))
 	apiKey := viper.GetString("apikey")
+
 
 	if apiKey == "<api key>" {
 		message := "A valid api key is required. You used the string '<api key>' as the api key, which is invalid"

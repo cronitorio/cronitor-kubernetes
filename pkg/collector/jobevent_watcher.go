@@ -23,7 +23,7 @@ import (
 
 var watchStartTime = meta_v1.Now()
 
-var podFilter = createPodFilter()
+var podFilter *regexp.Regexp
 
 type EventHandler struct {
 	collection *CronJobCollection
@@ -31,6 +31,7 @@ type EventHandler struct {
 
 func createPodFilter() *regexp.Regexp {
 	if podFilter := viper.GetString("pod-filter"); podFilter != "" {
+		log.Debugf("pod filter enabled: %s", podFilter)
 		return regexp.MustCompile(podFilter)
 	}
 
@@ -354,6 +355,9 @@ type WatchWrapper struct {
 func (w WatchWrapper) Start() {
 	defer runtime.HandleCrash()
 	log.Info("The jobs watcher is starting...")
+
+	podFilter = createPodFilter()
+
 	ch := w.watcher.ResultChan()
 	for event := range ch {
 		w.onAdd(event.Object)

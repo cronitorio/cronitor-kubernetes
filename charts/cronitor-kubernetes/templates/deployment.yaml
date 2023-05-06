@@ -40,9 +40,6 @@ spec:
             {{ if .Values.config.logLevel }}
             - "--log-level={{ .Values.config.logLevel }}"
             {{ end }}
-            {{ if .Values.config.podFilter }}
-            - "--pod-filter={{ .Values.config.podFilter }}"
-            {{ end }}-
             {{ if eq .Values.rbac.clusterScope "namespace" }}
             - "--namespace={{ .Release.Namespace }}"
             {{ end }}
@@ -51,6 +48,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: CRONITOR_AGENT_POD_FILTER
+              value: {{ .Values.config.podFilter }}
             - name: CRONITOR_API_KEY
               valueFrom:
                 secretKeyRef:
