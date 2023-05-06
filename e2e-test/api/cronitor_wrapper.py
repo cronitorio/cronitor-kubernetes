@@ -1,6 +1,7 @@
 import os
 from functools import partialmethod, cache
 import requests
+import math
 import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -26,14 +27,20 @@ class CronitorWrapper:
         self.get_all_monitors.cache_clear()
 
     @cache
-    def get_all_monitors(self, *, page: int = 1):
+    def get_all_monitors(self):
         PAGE_SIZE = 50
-        response = self.get('https://cronitor.io/api/monitors', params={'page': page}).json()
+        response = self.get('https://cronitor.io/api/monitors').json()
         results = response.get('monitors', [])
-        # Previously, if we had _exactly_ 50 monitors, we'd hit an infinite loop
-        if len(results) == PAGE_SIZE and response['total_monitor_count'] != PAGE_SIZE:
-            additional_results = self.get_all_monitors(page=page+1)
-            results += additional_results
+        total_pages = math.ceil(response['total_monitor_count'] / PAGE_SIZE)
+        if total_pages == 1:
+            return results
+
+        page = 2
+        while page <= total_pages:
+            response = self.get('https://cronitor.io/api/monitors', params={'page': page}).json()
+            results += response.get('monitors', [])
+            page += 1
+
         return results
 
     def get_all_ci_monitors(self):
