@@ -62,7 +62,7 @@ const (
 	// keys (https://cronitor.io/app/settings/alerts) to be used for dispatching alerts when a job fails/recovers.
 	AnnotationCronitorNotify CronitorAnnotation = "k8s.cronitor.io/cronitor-notify"
 
-	//AnnotationCronitorGraceSeconds lets you provide the number of seconds to wait before sending a failure alert.
+	// AnnotationCronitorGraceSeconds lets you provide the number of seconds to wait before sending a failure alert.
 	AnnotationCronitorGraceSeconds CronitorAnnotation = "k8s.cronitor.io/cronitor-grace-seconds"
 )
 

@@ -48,6 +48,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: CRONITOR_AGENT_POD_FILTER
+              value: {{ .Values.config.podFilter }}
             - name: CRONITOR_API_KEY
               valueFrom:
                 secretKeyRef:

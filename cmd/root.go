@@ -43,6 +43,7 @@ func initializeConfig(cmd *cobra.Command, args []string) error {
 	_ = viper.BindPFlag("apikey", cmd.Flags().Lookup("apikey"))
 	apiKey := viper.GetString("apikey")
 
+
 	if apiKey == "<api key>" {
 		message := "A valid api key is required. You used the string '<api key>' as the api key, which is invalid"
 		log.Error(message)
@@ -53,8 +54,7 @@ func initializeConfig(cmd *cobra.Command, args []string) error {
 		return errors.New(message)
 	}
 
-	logLevel := viper.GetString("log-level")
-	if logLevel != "" {
+	if logLevel := viper.GetString("log-level"); logLevel != "" {
 		level, err := log.ParseLevel(logLevel)
 		if err != nil {
 			return err

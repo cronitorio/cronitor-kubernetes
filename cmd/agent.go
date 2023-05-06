@@ -105,6 +105,7 @@ func init() {
 	//// Features
 	agentCmd.Flags().Bool("ship-logs", false, "Collect and archive the logs from each CronJob run upon completion or failure")
 	agentCmd.Flags().String("namespace", "", "Scope agent collection to only a single Kubernetes namespace")
+	agentCmd.Flags().String("pod-filter", "", "Optional regular expression (on pod.name) to limit which pods are monitored")
 
 	RootCmd.AddCommand(agentCmd)
 }
@@ -113,6 +114,8 @@ func initializeAgentConfig(agentCmd *cobra.Command, args []string) error {
 	_ = viper.BindPFlag("dryrun", agentCmd.Flags().Lookup("dryrun"))
 	_ = viper.BindEnv("ship-logs", "CRONITOR_AGENT_SHIP_LOGS")
 	_ = viper.BindPFlag("ship-logs", agentCmd.Flags().Lookup("ship-logs"))
+	_ = viper.BindEnv("pod-filter", "CRONITOR_AGENT_POD_FILTER")
+	_ = viper.BindPFlag("pod-filter", agentCmd.Flags().Lookup("pod-filter"))
 	_ = viper.BindPFlag("namespace", agentCmd.Flags().Lookup("namespace"))
 
 	// We need to add this because declaring PersistentPreRunE in this command

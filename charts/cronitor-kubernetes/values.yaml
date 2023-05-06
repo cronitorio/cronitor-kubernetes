@@ -42,6 +42,11 @@ config:
   # Available levels: TRACE, DEBUG, INFO, WARN, ERROR
   logLevel: ''
 
+  # Optional regular expression (on pod.name) to limit which pods are monitored.
+  #	If provided, a valid regex is required, and pod names that do not match the regex are ignored.
+  # Tip: Use negation to create a blacklist.
+  podFilter: ''
+
 rbac:
   # Specifies whether RBAC resources should be created
   create: true
