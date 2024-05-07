@@ -134,15 +134,15 @@ func TestCronitorGraceSecondsAnnotation(t *testing.T) {
 	}
 }
 
-func TestTruncateDefaultName(t *testing.T) {
+func TestTruncateName(t *testing.T) {
 	shortName := "abcefgh"
-	if newName := truncateDefaultName(shortName); newName != shortName {
+	if newName := truncateName(shortName); newName != shortName {
 		t.Errorf("expected truncated name for '%s' to be '%s', got '%s'", shortName, shortName, newName)
 	}
 
 	longName := "this-is-a-very-long-namespace-name-lets-make-it-really-freaking-long/and-a-very-long-job-name-very-very-long-abcdef12345"
 	expectedNewName := "this-is-a-very-long-namespace-name-lets-make-it-re…d-a-very-long-job-name-very-very-long-abcdef12345"
-	if newName := truncateDefaultName(longName); newName != expectedNewName {
+	if newName := truncateName(longName); newName != expectedNewName {
 		t.Errorf("expected truncated name for '%s' to be '%s', got '%s'", longName, expectedNewName, newName)
 	}
 }
