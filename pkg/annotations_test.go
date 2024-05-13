@@ -63,13 +63,13 @@ func TestGetCronitorID(t *testing.T) {
 		// },
 		// {
 		// 	name:                  "manual k8s ID",
-		// 	annotationIDInference: "\"k8s.cronitor.io/id-inference\": \"k8s\"",
+		// 	annotationIDInference: "k8s",
 		// 	annotationCronitorID:  "",
 		// 	expectedID:            "kubernetes uid",
 		// },
 		{
 			name:                  "hashed name as ID",
-			annotationIDInference: "\"k8s.cronitor.io/id-inference\": \"name\"",
+			annotationIDInference: "name",
 			annotationCronitorID:  "",
 			expectedID:            "7bec37031fa63007a383ade88997bea5bba68d99",
 		},
@@ -83,11 +83,8 @@ func TestGetCronitorID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			annotations := tc.annotationIDInference
-			if tc.annotationIDInference != "" && tc.annotationCronitorID != "" {
-				annotations += ","
-			}
-			annotations += tc.annotationCronitorID
+			annotations := fmt.Sprintf(`"%s": "%s"`, "k8s.cronitor.io/id-inference", tc.annotationIDInference)
+			annotations += fmt.Sprintf(`, "%s": "%s"`, "k8s.cronitor.io/cronitor-id", tc.annotationCronitorID)
 
 			jsonBlob := fmt.Sprintf(`{
 				"apiVersion": "batch/v1beta1",
@@ -173,11 +170,8 @@ func TestGetCronitorName(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			annotations := tc.AnnotationNamePrefix
-			if tc.AnnotationNamePrefix != "" && tc.annotationCronitorName != "" {
-				annotations += ","
-			}
-			annotations += tc.annotationCronitorName
+			annotations := fmt.Sprintf(`"%s": "%s"`, "k8s.cronitor.io/id-inference", tc.AnnotationNamePrefix)
+			annotations += fmt.Sprintf(`, "%s": "%s"`, "k8s.cronitor.io/cronitor-id", tc.annotationCronitorName)
 
 			jsonBlob := fmt.Sprintf(`{
 				"apiVersion": "batch/v1beta1",
