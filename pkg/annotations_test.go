@@ -70,7 +70,7 @@ func TestGetCronitorID(t *testing.T) {
 			name:                  "hashed name as ID",
 			annotationIDInference: "name",
 			annotationCronitorID:  "",
-			expectedID:            "7bec37031fa63007a383ade88997bea5bba68d99",
+			expectedID:            "3278d16696a89a92d297b7c46bfd286b20dc3896",
 		},
 		{
 			name:                  "specific cronitor id",
@@ -111,19 +111,19 @@ func TestGetCronitorName(t *testing.T) {
 			name:                   "default behavior",
 			annotationNamePrefix:   "",
 			annotationCronitorName: "",
-			expectedName:           "default/name-test-cronjob",
+			expectedName:           "default/test-cronjob",
 		},
 		{
 			name:                   "no prefix for name",
 			annotationNamePrefix:   "none",
 			annotationCronitorName: "",
-			expectedName:           "name-test-cronjob",
+			expectedName:           "test-cronjob",
 		},
 		{
 			name:                   "explicit prefix of namespace",
 			annotationNamePrefix:   "namespace",
 			annotationCronitorName: "",
-			expectedName:           "default/name-test-cronjob",
+			expectedName:           "default/test-cronjob",
 		},
 		{
 			name:                   "specific cronitor name",

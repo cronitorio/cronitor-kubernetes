@@ -1,8 +1,6 @@
 package pkg
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
@@ -255,11 +253,4 @@ func (cronitorParser CronitorConfigParser) GetGraceSeconds() int {
 		return graceSecondsInt
 	}
 	return -1
-}
-
-func generateHashFromName(name string) string {
-	h := sha1.New()
-	h.Write([]byte(name))
-	bs := h.Sum(nil)
-	return hex.EncodeToString(bs)
 }

@@ -1,6 +1,8 @@
 package pkg
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -24,7 +26,7 @@ func CronJobFromAnnotations(annotations []Annotation) (v1.CronJob, error) {
 		"apiVersion": "batch/v1beta1",
 		"kind": "CronJob",
 		"metadata": {
-			"name": "name-test-cronjob",
+			"name": "test-cronjob",
 			"namespace": "default",
 			"annotations": {%s}
 		},
@@ -59,4 +61,11 @@ func CronJobFromAnnotations(annotations []Annotation) (v1.CronJob, error) {
 	err := json.Unmarshal([]byte(jsonBlob), &cronJob)
 
 	return cronJob, err
+}
+
+func generateHashFromName(name string) string {
+	h := sha1.New()
+	h.Write([]byte(name))
+	bs := h.Sum(nil)
+	return hex.EncodeToString(bs)
 }
