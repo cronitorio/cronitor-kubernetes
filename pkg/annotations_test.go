@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -83,46 +82,12 @@ func TestGetCronitorID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			annotations := fmt.Sprintf(`"%s": "%s"`, "k8s.cronitor.io/id-inference", tc.annotationIDInference)
-			annotations += fmt.Sprintf(`, "%s": "%s"`, "k8s.cronitor.io/cronitor-id", tc.annotationCronitorID)
+			annotations := []Annotation{
+				{Key: "k8s.cronitor.io/id-inference", Value: tc.annotationIDInference},
+				{Key: "k8s.cronitor.io/cronitor-id", Value: tc.annotationCronitorID},
+			}
 
-			jsonBlob := fmt.Sprintf(`{
-				"apiVersion": "batch/v1beta1",
-				"kind": "CronJob",
-				"metadata": {
-					"name": "id-test-cronjob",
-					"namespace": "default",
-					"annotations": {%s}
-				},
-				"spec": {
-					"concurrencyPolicy": "Forbid",
-					"jobTemplate": {
-						"spec": {
-							"backoffLimit": 3,
-							"template": {
-								"spec": {
-									"containers": [
-										{
-											"args": [
-												"/bin/sh",
-												"-c",
-												"date ; sleep 5 ; echo Hello from k8s"
-											],
-											"image": "busybox",
-											"name": "hello"
-										}
-									],
-									"restartPolicy": "OnFailure"
-								}
-							}
-						}
-					},
-					"schedule": "*/1 * * * *"
-				}
-			}`, annotations)
-
-			var cronJob v1.CronJob
-			err := json.Unmarshal([]byte(jsonBlob), &cronJob)
+			cronJob, err := CronJobFromAnnotations(annotations)
 			if err != nil {
 				t.Fatalf("unexpected error unmarshalling json: %v", err)
 			}
@@ -138,31 +103,31 @@ func TestGetCronitorID(t *testing.T) {
 func TestGetCronitorName(t *testing.T) {
 	tests := []struct {
 		name                   string
-		AnnotationNamePrefix   string
+		annotationNamePrefix   string
 		annotationCronitorName string
 		expectedName           string
 	}{
 		{
 			name:                   "default behavior",
-			AnnotationNamePrefix:   "",
+			annotationNamePrefix:   "",
 			annotationCronitorName: "",
 			expectedName:           "default/name-test-cronjob",
 		},
 		{
 			name:                   "no prefix for name",
-			AnnotationNamePrefix:   "none",
+			annotationNamePrefix:   "none",
 			annotationCronitorName: "",
 			expectedName:           "name-test-cronjob",
 		},
 		{
 			name:                   "explicit prefix of namespace",
-			AnnotationNamePrefix:   "namespace",
+			annotationNamePrefix:   "namespace",
 			annotationCronitorName: "",
 			expectedName:           "default/name-test-cronjob",
 		},
 		{
 			name:                   "specific cronitor name",
-			AnnotationNamePrefix:   "",
+			annotationNamePrefix:   "",
 			annotationCronitorName: "foo",
 			expectedName:           "foo",
 		},
@@ -170,53 +135,19 @@ func TestGetCronitorName(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			annotations := fmt.Sprintf(`"%s": "%s"`, "k8s.cronitor.io/name-prefix", tc.AnnotationNamePrefix)
-			annotations += fmt.Sprintf(`, "%s": "%s"`, "k8s.cronitor.io/cronitor-name", tc.annotationCronitorName)
+			annotations := []Annotation{
+				{Key: "k8s.cronitor.io/name-prefix", Value: tc.annotationNamePrefix},
+				{Key: "k8s.cronitor.io/cronitor-name", Value: tc.annotationCronitorName},
+			}
 
-			jsonBlob := fmt.Sprintf(`{
-				"apiVersion": "batch/v1beta1",
-				"kind": "CronJob",
-				"metadata": {
-					"name": "name-test-cronjob",
-					"namespace": "default",
-					"annotations": {%s}
-				},
-				"spec": {
-					"concurrencyPolicy": "Forbid",
-					"jobTemplate": {
-						"spec": {
-							"backoffLimit": 3,
-							"template": {
-								"spec": {
-									"containers": [
-										{
-											"args": [
-												"/bin/sh",
-												"-c",
-												"date ; sleep 5 ; echo Hello from k8s"
-											],
-											"image": "busybox",
-											"name": "hello"
-										}
-									],
-									"restartPolicy": "OnFailure"
-								}
-							}
-						}
-					},
-					"schedule": "*/1 * * * *"
-				}
-			}`, annotations)
-
-			var cronJob v1.CronJob
-			err := json.Unmarshal([]byte(jsonBlob), &cronJob)
+			cronJob, err := CronJobFromAnnotations(annotations)
 			if err != nil {
 				t.Fatalf("unexpected error unmarshalling json: %v", err)
 			}
 
 			parser := NewCronitorConfigParser(&cronJob)
-			if id := parser.GetCronitorName(); id != tc.expectedName {
-				t.Errorf("expected ID %s, got %s", tc.expectedName, id)
+			if name := parser.GetCronitorName(); name != tc.expectedName {
+				t.Errorf("expected Name %s, got %s", tc.expectedName, name)
 			}
 		})
 	}
