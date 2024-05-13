@@ -19,7 +19,6 @@ import (
 // https://docs.google.com/document/d/1erh-fvTkF14jyJGv3DYuN2UalWe6AN49XOUsWHJccso/edit#heading=h.ylm2gai335jy
 type CronitorJob struct {
 	Key          string   `json:"key"`
-	DefaultName  string   `json:"defaultName"`
 	Name         string   `json:"name,omitempty"`
 	DefaultNote  string   `json:"defaultNote,omitempty"`
 	Metadata     string   `json:"metadata"` // This is actually a string rather than a map
@@ -45,17 +44,12 @@ func (cronitorJob CronitorJob) GetEnvironment() string {
 	return ""
 }
 
-func truncateDefaultName(name string) string {
+func truncateName(name string) string {
 	if len(name) > 100 {
 		name = truncate.Truncator(name, 100, truncate.EllipsisMiddleStrategy{})
 	}
 
 	return name
-}
-
-func GenerateDefaultName(cronJob *v1.CronJob) string {
-	name := fmt.Sprintf("%s/%s", cronJob.Namespace, cronJob.Name)
-	return truncateDefaultName(name)
 }
 
 func ValidateTagName(tagName string) string {
@@ -69,8 +63,6 @@ func ValidateTagName(tagName string) string {
 
 func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 	configParser := pkg.NewCronitorConfigParser(cronJob)
-
-	name := GenerateDefaultName(cronJob)
 
 	metadata := make(map[string]string)
 	if cronJob.Spec.ConcurrencyPolicy != "" {
@@ -91,17 +83,13 @@ func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 
 	cronitorJob := CronitorJob{
 		Key:         configParser.GetCronitorID(),
-		DefaultName: name,
+		Name:        truncateName(configParser.GetCronitorName()),
 		Schedule:    cronJob.Spec.Schedule,
 		Metadata:    string(metadataJson),
 		Type_:       "job",
 		Tags:        allTags,
 		Notify:      configParser.GetNotify(),
 		Group:       configParser.GetGroup(),
-	}
-
-	if name := configParser.GetSpecifiedCronitorName(); name != "" {
-		cronitorJob.Name = name
 	}
 
 	if graceSeconds := configParser.GetGraceSeconds(); graceSeconds != -1 {

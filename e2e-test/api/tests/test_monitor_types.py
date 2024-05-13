@@ -55,7 +55,7 @@ def test_no_monitors_with_uid_names():
         with assume:
             # We want the monitor names NOT to be UUIDs. If they are a UUID,
             # that means we encountered a bug with the monitor creation somehow
-            # and defaultName was not set.
+            # and Name was not set.
             with pytest.raises(ValueError):
                 uuid.UUID(monitor['name'])
 
@@ -134,5 +134,3 @@ def test_same_id_should_result_one_monitor():
     assert len(pings[monitor_key]) > 0
     pings = cronitor_wrapper.get_ping_history_by_monitor(monitor_key=monitor_key, env='env2')
     assert len(pings[monitor_key]) > 0
-
-
