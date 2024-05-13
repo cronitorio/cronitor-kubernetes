@@ -2,10 +2,11 @@ package pkg
 
 import (
 	"encoding/json"
-	v1 "k8s.io/api/batch/v1"
 	"os"
 	"strconv"
 	"testing"
+
+	v1 "k8s.io/api/batch/v1"
 )
 
 func TestCronJobInclusion(t *testing.T) {
@@ -42,5 +43,186 @@ func TestGetSchedule(t *testing.T) {
 	parser := NewCronitorConfigParser(&jsonBlob.Items[0])
 	if result := parser.GetSchedule(); result != "*/1 * * * *" {
 		t.Errorf("expected schedule \"*/1 * * * *\", got %s", result)
+	}
+}
+
+func TestGetCronitorID(t *testing.T) {
+	tests := []struct {
+		name                  string
+		annotationIDInference string
+		annotationCronitorID  string
+		expectedID            string
+	}{
+		// Not sure how we can test this, since the expectedID is from the Kubernetes API
+		// {
+		// 	name:                  "default k8s ID",
+		// 	annotationIDInference: "",
+		// 	annotationCronitorID:  "",
+		// 	expectedID:            "kubernetes uid",
+		// },
+		// {
+		// 	name:                  "manual k8s ID",
+		// 	annotationIDInference: "\"k8s.cronitor.io/id-inference\": \"k8s\"",
+		// 	annotationCronitorID:  "",
+		// 	expectedID:            "kubernetes uid",
+		// },
+		{
+			name:                  "hashed name as ID",
+			annotationIDInference: "\"k8s.cronitor.io/id-inference\": \"name\"",
+			annotationCronitorID:  "",
+			expectedID:            "7bec37031fa63007a383ade88997bea5bba68d99",
+		},
+		{
+			name:                  "specific cronitor id",
+			annotationIDInference: "",
+			annotationCronitorID:  "1234",
+			expectedID:            "1234",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			annotations := tc.annotationIDInference
+			if tc.annotationIDInference != "" && tc.annotationCronitorID != "" {
+				annotations += ","
+			}
+			annotations += tc.annotationCronitorID
+
+			jsonBlob := `{
+				"apiVersion": "batch/v1beta1",
+				"kind": "CronJob",
+				"metadata": {
+					"name": "id-test-cronjob",
+					"namespace": "default",
+					"annotations": {%s}
+				},
+				"spec": {
+					"concurrencyPolicy": "Forbid",
+					"jobTemplate": {
+						"spec": {
+							"backoffLimit": 3,
+							"template": {
+								"spec": {
+									"containers": [
+										{
+											"args": [
+												"/bin/sh",
+												"-c",
+												"date ; sleep 5 ; echo Hello from k8s"
+											],
+											"image": "busybox",
+											"name": "hello"
+										}
+									],
+									"restartPolicy": "OnFailure"
+								}
+							}
+						}
+					},
+					"schedule": "*/1 * * * *"
+				}
+			}`
+
+			var cronJob v1.CronJob
+			err := json.Unmarshal([]byte(jsonBlob), &cronJob)
+			if err != nil {
+				t.Fatalf("unexpected error unmarshalling json: %v", err)
+			}
+
+			parser := NewCronitorConfigParser(&cronJob)
+			if id := parser.GetCronitorID(); id != tc.expectedID {
+				t.Errorf("expected ID %s, got %s", tc.expectedID, id)
+			}
+		})
+	}
+}
+
+func TestGetCronitorName(t *testing.T) {
+	tests := []struct {
+		name                   string
+		AnnotationNamePrefix   string
+		annotationCronitorName string
+		expectedName           string
+	}{
+		{
+			name:                   "default behavior",
+			AnnotationNamePrefix:   "",
+			annotationCronitorName: "",
+			expectedName:           "default/name-test-cronjob",
+		},
+		{
+			name:                   "no prefix for name",
+			AnnotationNamePrefix:   "none",
+			annotationCronitorName: "",
+			expectedName:           "name-test-cronjob",
+		},
+		{
+			name:                   "explicit prefix of namespace",
+			AnnotationNamePrefix:   "namespace",
+			annotationCronitorName: "",
+			expectedName:           "default/name-test-cronjob",
+		},
+		{
+			name:                   "specific cronitor name",
+			AnnotationNamePrefix:   "",
+			annotationCronitorName: "foo",
+			expectedName:           "foo",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			annotations := tc.AnnotationNamePrefix
+			if tc.AnnotationNamePrefix != "" && tc.annotationCronitorName != "" {
+				annotations += ","
+			}
+			annotations += tc.annotationCronitorName
+
+			jsonBlob := `{
+				"apiVersion": "batch/v1beta1",
+				"kind": "CronJob",
+				"metadata": {
+					"name": "name-test-cronjob",
+					"namespace": "default",
+					"annotations": {%s}
+				},
+				"spec": {
+					"concurrencyPolicy": "Forbid",
+					"jobTemplate": {
+						"spec": {
+							"backoffLimit": 3,
+							"template": {
+								"spec": {
+									"containers": [
+										{
+											"args": [
+												"/bin/sh",
+												"-c",
+												"date ; sleep 5 ; echo Hello from k8s"
+											],
+											"image": "busybox",
+											"name": "hello"
+										}
+									],
+									"restartPolicy": "OnFailure"
+								}
+							}
+						}
+					},
+					"schedule": "*/1 * * * *"
+				}
+			}`
+
+			var cronJob v1.CronJob
+			err := json.Unmarshal([]byte(jsonBlob), &cronJob)
+			if err != nil {
+				t.Fatalf("unexpected error unmarshalling json: %v", err)
+			}
+
+			parser := NewCronitorConfigParser(&cronJob)
+			if id := parser.GetCronitorID(); id != tc.expectedName {
+				t.Errorf("expected ID %s, got %s", tc.expectedName, id)
+			}
+		})
 	}
 }
