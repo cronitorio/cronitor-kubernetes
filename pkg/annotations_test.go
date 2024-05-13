@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -88,7 +89,7 @@ func TestGetCronitorID(t *testing.T) {
 			}
 			annotations += tc.annotationCronitorID
 
-			jsonBlob := `{
+			jsonBlob := fmt.Sprintf(`{
 				"apiVersion": "batch/v1beta1",
 				"kind": "CronJob",
 				"metadata": {
@@ -121,7 +122,7 @@ func TestGetCronitorID(t *testing.T) {
 					},
 					"schedule": "*/1 * * * *"
 				}
-			}`
+			}`, annotations)
 
 			var cronJob v1.CronJob
 			err := json.Unmarshal([]byte(jsonBlob), &cronJob)
@@ -178,7 +179,7 @@ func TestGetCronitorName(t *testing.T) {
 			}
 			annotations += tc.annotationCronitorName
 
-			jsonBlob := `{
+			jsonBlob := fmt.Sprintf(`{
 				"apiVersion": "batch/v1beta1",
 				"kind": "CronJob",
 				"metadata": {
@@ -211,7 +212,7 @@ func TestGetCronitorName(t *testing.T) {
 					},
 					"schedule": "*/1 * * * *"
 				}
-			}`
+			}`, annotations)
 
 			var cronJob v1.CronJob
 			err := json.Unmarshal([]byte(jsonBlob), &cronJob)
