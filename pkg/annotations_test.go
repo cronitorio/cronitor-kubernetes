@@ -170,8 +170,8 @@ func TestGetCronitorName(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			annotations := fmt.Sprintf(`"%s": "%s"`, "k8s.cronitor.io/id-inference", tc.AnnotationNamePrefix)
-			annotations += fmt.Sprintf(`, "%s": "%s"`, "k8s.cronitor.io/cronitor-id", tc.annotationCronitorName)
+			annotations := fmt.Sprintf(`"%s": "%s"`, "k8s.cronitor.io/name-prefix", tc.AnnotationNamePrefix)
+			annotations += fmt.Sprintf(`, "%s": "%s"`, "k8s.cronitor.io/cronitor-name", tc.annotationCronitorName)
 
 			jsonBlob := fmt.Sprintf(`{
 				"apiVersion": "batch/v1beta1",
