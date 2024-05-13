@@ -215,7 +215,7 @@ func TestGetCronitorName(t *testing.T) {
 			}
 
 			parser := NewCronitorConfigParser(&cronJob)
-			if id := parser.GetCronitorID(); id != tc.expectedName {
+			if id := parser.GetCronitorName(); id != tc.expectedName {
 				t.Errorf("expected ID %s, got %s", tc.expectedName, id)
 			}
 		})
