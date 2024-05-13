@@ -53,19 +53,6 @@ func TestGetCronitorID(t *testing.T) {
 		annotationCronitorID  string
 		expectedID            string
 	}{
-		// Not sure how we can test this, since the expectedID is from the Kubernetes API
-		// {
-		// 	name:                  "default k8s ID",
-		// 	annotationIDInference: "",
-		// 	annotationCronitorID:  "",
-		// 	expectedID:            "kubernetes uid",
-		// },
-		// {
-		// 	name:                  "manual k8s ID",
-		// 	annotationIDInference: "k8s",
-		// 	annotationCronitorID:  "",
-		// 	expectedID:            "kubernetes uid",
-		// },
 		{
 			name:                  "hashed name as ID",
 			annotationIDInference: "name",
