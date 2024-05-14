@@ -48,7 +48,7 @@ const (
 	// via manual instrumentation, and you'd like to use the same Monitor object.
 	AnnotationCronitorID CronitorAnnotation = "k8s.cronitor.io/cronitor-id"
 
-	// AnnotationCronitorName lets you override the defaultName created by the agent to
+	// AnnotationCronitorName lets you override the Name created by the agent to
 	// create the monitor in Cronitor with a custom specified name. This is especially useful
 	// if you are attaching the same CronJob across multiple namespaces/clusters to a single
 	// Cronitor Monitor across multiple environments.
@@ -64,6 +64,14 @@ const (
 
 	// AnnotationCronitorGraceSeconds lets you provide the number of seconds to wait before sending a failure alert.
 	AnnotationCronitorGraceSeconds CronitorAnnotation = "k8s.cronitor.io/cronitor-grace-seconds"
+
+	// AnnotationIDInference lets you decide how the Cronitor ID is determined.
+	// The only valid values are "k8s" and "name". Default is "k8s".
+	AnnotationIDInference CronitorAnnotation = "k8s.cronitor.io/id-inference"
+
+	// AnnotationNamePrefix lets you control the prefix of the name.
+	// Valid options include "none", "namespace" (to prepend namespace/), or any other string, which will be prepended as-is.
+	AnnotationNamePrefix CronitorAnnotation = "k8s.cronitor.io/name-prefix"
 )
 
 type CronitorConfigParser struct {
@@ -120,13 +128,29 @@ func (cronitorParser CronitorConfigParser) GetSpecifiedCronitorID() string {
 	return ""
 }
 
-// GetCronitorID returns the correct Cronitor monitor ID for the CronJob, defaulting to the CronJob's
-// Kubernetes UID if no pre-specified monitor ID is provided by the user.
+// GetCronitorID returns the correct Cronitor monitor ID for the CronJob.
+// Defaults to the CronJob's Kubernetes UID if no pre-specified monitor ID is provided by the user.
 func (cronitorParser CronitorConfigParser) GetCronitorID() string {
+	// Default behavior
+	inference := "k8s"
+
+	// Check if a specific Cronitor ID is assigned and return it if present
 	if specifiedId := cronitorParser.GetSpecifiedCronitorID(); specifiedId != "" {
 		return specifiedId
 	}
-	return string(cronitorParser.cronjob.GetUID())
+
+	// Override default inference if an annotation is provided
+	if annotation, ok := cronitorParser.cronjob.Annotations[string(AnnotationIDInference)]; ok && annotation != "" {
+		inference = annotation
+	}
+
+	// Return the appropriate ID based on the inference
+	switch inference {
+	case "name":
+		return generateHashFromName(cronitorParser.GetCronitorName())
+	default:
+		return string(cronitorParser.cronjob.GetUID())
+	}
 }
 
 // GetSpecifiedCronitorName returns the pre-specified Cronitor monitor name, if provided as an annotation
@@ -137,6 +161,34 @@ func (cronitorParser CronitorConfigParser) GetSpecifiedCronitorName() string {
 	}
 
 	return ""
+}
+
+// GetCronitorName returns the name to be used by Cronitor monitor.
+// Allows the namespace to be prepended or not, and allows arbitrary strings as a prefix.
+// Defaults to prepending the namespace if no pre-specified monitor name is provided by the user.
+func (cronitorParser CronitorConfigParser) GetCronitorName() string {
+	// Default behavior
+	prefix := "namespace"
+
+	// Check if a specific Cronitor Name is assigned and return it if present
+	if specifiedName := cronitorParser.GetSpecifiedCronitorName(); specifiedName != "" {
+		return specifiedName
+	}
+
+	// Check if a prefix annotation exists and override the default if present
+	if annotation, ok := cronitorParser.cronjob.Annotations[string(AnnotationNamePrefix)]; ok && annotation != "" {
+		prefix = annotation
+	}
+
+	// Construct the name based on the prefix
+	switch prefix {
+	case "namespace":
+		return fmt.Sprintf("%s/%s", cronitorParser.cronjob.Namespace, cronitorParser.cronjob.Name)
+	case "none":
+		return cronitorParser.cronjob.Name
+	default:
+		return fmt.Sprintf("%s%s", prefix, cronitorParser.cronjob.Name)
+	}
 }
 
 // Inclusion/exclusion behavior

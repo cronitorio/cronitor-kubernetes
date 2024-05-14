@@ -2,10 +2,11 @@ package pkg
 
 import (
 	"encoding/json"
-	v1 "k8s.io/api/batch/v1"
 	"os"
 	"strconv"
 	"testing"
+
+	v1 "k8s.io/api/batch/v1"
 )
 
 func TestCronJobInclusion(t *testing.T) {
@@ -42,5 +43,99 @@ func TestGetSchedule(t *testing.T) {
 	parser := NewCronitorConfigParser(&jsonBlob.Items[0])
 	if result := parser.GetSchedule(); result != "*/1 * * * *" {
 		t.Errorf("expected schedule \"*/1 * * * *\", got %s", result)
+	}
+}
+
+func TestGetCronitorID(t *testing.T) {
+	tests := []struct {
+		name                  string
+		annotationIDInference string
+		annotationCronitorID  string
+		expectedID            string
+	}{
+		{
+			name:                  "hashed name as ID",
+			annotationIDInference: "name",
+			annotationCronitorID:  "",
+			expectedID:            "3278d16696a89a92d297b7c46bfd286b20dc3896",
+		},
+		{
+			name:                  "specific cronitor id",
+			annotationIDInference: "",
+			annotationCronitorID:  "1234",
+			expectedID:            "1234",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			annotations := []Annotation{
+				{Key: "k8s.cronitor.io/id-inference", Value: tc.annotationIDInference},
+				{Key: "k8s.cronitor.io/cronitor-id", Value: tc.annotationCronitorID},
+			}
+
+			cronJob, err := CronJobFromAnnotations(annotations)
+			if err != nil {
+				t.Fatalf("unexpected error unmarshalling json: %v", err)
+			}
+
+			parser := NewCronitorConfigParser(&cronJob)
+			if id := parser.GetCronitorID(); id != tc.expectedID {
+				t.Errorf("expected ID %s, got %s", tc.expectedID, id)
+			}
+		})
+	}
+}
+
+func TestGetCronitorName(t *testing.T) {
+	tests := []struct {
+		name                   string
+		annotationNamePrefix   string
+		annotationCronitorName string
+		expectedName           string
+	}{
+		{
+			name:                   "default behavior",
+			annotationNamePrefix:   "",
+			annotationCronitorName: "",
+			expectedName:           "default/test-cronjob",
+		},
+		{
+			name:                   "no prefix for name",
+			annotationNamePrefix:   "none",
+			annotationCronitorName: "",
+			expectedName:           "test-cronjob",
+		},
+		{
+			name:                   "explicit prefix of namespace",
+			annotationNamePrefix:   "namespace",
+			annotationCronitorName: "",
+			expectedName:           "default/test-cronjob",
+		},
+		{
+			name:                   "specific cronitor name",
+			annotationNamePrefix:   "",
+			annotationCronitorName: "foo",
+			expectedName:           "foo",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			annotations := []Annotation{
+				{Key: "k8s.cronitor.io/name-prefix", Value: tc.annotationNamePrefix},
+				{Key: "k8s.cronitor.io/cronitor-name", Value: tc.annotationCronitorName},
+			}
+
+			cronJob, err := CronJobFromAnnotations(annotations)
+			if err != nil {
+				t.Fatalf("unexpected error unmarshalling json: %v", err)
+			}
+
+			parser := NewCronitorConfigParser(&cronJob)
+			if name := parser.GetCronitorName(); name != tc.expectedName {
+				t.Errorf("expected Name %s, got %s", tc.expectedName, name)
+			}
+		})
 	}
 }
