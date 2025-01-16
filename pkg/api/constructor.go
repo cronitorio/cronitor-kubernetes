@@ -3,8 +3,8 @@ package api
 import (
 	"bytes"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"os"
 )
@@ -25,7 +25,7 @@ type CronitorApiError struct {
 func (c CronitorApiError) ResponseBody() ([]byte, error) {
 	contents, err := ioutil.ReadAll(c.Response.Body)
 	if err != nil {
-		log.Errorf("could not read response body: %v", err)
+		slog.Error("could not read response body", "error", err)
 		return []byte{}, err
 	}
 	defer c.Response.Body.Close()

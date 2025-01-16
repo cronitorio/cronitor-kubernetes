@@ -3,16 +3,17 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/Masterminds/semver"
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/collector"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 var dryRun bool
@@ -32,22 +33,26 @@ func checkVersion() {
 
 	currentVersion, err := semver.NewVersion(viperVersion)
 	if err != nil {
-		log.Errorf("Error parsing version from viper %s: %v", viperVersion, err)
+		slog.Error("error parsing version from viper",
+			"version", viperVersion,
+			"error", err)
 		return
 	}
 	latestVersion := pkg.GetLatestVersion()
 	if latestVersion == "" {
-		log.Errorf("Couldn't get version: %s", currentVersion)
+		slog.Error("couldn't get version", "current_version", currentVersion)
 		return
 	}
 	latestAvailableVersion, err := semver.NewVersion(latestVersion)
 	if err != nil {
-		log.Errorf("Error parsing latest available version %s: %v", latestVersion, err)
+		slog.Error("error parsing latest available version",
+			"version", latestVersion,
+			"error", err)
 		return
 	}
 	constraint, err := semver.NewConstraint("> " + currentVersion.String())
 	if err != nil {
-		log.Errorf("Error parsing version constraint: %s", err)
+		slog.Error("error parsing version constraint", "error", err)
 		return
 	}
 	if constraint.Check(latestAvailableVersion) {
@@ -71,7 +76,7 @@ func agentRun(cmd *cobra.Command, args []string) error {
 	cronitorApi := api.NewCronitorApi(apiKey, viper.GetBool("dryrun"))
 	kubeconfig := viper.GetString("kubeconfig")
 	if kubeconfig == "" {
-		log.Info("no kubeconfig provided, defaulting to in-cluster...")
+		slog.Info("no kubeconfig provided, defaulting to in-cluster...")
 	}
 	namespace := viper.GetString("namespace")
 	collection, err := collector.NewCronJobCollection(kubeconfig, namespace, &cronitorApi)
@@ -91,7 +96,7 @@ func agentRun(cmd *cobra.Command, args []string) error {
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case sig := <-c:
-		log.Infof("Received signal %s to exit", sig.String())
+		slog.Info("received signal to exit", "signal", sig.String())
 		gracefulExit()
 	}
 	// case <-leaderlost

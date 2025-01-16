@@ -3,19 +3,20 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"github.com/cronitorio/cronitor-kubernetes/pkg"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"io/ioutil"
-	v1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/cronitorio/cronitor-kubernetes/pkg"
+	"github.com/spf13/viper"
+	v1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type TelemetryEventStatus string
@@ -250,12 +251,18 @@ func (api CronitorApi) MakeAndSendTelemetryPodEventAndLogs(event *pkg.PodEvent, 
 				// so discard for now
 				return
 			}
-			log.Errorf("unexpected error sending log data for pod %s/%s: %v", pod.Namespace, pod.Name, err)
+			slog.Error("unexpected error sending log data for pod",
+				"namespace", pod.Namespace,
+				"pod", pod.Name,
+				"error", err)
 		}
 		logTelemetryEvent := telemetryEvent.CreateLogTelemetryEvent()
 		err = api.sendTelemetryEvent(logTelemetryEvent)
 		if err != nil {
-			log.Errorf("unexpected error sending log telemetry event for pod %s/%s: %v", pod.Namespace, pod.Name, err)
+			slog.Error("unexpected error sending log telemetry event for pod",
+				"namespace", pod.Namespace,
+				"pod", pod.Name,
+				"error", err)
 		}
 	}(telemetryEvent, pod)
 
@@ -279,12 +286,18 @@ func (api CronitorApi) MakeAndSendTelemetryJobEventAndLogs(event *pkg.JobEvent, 
 				// so discard for now
 				return
 			}
-			log.Errorf("unexpected error sending log data for job %s/%s: %v", job.Namespace, job.Name, err)
+			slog.Error("unexpected error sending log data for job",
+				"namespace", job.Namespace,
+				"job", job.Name,
+				"error", err)
 		}
 		logTelemetryEvent := telemetryEvent.CreateLogTelemetryEvent()
 		err = api.sendTelemetryEvent(logTelemetryEvent)
 		if err != nil {
-			log.Errorf("unexpected error sending log telemetry event for pod %s/%s: %v", pod.Namespace, pod.Name, err)
+			slog.Error("unexpected error sending log telemetry event for pod",
+				"namespace", pod.Namespace,
+				"pod", pod.Name,
+				"error", err)
 		}
 	}(telemetryEvent, job)
 

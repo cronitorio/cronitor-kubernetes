@@ -2,13 +2,14 @@ package pkg
 
 import (
 	"fmt"
-	"github.com/Masterminds/semver"
-	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/Masterminds/semver"
+	"github.com/ghodss/yaml"
 )
 
 const chartRepositoryUrl = "https://cronitorio.github.io/cronitor-kubernetes/index.yaml"
@@ -38,7 +39,8 @@ func getChartYaml() ([]byte, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
-		log.Fatalln(err)
+		slog.Error("failed to read response body", "error", err)
+		return nil, err
 	}
 	return body, nil
 }
@@ -61,7 +63,7 @@ func extractLatestVersionFromList(versions []string) (string, error) {
 	for i, r := range versions {
 		v, err := semver.NewVersion(r)
 		if err != nil {
-			log.Errorf("error parsing chart version: %v", err)
+			slog.Error("error parsing chart version", "version", r, "error", err)
 		}
 
 		vs[i] = v
@@ -77,12 +79,12 @@ func extractLatestVersionFromList(versions []string) (string, error) {
 func GetLatestVersion() string {
 	data, err := getChartYaml()
 	if err != nil {
-		log.Errorf("%v", err)
+		slog.Error("failed to get chart yaml", "error", err)
 		return ""
 	}
 	versions, err := extractVersionsFromChart(data)
 	if err != nil {
-		log.Errorf("%v", err)
+		slog.Error("failed to extract versions from chart", "error", err)
 		return ""
 	}
 	latestVersion, err := extractLatestVersionFromList(versions)

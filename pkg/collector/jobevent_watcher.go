@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"regexp"
+
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +32,7 @@ type EventHandler struct {
 
 func createPodFilter() *regexp.Regexp {
 	if podFilter := viper.GetString("pod-filter"); podFilter != "" {
-		log.Debugf("pod filter enabled: %s", podFilter)
+		slog.Debug("pod filter enabled", "filter", podFilter)
 		return regexp.MustCompile(podFilter)
 	}
 
@@ -252,25 +253,25 @@ func (e EventHandler) OnAdd(obj interface{}) {
 		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
 		// then ignore the event
 		if eventTime.Before(&watchStartTime) {
-			log.WithFields(log.Fields{
-				"name":         typedEvent.InvolvedObject.Name,
-				"kind":         typedEvent.InvolvedObject.Kind,
-				"eventMessage": typedEvent.Message,
-				"eventReason":  typedEvent.Reason,
-			}).Infof("Ignored event from the past, happened %v, watch startup time %v", eventTime, watchStartTime)
+			slog.Info("ignored event from the past",
+				"name", typedEvent.InvolvedObject.Name,
+				"kind", typedEvent.InvolvedObject.Kind,
+				"eventMessage", typedEvent.Message,
+				"eventReason", typedEvent.Reason,
+				"eventTime", eventTime,
+				"watchStartTime", watchStartTime)
 			return
 		}
 
 		if e.CheckJobIsWatched(typedEvent.InvolvedObject.Namespace, typedEvent.InvolvedObject.Name) {
-			log.WithFields(log.Fields{
-				"name":         typedEvent.InvolvedObject.Name,
-				"kind":         typedEvent.InvolvedObject.Kind,
-				"eventMessage": typedEvent.Message,
-				"eventReason":  typedEvent.Reason,
-			}).Info("Job event added")
+			slog.Info("job event added",
+				"name", typedEvent.InvolvedObject.Name,
+				"kind", typedEvent.InvolvedObject.Kind,
+				"eventMessage", typedEvent.Message,
+				"eventReason", typedEvent.Reason)
 			pod, logs, job, cronjob, err := e.FetchObjectsFromJobEvent(&typedEvent)
 			if err != nil {
-				log.Warnf("could not fetch objects related to event: %s", err.Error())
+				slog.Warn("could not fetch objects related to event", "error", err)
 				return
 			}
 			_ = e.collection.cronitorApi.MakeAndSendTelemetryJobEventAndLogs(&typedEvent, logs, pod, job, cronjob)
@@ -282,19 +283,20 @@ func (e EventHandler) OnAdd(obj interface{}) {
 		// Before we do any additional work loading objects from the API, check our pod filter.
 		// Users with busy clusters can use the pod filter to reduce API load
 		if e.CheckPodFilter(typedEvent.InvolvedObject.Name) == false {
-			log.Debugf("pod %s excluded by pod filter", typedEvent.InvolvedObject.Name)
+			slog.Debug("pod excluded by pod filter", "pod", typedEvent.InvolvedObject.Name)
 			return
 		}
 
 		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
 		// then ignore the event
 		if eventTime.Before(&watchStartTime) {
-			log.WithFields(log.Fields{
-				"name":         typedEvent.InvolvedObject.Name,
-				"kind":         typedEvent.InvolvedObject.Kind,
-				"eventMessage": typedEvent.Message,
-				"eventReason":  typedEvent.Reason,
-			}).Infof("Ignored event from the past, happened %v, watch startup time %v", eventTime, watchStartTime)
+			slog.Info("ignored event from the past",
+				"name", typedEvent.InvolvedObject.Name,
+				"kind", typedEvent.InvolvedObject.Kind,
+				"eventMessage", typedEvent.Message,
+				"eventReason", typedEvent.Reason,
+				"eventTime", eventTime,
+				"watchStartTime", watchStartTime)
 			return
 		}
 
@@ -311,32 +313,41 @@ func (e EventHandler) OnAdd(obj interface{}) {
 		if err != nil {
 			switch t := err.(type) {
 			case PodNotFoundError:
-				log.Debugf("pod %s/%s not found, probably a stale event: %v", t.podNamespace, t.podName, errors.Unwrap(t))
+				slog.Debug("pod not found, probably a stale event",
+					"namespace", t.podNamespace,
+					"pod", t.podName,
+					"error", errors.Unwrap(t))
 			case JobNotFoundError:
-				log.Debugf("job %s/%s not found, probably a stale event: %v", t.jobNamespace, t.jobName, errors.Unwrap(t))
+				slog.Debug("job not found, probably a stale event",
+					"namespace", t.jobNamespace,
+					"job", t.jobName,
+					"error", errors.Unwrap(t))
 			default:
-				log.Errorf("unexpected error fetching the job for pod %s/%s (error %T): %v", podNamespace, podName, err, err)
+				slog.Error("unexpected error fetching the job for pod",
+					"namespace", podNamespace,
+					"pod", podName,
+					"errorType", fmt.Sprintf("%T", err),
+					"error", err)
 			}
 			return
 		} else if job == nil {
-			log.Debugf("pod %s/%s does not belong to a job; discarded", podNamespace, podName)
+			slog.Debug("pod does not belong to a job; discarded",
+				"namespace", podNamespace,
+				"pod", podName)
 			return
 		}
 
-		// Right now we end up fetching the job twice. We need to refactor out
-		// the double-request, but this is acceptable for now.
 		if e.CheckJobIsWatched(job.Namespace, job.Name) {
-			log.WithFields(log.Fields{
-				"name":          typedEvent.InvolvedObject.Name,
-				"kind":          typedEvent.InvolvedObject.Kind,
-				"eventMessage":  typedEvent.Message,
-				"eventReason":   typedEvent.Reason,
-				"eventTime":     typedEvent.EventTime,
-				"lastTimestamp": typedEvent.LastTimestamp,
-			}).Info("Pod event added")
+			slog.Info("pod event added",
+				"name", typedEvent.InvolvedObject.Name,
+				"kind", typedEvent.InvolvedObject.Kind,
+				"eventMessage", typedEvent.Message,
+				"eventReason", typedEvent.Reason,
+				"eventTime", typedEvent.EventTime,
+				"lastTimestamp", typedEvent.LastTimestamp)
 			pod, logs, job, cronjob, err := e.FetchObjectsFromPodEvent(&typedEvent)
 			if err != nil {
-				log.Warnf("could not fetch objects related to event: %s", err.Error())
+				slog.Warn("could not fetch objects related to event", "error", err)
 				return
 			}
 			_ = e.collection.cronitorApi.MakeAndSendTelemetryPodEventAndLogs(&typedEvent, logs, pod, job, cronjob)
@@ -354,7 +365,7 @@ type WatchWrapper struct {
 
 func (w WatchWrapper) Start() {
 	defer runtime.HandleCrash()
-	log.Info("The jobs watcher is starting...")
+	slog.Info("the jobs watcher is starting...")
 
 	podFilter = createPodFilter()
 
@@ -366,7 +377,7 @@ func (w WatchWrapper) Start() {
 }
 
 func (w WatchWrapper) Stop() {
-	log.Info("The jobs watcher is stopping...")
+	slog.Info("the jobs watcher is stopping...")
 	w.watcher.Stop()
 }
 
