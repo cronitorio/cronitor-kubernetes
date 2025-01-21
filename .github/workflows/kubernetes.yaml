@@ -128,12 +128,12 @@ jobs:
         run: sleep $((60 * 3))
         shell: bash
 
-      # - name: Print logs always
-      #   if: always()
-      #   run: |
-      #     echo "::group::Kubernetes agent logs"
-      #     kubectl logs $(kubectl get po -l app.kubernetes.io/name=cronitor-kubernetes -o name)
-      #     echo "::endgroup::"
+      - name: Print logs always
+        if: always()
+        run: |
+          echo "::group::Kubernetes agent logs"
+          kubectl logs $(kubectl get po -l app.kubernetes.io/name=cronitor-kubernetes -o name)
+          echo "::endgroup::"
 
       - run: pip install -r requirements.txt
         if: always()
