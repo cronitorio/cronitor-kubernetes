@@ -3,11 +3,12 @@ package collector
 import (
 	"context"
 	"fmt"
+	"log/slog"
+
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/normalizer"
 	"github.com/getsentry/sentry-go"
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/batch/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -51,26 +52,24 @@ func (coll *CronJobCollection) AddCronJob(cronjob *v1.CronJob) {
 	coll.cronjobs[cronjob.GetUID()] = cronjob
 	if err != nil {
 		sentry.CaptureException(err)
-		log.WithFields(log.Fields{
-			"namespace": cronjob.Namespace,
-			"name":      cronjob.Name,
-			"UID":       cronjob.UID,
-		}).Errorf("Error adding cronjob to Cronitor: %s", err.Error())
+		slog.Error("error adding cronjob to Cronitor",
+			"namespace", cronjob.Namespace,
+			"name", cronjob.Name,
+			"UID", cronjob.UID,
+			"error", err)
 	} else {
-		log.WithFields(log.Fields{
-			"namespace": cronjob.Namespace,
-			"name":      cronjob.Name,
-			"UID":       cronjob.UID,
-		}).Info("Cronjob added to Cronitor")
+		slog.Info("cronjob added to Cronitor",
+			"namespace", cronjob.Namespace,
+			"name", cronjob.Name,
+			"UID", cronjob.UID)
 	}
 }
 
 func (coll *CronJobCollection) RemoveCronJob(cronjob *v1.CronJob) {
 	delete(coll.cronjobs, cronjob.GetUID())
-	log.WithFields(log.Fields{
-		"namespace": cronjob.Namespace,
-		"name":      cronjob.Name,
-	}).Info("Cronjob no longer watched (Still present in Cronitor)")
+	slog.Info("cronjob no longer watched (Still present in Cronitor)",
+		"namespace", cronjob.Namespace,
+		"name", cronjob.Name)
 }
 
 func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
@@ -100,7 +99,7 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 			cronjobs = append(cronjobs, *normalizer.CronJobConvertV1Beta1ToV1(&cj))
 		}
 	} else {
-		log.Fatalf("Unexpected apiVersion %s returned", version)
+		return fmt.Errorf("unexpected apiVersion %s returned", version)
 	}
 
 	for _, cronjob := range cronjobs {
@@ -109,7 +108,9 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 		}
 	}
 	coll.loaded = true
-	log.Infof("Existing CronJobs have loaded. %d found; %d included based on configuration.", len(cronjobs), len(coll.cronjobs))
+	slog.Info("existing CronJobs have loaded",
+		"total_found", len(cronjobs),
+		"included_count", len(coll.cronjobs))
 	return nil
 }
 
@@ -125,7 +126,7 @@ func (coll CronJobCollection) StartWatchingAll() {
 
 func (coll CronJobCollection) StopWatchingAll() {
 	if coll.stopper == nil {
-		log.Warning("CronJobCollection.stopper() called, but it wasn't running")
+		slog.Warn("CronJobCollection.stopper() called, but it wasn't running")
 	}
 	coll.stopper()
 	coll.stopper = nil

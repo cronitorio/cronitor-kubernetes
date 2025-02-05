@@ -5,13 +5,14 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"github.com/cronitorio/cronitor-kubernetes/pkg"
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/cronitorio/cronitor-kubernetes/pkg"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 /*
@@ -36,10 +37,12 @@ func gzipLogData(logData string) *bytes.Buffer {
 
 	gz := gzip.NewWriter(&b)
 	if _, err := gz.Write([]byte(logData)); err != nil {
-		log.Fatal(errors.Wrap(err, "error writing gzip"))
+		slog.Error("error writing gzip", "error", err)
+		panic(err)
 	}
 	if err := gz.Close(); err != nil {
-		log.Fatal(errors.Wrap(err, "error closing gzip"))
+		slog.Error("error closing gzip", "error", err)
+		panic(err)
 	}
 	return &b
 }
@@ -109,6 +112,6 @@ func (api CronitorApi) ShipLogData(params *TelemetryEvent) ([]byte, error) {
 		return nil, err
 	}
 	defer response2.Body.Close()
-	log.Infof("logs shipped for series %s", *params.Series)
+	slog.Info("logs shipped", "series", *params.Series)
 	return body, nil
 }

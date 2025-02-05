@@ -87,7 +87,7 @@ jobs:
             cd e2e-test/
             if echo "${{ matrix.kind_image }}" | grep -q -e v1.15 -e v1.16 -e v1.17 -e v1.18 -e v1.19 -e v1.20 -e v1.21 -e v1.22 -e v1.23 ; then
               kubectl apply -k kustomize/pre-batchv1/
-            else 
+            else
               kubectl apply -k kustomize/current/
             fi
 
@@ -151,12 +151,12 @@ jobs:
           TEST_CONFIGURATION: ${{ matrix.test_configuration }}
           RANDOM_ID: "${{ steps.generate_random_id.outputs.random_id }}"
         run: pytest
-      
+
       - name: Delete created monitors
         # Always need to clean up the leftover monitors, even with test failures
         if: always()
         working-directory: ./e2e-test/api/
-        env: 
+        env:
           CRONITOR_API_KEY: ${{ secrets.CRONITOR_API_KEY }}
         run: |
           python main.py --ci-tag 'ci:${{ steps.generate_random_id.outputs.random_id }}'

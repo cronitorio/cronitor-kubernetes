@@ -3,18 +3,36 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"log/slog"
 	"os"
+	"strings"
 	"testing"
 )
 
 func TestLogLevelParsing(t *testing.T) {
-	levelsToTest := []string{"trace", "TRACE", "debug", "DEBUG", "info", "INFO", "warn", "WARN", "warning", "error", "ERROR"}
-	for _, levelString := range levelsToTest {
-		t.Run(fmt.Sprintf("test '%s' level", levelString), func(t *testing.T) {
-			_, err := log.ParseLevel(levelString)
+	levelsToTest := []struct {
+		levelString string
+		level       slog.Level
+	}{
+		{"debug", slog.LevelDebug},
+		{"DEBUG", slog.LevelDebug},
+		{"info", slog.LevelInfo},
+		{"INFO", slog.LevelInfo},
+		{"warn", slog.LevelWarn},
+		{"WARN", slog.LevelWarn},
+		{"error", slog.LevelError},
+		{"ERROR", slog.LevelError},
+	}
+
+	for _, tt := range levelsToTest {
+		t.Run(fmt.Sprintf("test '%s' level", tt.levelString), func(t *testing.T) {
+			level := new(slog.Level)
+			err := level.UnmarshalText([]byte(strings.ToUpper(tt.levelString)))
 			if err != nil {
 				t.Error(err)
+			}
+			if *level != tt.level {
+				t.Errorf("expected level %v, got %v", tt.level, *level)
 			}
 		})
 	}

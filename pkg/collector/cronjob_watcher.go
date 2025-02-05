@@ -2,10 +2,10 @@ package collector
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/normalizer"
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -44,19 +44,18 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 	} else if wasIncluded && !nowIncluded {
 		onDelete(coll, cronjobOld)
 	} else if wasIncluded && nowIncluded {
-		log.WithFields(log.Fields{
-			"namespace":   cronjobNew.Namespace,
-			"name":        cronjobNew.Name,
-			"UID":         cronjobNew.UID,
-			"oldSchedule": cronjobOld.Spec.Schedule,
-			"newSchedule": cronjobNew.Spec.Schedule,
-			"configOld":   configParserOld.GetSchedule(),
-			"configNew":   configParserNew.GetSchedule(),
-		}).Info("cronjob updated")
+		slog.Info("cronjob updated",
+			"namespace", cronjobNew.Namespace,
+			"name", cronjobNew.Name,
+			"UID", cronjobNew.UID,
+			"oldSchedule", cronjobOld.Spec.Schedule,
+			"newSchedule", cronjobNew.Spec.Schedule,
+			"configOld", configParserOld.GetSchedule(),
+			"configNew", configParserNew.GetSchedule())
 
 		// If the schedule is updated
 		if configParserOld.GetSchedule() != configParserNew.GetSchedule() {
-		  onAdd(coll, cronjobNew)
+			onAdd(coll, cronjobNew)
 		}
 	}
 }
@@ -84,7 +83,7 @@ type CronJobWatcher struct {
 func (c CronJobWatcher) StartWatching() {
 	defer runtime.HandleCrash()
 
-	log.Info("The CronJob watcher is starting...")
+	slog.Info("the CronJob watcher is starting...")
 	go c.informer.Run(c.stopper)
 	go c.jobsWatcher.Start()
 }

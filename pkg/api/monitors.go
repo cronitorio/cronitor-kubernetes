@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/cronitorio/cronitor-cli/lib"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"io/ioutil"
-	v1 "k8s.io/api/batch/v1"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/cronitorio/cronitor-cli/lib"
+	"github.com/spf13/viper"
+	v1 "k8s.io/api/batch/v1"
 )
 
 func (api CronitorApi) mainApiUrl() string {
@@ -47,7 +48,9 @@ func (api CronitorApi) PutCronJobs(cronJobs []*v1.CronJob) ([]*lib.Monitor, erro
 		return nil, err
 	}
 
-	log.Debugf("request: <%s> %s", url, jsonBytes)
+	slog.Debug("sending request",
+		"url", url,
+		"body", string(jsonBytes))
 
 	if api.DryRun {
 		return make([]*lib.Monitor, 0), nil
@@ -58,14 +61,12 @@ func (api CronitorApi) PutCronJobs(cronJobs []*v1.CronJob) ([]*lib.Monitor, erro
 		return nil, err
 	}
 
-	log.Debugf("response: %s", response)
+	slog.Debug("received response", "response", string(response))
 
 	var responseMonitors []*lib.Monitor
 	if err = json.Unmarshal(response, &responseMonitors); err != nil {
 		return nil, fmt.Errorf("error from %s: %s, error: %s", url, response, err.Error())
 	}
-
-	// Do we actually need to do anything with the response yet?
 
 	return responseMonitors, nil
 }
@@ -82,8 +83,6 @@ func (api CronitorApi) sendHttpRequest(method string, url string, body string) (
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("User-Agent", api.UserAgent)
 	request.Header.Add("Cronitor-Version", "2020-10-27")
-
-	//log.Debug(formatRequest(request))
 
 	response, err := client.Do(request)
 	if err != nil {
