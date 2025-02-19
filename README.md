@@ -53,6 +53,7 @@ Here is the list of supported annotations:
 * `k8s.cronitor.io/cronitor-notify` - Comma-separated list of Notification List `key`s to assign alert destinations.
 * `k8s.cronitor.io/cronitor-group` - Group `key` attribute for grouping the monitor within the Cronitor application.
 * `k8s.cronitor.io/cronitor-grace-seconds` - The number of seconds that Cronitor should wait after the scheduled execution time before sending an alert. If the monitor is healthy at the end of the period no alert will be sent.
+* `k8s.cronitor.io/log-complete-event` - Controls whether the job completion event should be sent as a log record instead of a stateful completion. When set to `true`, the agent will not send telemetry events with state=complete, but will send a log event recording the completion. This supports async workflows where the actual task completion occurs outside the Kubernetes job. Valid values are `"true"` or `"false"`, default is `false`.
 
 ### FAQ
 <details>

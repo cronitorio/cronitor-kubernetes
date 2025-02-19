@@ -72,6 +72,12 @@ const (
 	// AnnotationNamePrefix lets you control the prefix of the name.
 	// Valid options include "none", "namespace" (to prepend namespace/), or any other string, which will be prepended as-is.
 	AnnotationNamePrefix CronitorAnnotation = "k8s.cronitor.io/name-prefix"
+
+	// AnnotationLogCompleteEvent lets you control whether job completion events are sent as log records instead of state changes.
+	// When set to "true", the agent will not send telemetry events with state=complete, but will send a log event recording the completion.
+	// This supports async workflows where the actual task completion occurs outside the Kubernetes job.
+	// The only valid values are "true" and "false". Default is "false".
+	AnnotationLogCompleteEvent CronitorAnnotation = "k8s.cronitor.io/log-complete-event"
 )
 
 type CronitorConfigParser struct {
@@ -253,4 +259,21 @@ func (cronitorParser CronitorConfigParser) GetGraceSeconds() int {
 		return graceSecondsInt
 	}
 	return -1
+}
+
+// LogCompleteEvent determines whether job completion events should be sent as log events (true)
+// or as state=complete telemetry (false).
+// When log-complete-event annotation is set to "true", returns true to indicate
+// completion should be sent as a log event rather than a complete state change.
+func (cronitorParser CronitorConfigParser) LogCompleteEvent() (bool, error) {
+	cronjob := cronitorParser.cronjob
+	if raw, ok := cronjob.Annotations[string(AnnotationLogCompleteEvent)]; ok {
+		logCompleteEvent, err := strconv.ParseBool(raw)
+		if err != nil {
+			return false, err
+		}
+		return logCompleteEvent, nil
+	}
+
+	return false, nil
 }

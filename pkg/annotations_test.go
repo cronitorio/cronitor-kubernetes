@@ -139,3 +139,71 @@ func TestGetCronitorName(t *testing.T) {
 		})
 	}
 }
+
+func TestLogCompleteEvent(t *testing.T) {
+	tests := []struct {
+		name          string
+		annotation    string
+		expectedValue bool
+		expectError   bool
+	}{
+		{
+			name:          "Valid true annotation",
+			annotation:    "true",
+			expectedValue: true,
+			expectError:   false,
+		},
+		{
+			name:          "Valid false annotation",
+			annotation:    "false",
+			expectedValue: false,
+			expectError:   false,
+		},
+		{
+			name:          "Invalid annotation",
+			annotation:    "invalid",
+			expectedValue: false,
+			expectError:   true,
+		},
+		{
+			name:          "No annotation",
+			annotation:    "",
+			expectedValue: false,
+			expectError:   false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var annotations []Annotation
+			if tc.annotation != "" {
+				annotations = []Annotation{
+					{Key: "k8s.cronitor.io/log-complete-event", Value: tc.annotation},
+				}
+			}
+
+			cronJob, err := CronJobFromAnnotations(annotations)
+			if err != nil {
+				t.Fatalf("failed to create CronJob from annotations: %v", err)
+			}
+
+			parser := NewCronitorConfigParser(&cronJob)
+			got, err := parser.LogCompleteEvent()
+
+			if tc.expectError {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if got != tc.expectedValue {
+				t.Errorf("LogCompleteEvent() = %v, want %v", got, tc.expectedValue)
+			}
+		})
+	}
+}
