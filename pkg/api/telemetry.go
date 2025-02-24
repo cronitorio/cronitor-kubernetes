@@ -143,8 +143,15 @@ func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, p
 		Timestamp: strconv.FormatInt(eventTime.Unix(), 10),
 	}
 
-	if env := pkg.NewCronitorConfigParser(cronjob).GetEnvironment(); env != "" {
+	cronitorConfigParser := pkg.NewCronitorConfigParser(cronjob)
+
+	if env := cronitorConfigParser.GetEnvironment(); env != "" {
 		telemetryEvent.Env = env
+	}
+
+	if ok, _ := cronitorConfigParser.EnabledAutoComplete(); !ok && telemetryEvent.Event == Complete {
+		telemetryEvent.Event = Logs
+		telemetryEvent.Message = fmt.Sprintf("Job %s is completed with status %s", job.Name, Complete)
 	}
 
 	return &telemetryEvent, nil

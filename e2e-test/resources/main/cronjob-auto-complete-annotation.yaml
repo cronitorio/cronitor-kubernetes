@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: test-grace-seconds-annotation
+  annotations:
+    k8s.cronitor.io/disable-complete-ping: "true"
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          containers:
+            - name: hello
+              image: busybox
+              args: [/bin/sh, -c, date ; sleep 5 ; echo Hello from k8s]
+          restartPolicy: OnFailure
+  concurrencyPolicy: Forbid

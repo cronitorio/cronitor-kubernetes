@@ -72,6 +72,10 @@ const (
 	// AnnotationNamePrefix lets you control the prefix of the name.
 	// Valid options include "none", "namespace" (to prepend namespace/), or any other string, which will be prepended as-is.
 	AnnotationNamePrefix CronitorAnnotation = "k8s.cronitor.io/name-prefix"
+
+	// AnnotationAutoComplete lets you control the automatic completion telemetry for a CronJob.
+	// The only valid values are "true" and "false".
+	AnnotationAutoComplete CronitorAnnotation = "k8s.cronitor.io/auto-complete"
 )
 
 type CronitorConfigParser struct {
@@ -253,4 +257,13 @@ func (cronitorParser CronitorConfigParser) GetGraceSeconds() int {
 		return graceSecondsInt
 	}
 	return -1
+}
+
+func (cronitorParser CronitorConfigParser) EnabledAutoComplete() (bool, error) {
+	cronjob := cronitorParser.cronjob
+	if raw, ok := cronjob.Annotations[string(AnnotationAutoComplete)]; ok {
+		return strconv.ParseBool(raw)
+	}
+
+	return false, nil
 }

@@ -139,3 +139,62 @@ func TestGetCronitorName(t *testing.T) {
 		})
 	}
 }
+
+func TestEnabledAutoComplete(t *testing.T) {
+	tests := []struct {
+		name          string
+		annotation    string
+		expectedValue bool
+		expectError   bool
+	}{
+		{
+			name:          "explicitly disabled",
+			annotation:    "false",
+			expectedValue: false,
+			expectError:   false,
+		},
+		{
+			name:          "explicitly enabled",
+			annotation:    "true",
+			expectedValue: true,
+			expectError:   false,
+		},
+		{
+			name:          "invalid value",
+			annotation:    "invalid",
+			expectedValue: false,
+			expectError:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			annotations := []Annotation{
+				{Key: "k8s.cronitor.io/auto-complete", Value: tc.annotation},
+			}
+
+			cronJob, err := CronJobFromAnnotations(annotations)
+			if err != nil {
+				t.Fatalf("failed to create CronJob from annotations: %v", err)
+			}
+
+			parser := NewCronitorConfigParser(&cronJob)
+			got, err := parser.EnabledAutoComplete()
+
+			if tc.expectError {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if got != tc.expectedValue {
+				t.Errorf("EnabledAutoComplete() = %v, want %v", got, tc.expectedValue)
+			}
+		})
+	}
+}

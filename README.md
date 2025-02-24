@@ -53,6 +53,7 @@ Here is the list of supported annotations:
 * `k8s.cronitor.io/cronitor-notify` - Comma-separated list of Notification List `key`s to assign alert destinations.
 * `k8s.cronitor.io/cronitor-group` - Group `key` attribute for grouping the monitor within the Cronitor application.
 * `k8s.cronitor.io/cronitor-grace-seconds` - The number of seconds that Cronitor should wait after the scheduled execution time before sending an alert. If the monitor is healthy at the end of the period no alert will be sent.
+* `k8s.cronitor.io/auto-complete` - Controls whether the automatic completion telemetry should be disabled for this CronJob. When set to `false`, the agent will not send completion pings to Cronitor when the job finishes. Valid values are `"true"` or `"false"`.
 
 ### FAQ
 <details>
