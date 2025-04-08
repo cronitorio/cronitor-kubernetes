@@ -143,8 +143,20 @@ func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, p
 		Timestamp: strconv.FormatInt(eventTime.Unix(), 10),
 	}
 
-	if env := pkg.NewCronitorConfigParser(cronjob).GetEnvironment(); env != "" {
+	cronitorConfigParser := pkg.NewCronitorConfigParser(cronjob)
+
+	if env := cronitorConfigParser.GetEnvironment(); env != "" {
 		telemetryEvent.Env = env
+	}
+
+	// Fixes issue https://github.com/cronitorio/cronitor-kubernetes/issues/47
+	// When log-complete-event is enabled via 'k8s.cronitor.io/log-complete-event: "true"' annotation,
+	// we send "Completed" events as "logs" type instead of "complete" to prevent cronitor.io
+	// from auto-completing the monitor. This supports async workflows where the actual task
+	// completion happens outside the Kubernetes job.
+	if logCompleteEvent, _ := cronitorConfigParser.LogCompleteEvent(); logCompleteEvent && telemetryEvent.Event == Complete {
+		telemetryEvent.Event = Logs
+		telemetryEvent.Message = fmt.Sprintf("Job %s is completed with status %s", job.Name, Complete)
 	}
 
 	return &telemetryEvent, nil
