@@ -8,6 +8,10 @@ nameOverride: ""
 fullnameOverride: ""
 
 credentials:
+  createSecret:
+    # API key to use when createSecret is true
+    apiKey: ""
+  # Name and key of an existing Secret (used when createSecret is false)
   secretName: null
   secretKey: null
 
