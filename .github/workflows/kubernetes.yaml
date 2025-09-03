@@ -43,7 +43,7 @@ jobs:
       # Needed because default version is too old
       - uses: azure/setup-kubectl@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: 3.9
           cache: 'pip'
