@@ -14,20 +14,28 @@ To use the Helm chart:
     helm repo add cronitor https://cronitorio.github.io/cronitor-kubernetes/
 
 
-A valid Cronitor API key with the ability to configure monitors is required. Before deploying the agent, create a
-Kubernetes `Secret` in the namespace in which you plan to deploy this Helm chart, and store your API key in that `Secret`. You will then put the name of the `Secret` and the key within the `Secret` at which the API key can be found into the following chart values:
-* `credentials.secretName`
-* `credentials.secretKey`
+A valid Cronitor API key with the ability to configure monitors is required. You can provide your API key in two ways:
 
- This can be created easily using `kubectl`. Make sure that you create the Secret in the same namespace as where you plan to deploy the Helm chart for the agent. As an example:
+#### Option 1: Chart-managed Secret (Recommended)
+The simplest approach is to let the Helm chart create and manage the Secret for you:
+
+```bash
+helm upgrade --install <release name> cronitor/cronitor-kubernetes --namespace <namespace> \
+    --set credentials.createSecret.apiKey=<your-api-key>
+```
+
+This approach is particularly useful when using tools like `helm-secrets` for encrypted deployments, as you can encrypt the API key directly in your values files.
+
+#### Option 2: External Secret Management
+Alternatively, you can create a Kubernetes `Secret` manually and reference it in the chart. Create the Secret in the namespace where you plan to deploy the Helm chart:
 
 ```bash
 kubectl create secret generic cronitor-secret -n <namespace> --from-literal=CRONITOR_API_KEY=<api key>
 ```
 
-Deploy using Helm 2 or Helm 3, as in the following example:
+Then deploy the chart referencing your existing Secret:
 
-```
+```bash
 helm upgrade --install <release name> cronitor/cronitor-kubernetes --namespace <namespace> \
     --set credentials.secretName=cronitor-secret \
     --set credentials.secretKey=CRONITOR_API_KEY
@@ -69,7 +77,7 @@ to one or a couple of namespaces. What do I do?</summary>
 
 You can configure the agent to only monitor a single namespace rather than the entire cluster. To do this, when deploying the agent, set `rbac.clusterScope` to `"namespace"` in [`values.yaml`][1]. In this setup, the agent will only monitor `CronJobs` within the namespace in which it is deployed, and it will not attempt to monitor anything outside of that namespace. It will not request permissions outside of its namespace either, using `Role` instead of `ClusterRole`.
 
-If you have more than one namespace you need to monitor with this setup, you'll need to deploy multiple copies of the Cronitor Kubernetes agent, one in each namespace. Please note that since Kubernetes Deployments can only access Secrets in the same namespace, you will also need to create a copy of the Secret containing your Cronitor API key in each namespace.
+If you have more than one namespace you need to monitor with this setup, you'll need to deploy multiple copies of the Cronitor Kubernetes agent, one in each namespace. When using chart-managed secrets (`credentials.createSecret.apiKey`), the Secret will be automatically created in each namespace during deployment. If using external Secret management, you will need to create a copy of the Secret containing your Cronitor API key in each namespace.
 
 </details>
 <details>

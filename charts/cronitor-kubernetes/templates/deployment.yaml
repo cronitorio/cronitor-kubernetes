@@ -53,8 +53,13 @@ spec:
             - name: CRONITOR_API_KEY
               valueFrom:
                 secretKeyRef:
+                  {{- if .Values.credentials.createSecret.apiKey }}
+                  name: {{ include "cronitor-kubernetes-agent.fullname" . }}-secret
+                  key: CRONITOR_API_KEY
+                  {{- else }}
                   name: {{ required "A valid name for a Secret holding the API key is required!" .Values.credentials.secretName }}
                   key: {{ required "A valid key in a Secret holding the API key is required!" .Values.credentials.secretKey }}
+                  {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "cronitor-kubernetes-agent.fullname" . }}-environment-configmap
