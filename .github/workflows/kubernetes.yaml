@@ -13,6 +13,7 @@ jobs:
         test_configuration:
          - default
          - single_namespace_rbac
+         - use_create_secret
         kind_image:
          - kindest/node:v1.25.3@sha256:f52781bc0d7a19fb6c405c2af83abfeb311f130707a0e219175677e366cc45d1
          - kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
@@ -72,6 +73,7 @@ jobs:
           kubectl config set-context --current --namespace="${{ steps.generate_random_id.outputs.random_id }}"
 
       - name: Add API key
+        if: matrix.test_configuration != 'use_create_secret'
         run: >
           kubectl create secret generic cronitor-secret --from-literal=CRONITOR_API_KEY=${{ secrets.CRONITOR_API_KEY }}
 
@@ -113,16 +115,54 @@ jobs:
 
       - name: Install Cronitor Kubernetes agent
         run: |
-          helm upgrade --install cronitor-kubernetes ./charts/cronitor-kubernetes/ \
-            --namespace "${{ steps.generate_random_id.outputs.random_id }}" \
-            --set credentials.secretName=cronitor-secret \
-            --set credentials.secretKey=CRONITOR_API_KEY \
-            --set config.defaultEnvironment=CI \
-            --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
-            -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
-            --set image="local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" \
-            --set imagePullPolicy=Never \
-            --wait
+          if [ "${{ matrix.test_configuration }}" = "use_create_secret" ]; then
+            # Test the new createSecret feature
+            helm upgrade --install cronitor-kubernetes ./charts/cronitor-kubernetes/ \
+              --namespace "${{ steps.generate_random_id.outputs.random_id }}" \
+              --set credentials.createSecret.apiKey="${{ secrets.CRONITOR_API_KEY }}" \
+              --set config.defaultEnvironment=CI \
+              --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
+              -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
+              --set image="local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" \
+              --set imagePullPolicy=Never \
+              --wait
+          else
+            # Use the existing secret approach
+            helm upgrade --install cronitor-kubernetes ./charts/cronitor-kubernetes/ \
+              --namespace "${{ steps.generate_random_id.outputs.random_id }}" \
+              --set credentials.secretName=cronitor-secret \
+              --set credentials.secretKey=CRONITOR_API_KEY \
+              --set config.defaultEnvironment=CI \
+              --set config.tags='ci:${{ steps.generate_random_id.outputs.random_id }}' \
+              -f ./e2e-test/values/${{ matrix.test_configuration }}.yaml \
+              --set image="local-docker-build:${{ steps.generate_random_id.outputs.random_id }}" \
+              --set imagePullPolicy=Never \
+              --wait
+          fi
+
+      - name: Verify secret creation (for use_create_secret config)
+        if: matrix.test_configuration == 'use_create_secret'
+        run: |
+          echo "Verifying that the secret was created by the Helm chart..."
+          kubectl get secret -n "${{ steps.generate_random_id.outputs.random_id }}" | grep cronitor-kubernetes
+
+          # Verify the secret contains the correct API key
+          STORED_KEY=$(kubectl get secret cronitor-kubernetes-secret \
+            -n "${{ steps.generate_random_id.outputs.random_id }}" \
+            -o jsonpath='{.data.CRONITOR_API_KEY}' | base64 -d)
+
+          EXPECTED_KEY="${{ secrets.CRONITOR_API_KEY }}"
+
+          echo "API key length: ${#STORED_KEY} characters"
+
+          if [ "$STORED_KEY" = "$EXPECTED_KEY" ]; then
+            echo "✓ Secret contains the correct API key"
+          else
+            echo "✗ Secret API key mismatch!"
+            echo "Expected key length: ${#EXPECTED_KEY}"
+            echo "Actual key length: ${#STORED_KEY}"
+            exit 1
+          fi
 
       - name: Sleep for 3 more minutes to let the agent run
         run: sleep $((60 * 3))
