@@ -1,6 +1,6 @@
 # Cronitor for Kubernetes
 
-![Test](https://github.com/cronitorio/cronitor-kubernetes/actions/workflows/kubernetes.yaml/badge.svg)
+![opticz](https://github.com/cronitorio/cronitor-kubernetes/actions/workflows/kubernetes.yaml/badge.svg)
 
 _Cronitor's Kubernetes agent and integration_
 
