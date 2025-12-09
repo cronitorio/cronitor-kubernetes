@@ -1,14 +1,22 @@
 import click
 import logging
 import os
+import sys
 from cronitor_wrapper import CronitorWrapper
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 CRONITOR_API_KEY = os.getenv('CRONITOR_API_KEY')
+IS_CI = os.getenv('CI') == 'true' or os.getenv('GITHUB_ACTIONS') == 'true'
+
 if not CRONITOR_API_KEY:
-    raise ValueError("An API key must be supplied.")
+    if IS_CI:
+        logger.warning("No CRONITOR_API_KEY found in CI environment. This may be expected for external PRs.")
+        logger.warning("Skipping cleanup as no API key is available.")
+        sys.exit(0)  # Exit successfully in CI without API key
+    else:
+        raise ValueError("An API key must be supplied.")
 
 
 @click.command()
