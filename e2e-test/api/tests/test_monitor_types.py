@@ -4,7 +4,9 @@ E2E Smoke Tests for Monitor Sync
 These tests verify the full end-to-end flow of syncing CronJobs to Cronitor monitors.
 They require a real Kubernetes cluster and Cronitor API access.
 
-Note: Many annotation-specific tests have been moved to Go unit tests in pkg/api/jobs_test.go:
+Note: Many tests have been moved to Go unit tests:
+
+pkg/api/jobs_test.go:
 - TestExistingCronitorID (cronitor-id annotation)
 - TestCronitorNameAnnotation (cronitor-name annotation)
 - TestCronitorGroupAnnotation (cronitor-group annotation)
@@ -13,8 +15,16 @@ Note: Many annotation-specific tests have been moved to Go unit tests in pkg/api
 - TestMonitorNameIsNeverUUID (name is never a UUID)
 - TestDefaultMonitorName (default namespace/name format)
 
-The Go unit tests verify the data transformation logic without hitting the real API.
-These e2e tests verify the full sync flow actually works with the real Cronitor API.
+pkg/api/telemetry_test.go:
+- TestTelemetryUrl, TestTelemetryEventEncode (telemetry URL and params)
+- TestTranslate*EventReasonToTelemetryEventStatus (event status mapping)
+- TestTelemetryEventIncludesEnvironmentFromAnnotation (env routing)
+
+Removed tests that verify server-side behavior we should trust:
+- test_same_id_should_result_one_monitor (Cronitor API deduplication)
+
+The Go unit tests verify our code sends correct data. We trust Cronitor's API
+to handle that data correctly.
 """
 import pytest
 from typing import Optional
@@ -71,32 +81,3 @@ def test_monitor_schedule_gets_updated():
     time.sleep(3)
     monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
     assert monitor['schedule'] == new_schedule, f"expected monitor schedule '{new_schedule}', got '{monitor['schedule']}'"
-
-
-def test_same_id_should_result_one_monitor():
-    """
-    Smoke test: Verify that multiple CronJobs with the same cronitor-id create only one monitor.
-
-    This tests the Cronitor API's deduplication behavior - when multiple CronJobs
-    share the same cronitor-id annotation, they should all update the same monitor
-    rather than creating duplicates.
-    """
-    random_id = os.getenv("RANDOM_ID")
-    monitor_key = "test-id-annotation-multiple-{RANDOM_ID}".format(RANDOM_ID=random_id)
-    monitor = cronitor_wrapper.get_ci_monitor_by_key(monitor_key)
-    assert monitor is not None, f"no monitor with {monitor_key} exists"
-
-    ci_monitors = cronitor_wrapper.get_all_ci_monitors()
-    monitors_with_relevant_name = [
-        monitor for monitor in ci_monitors
-        if 'multiple' in monitor['key']
-    ]
-    how_many = len(monitors_with_relevant_name)
-    names = ', '.join([monitor['name'] for monitor in monitors_with_relevant_name])
-    assert how_many == 1, f"There isn't 1 monitor with 'multiple' in the key, there are {how_many}: {names}"
-
-    # Verify pings from both environments are received
-    pings = cronitor_wrapper.get_ping_history_by_monitor(monitor_key=monitor_key, env='env1')
-    assert len(pings[monitor_key]) > 0
-    pings = cronitor_wrapper.get_ping_history_by_monitor(monitor_key=monitor_key, env='env2')
-    assert len(pings[monitor_key]) > 0
