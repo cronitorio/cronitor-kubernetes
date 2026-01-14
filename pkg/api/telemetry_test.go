@@ -16,7 +16,8 @@ import (
 )
 
 func TestTelemetryUrl(t *testing.T) {
-	// Create a test cronjob
+	// Verify the base URL format: /ping/{api_key}/{monitor_key}
+	// State is now passed as a query param, not in the path
 	cronjob := &v1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-cronjob",
@@ -30,55 +31,26 @@ func TestTelemetryUrl(t *testing.T) {
 		UserAgent: "test-agent",
 	}
 
-	tests := []struct {
-		name          string
-		event         TelemetryEventStatus
-		expectedPath  string
-	}{
-		{
-			name:         "run event",
-			event:        Run,
-			expectedPath: "/ping/test-api-key/test-uid-123/run",
-		},
-		{
-			name:         "complete event",
-			event:        Complete,
-			expectedPath: "/ping/test-api-key/test-uid-123/complete",
-		},
-		{
-			name:         "fail event",
-			event:        Fail,
-			expectedPath: "/ping/test-api-key/test-uid-123/fail",
-		},
-		{
-			name:         "ok event",
-			event:        Ok,
-			expectedPath: "/ping/test-api-key/test-uid-123/ok",
-		},
+	telemetryEvent := &TelemetryEvent{
+		CronJob: cronjob,
+		Event:   Run,
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			telemetryEvent := &TelemetryEvent{
-				CronJob: cronjob,
-				Event:   tc.event,
-			}
+	telemetryUrl := api.telemetryUrl(telemetryEvent)
 
-			url := api.telemetryUrl(telemetryEvent)
+	// URL should be: https://cronitor.link/ping/{api_key}/{monitor_key}
+	expectedUrl := "https://cronitor.link/ping/test-api-key/test-uid-123"
+	if telemetryUrl != expectedUrl {
+		t.Errorf("expected URL '%s', got '%s'", expectedUrl, telemetryUrl)
+	}
 
-			if !strings.HasSuffix(url, tc.expectedPath) {
-				t.Errorf("expected URL to end with '%s', got '%s'", tc.expectedPath, url)
-			}
-
-			if !strings.HasPrefix(url, "https://cronitor.link") {
-				t.Errorf("expected URL to start with 'https://cronitor.link', got '%s'", url)
-			}
-		})
+	// Verify state is NOT in the path (it should be a query param now)
+	if strings.Contains(telemetryUrl, "/run") {
+		t.Error("state should not be in URL path, should be query param")
 	}
 }
 
 func TestTelemetryUrlWithCustomCronitorID(t *testing.T) {
-	// Create a cronjob with custom cronitor-id annotation
 	cronjob := &v1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-cronjob",
@@ -100,100 +72,103 @@ func TestTelemetryUrlWithCustomCronitorID(t *testing.T) {
 		Event:   Run,
 	}
 
-	url := api.telemetryUrl(telemetryEvent)
+	telemetryUrl := api.telemetryUrl(telemetryEvent)
 
-	expectedPath := "/ping/test-api-key/custom-monitor-id/run"
-	if !strings.HasSuffix(url, expectedPath) {
-		t.Errorf("expected URL to end with '%s', got '%s'", expectedPath, url)
+	expectedUrl := "https://cronitor.link/ping/test-api-key/custom-monitor-id"
+	if telemetryUrl != expectedUrl {
+		t.Errorf("expected URL '%s', got '%s'", expectedUrl, telemetryUrl)
 	}
 }
 
-func TestTelemetryEventEncode(t *testing.T) {
+// TestTelemetryEncodeAllParams verifies that ALL telemetry parameters are correctly encoded
+func TestTelemetryEncodeAllParams(t *testing.T) {
 	series := types.UID("job-uid-456")
 	exitCode := 1
 
+	event := TelemetryEvent{
+		Event:     Complete,
+		Message:   "Job completed successfully",
+		Series:    &series,
+		ExitCode:  &exitCode,
+		Env:       "production",
+		Host:      "worker-node-1",
+		Timestamp: "1234567890",
+		Metric:    "duration:5000",
+	}
+
+	encoded := event.Encode()
+	params, err := url.ParseQuery(encoded)
+	if err != nil {
+		t.Fatalf("failed to parse encoded query: %v", err)
+	}
+
+	// Verify ALL parameters are present and correct
+	expectedParams := map[string]string{
+		"state":     "complete",
+		"message":   "Job completed successfully",
+		"series":    "job-uid-456",
+		"exit_code": "1",
+		"env":       "production",
+		"host":      "worker-node-1",
+		"stamp":     "1234567890",
+		"metric":    "duration:5000",
+	}
+
+	for key, expectedValue := range expectedParams {
+		actualValue := params.Get(key)
+		if actualValue != expectedValue {
+			t.Errorf("param '%s': expected '%s', got '%s'", key, expectedValue, actualValue)
+		}
+	}
+}
+
+// TestTelemetryEncodeStateParam verifies state is correctly encoded for each event type
+func TestTelemetryEncodeStateParam(t *testing.T) {
 	tests := []struct {
-		name           string
-		event          TelemetryEvent
-		expectedParams map[string]string
+		event         TelemetryEventStatus
+		expectedState string
 	}{
-		{
-			name: "basic event with env",
-			event: TelemetryEvent{
-				Env:       "production",
-				Message:   "Job started",
-				Host:      "node-1",
-				Timestamp: "1234567890",
-				Series:    &series,
-			},
-			expectedParams: map[string]string{
-				"env":     "production",
-				"message": "Job started",
-				"host":    "node-1",
-				"stamp":   "1234567890",
-				"series":  "job-uid-456",
-			},
-		},
-		{
-			name: "event without env (default)",
-			event: TelemetryEvent{
-				Message:   "Job completed",
-				Host:      "node-2",
-				Timestamp: "1234567891",
-			},
-			expectedParams: map[string]string{
-				"message": "Job completed",
-				"host":    "node-2",
-				"stamp":   "1234567891",
-			},
-		},
-		{
-			name: "event with exit code",
-			event: TelemetryEvent{
-				Message:   "Job failed",
-				ExitCode:  &exitCode,
-				Timestamp: "1234567892",
-			},
-			expectedParams: map[string]string{
-				"message":   "Job failed",
-				"exit_code": "1",
-				"stamp":     "1234567892",
-			},
-		},
-		{
-			name: "event with metric",
-			event: TelemetryEvent{
-				Message:   "Logs",
-				Metric:    "length:5000",
-				Timestamp: "1234567893",
-			},
-			expectedParams: map[string]string{
-				"message": "Logs",
-				"metric":  "length:5000",
-				"stamp":   "1234567893",
-			},
-		},
+		{Run, "run"},
+		{Complete, "complete"},
+		{Fail, "fail"},
+		{Ok, "ok"},
+		{Logs, "logs"},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			encoded := tc.event.Encode()
-			params, err := url.ParseQuery(encoded)
-			if err != nil {
-				t.Fatalf("failed to parse encoded query: %v", err)
-			}
+		t.Run(string(tc.event), func(t *testing.T) {
+			event := TelemetryEvent{Event: tc.event}
+			encoded := event.Encode()
+			params, _ := url.ParseQuery(encoded)
 
-			for key, expectedValue := range tc.expectedParams {
-				if params.Get(key) != expectedValue {
-					t.Errorf("expected param '%s' to be '%s', got '%s'", key, expectedValue, params.Get(key))
-				}
-			}
-
-			// Verify env is NOT present when not set
-			if tc.event.Env == "" && params.Get("env") != "" {
-				t.Errorf("expected 'env' param to be absent, got '%s'", params.Get("env"))
+			if params.Get("state") != tc.expectedState {
+				t.Errorf("expected state '%s', got '%s'", tc.expectedState, params.Get("state"))
 			}
 		})
+	}
+}
+
+// TestTelemetryEncodeOptionalParams verifies optional params are only included when set
+func TestTelemetryEncodeOptionalParams(t *testing.T) {
+	// Minimal event - only state should be present
+	event := TelemetryEvent{
+		Event: Run,
+	}
+
+	encoded := event.Encode()
+	params, _ := url.ParseQuery(encoded)
+
+	// State is always required
+	if params.Get("state") != "run" {
+		t.Errorf("state should always be present, got '%s'", params.Get("state"))
+	}
+
+	// These should NOT be present when not set
+	optionalParams := []string{"message", "series", "exit_code", "env", "host", "stamp", "metric"}
+	for _, param := range optionalParams {
+		if params.Get(param) != "" {
+			t.Errorf("param '%s' should not be present when not set, got '%s'", param, params.Get(param))
+		}
 	}
 }
 
@@ -208,13 +183,11 @@ func TestTranslatePodEventReasonToTelemetryEventStatus(t *testing.T) {
 			name:           "Started maps to run",
 			reason:         "Started",
 			expectedStatus: Run,
-			expectError:    false,
 		},
 		{
 			name:           "BackOff maps to fail",
 			reason:         "BackOff",
 			expectedStatus: Fail,
-			expectError:    false,
 		},
 		{
 			name:        "Unknown reason returns error",
@@ -259,19 +232,16 @@ func TestTranslateJobEventReasonToTelemetryEventStatus(t *testing.T) {
 			name:           "SuccessfulCreate maps to run",
 			reason:         "SuccessfulCreate",
 			expectedStatus: Run,
-			expectError:    false,
 		},
 		{
 			name:           "Completed maps to complete",
 			reason:         "Completed",
 			expectedStatus: Complete,
-			expectError:    false,
 		},
 		{
 			name:           "BackoffLimitExceeded maps to fail",
 			reason:         "BackoffLimitExceeded",
 			expectedStatus: Fail,
-			expectError:    false,
 		},
 		{
 			name:        "Unknown reason returns error",
@@ -306,8 +276,6 @@ func TestTranslateJobEventReasonToTelemetryEventStatus(t *testing.T) {
 }
 
 func TestTelemetryEventIncludesEnvironmentFromAnnotation(t *testing.T) {
-	// This test verifies that the env annotation on a CronJob
-	// is correctly included in the telemetry event
 	cronjob := &v1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-cronjob",
@@ -337,7 +305,6 @@ func TestTelemetryEventIncludesEnvironmentFromAnnotation(t *testing.T) {
 		},
 	}
 
-	// Test with job event
 	jobEvent := &pkg.JobEvent{}
 	jobEvent.Reason = "Completed"
 	jobEvent.Message = "Job completed successfully"
@@ -351,22 +318,19 @@ func TestTelemetryEventIncludesEnvironmentFromAnnotation(t *testing.T) {
 		t.Errorf("expected env 'staging', got '%s'", telemetryEvent.Env)
 	}
 
-	// Verify the env is encoded in query params
-	encoded := telemetryEvent.Encode()
-	params, _ := url.ParseQuery(encoded)
+	// Verify env is in encoded params
+	params, _ := url.ParseQuery(telemetryEvent.Encode())
 	if params.Get("env") != "staging" {
 		t.Errorf("expected encoded env param 'staging', got '%s'", params.Get("env"))
 	}
 }
 
 func TestTelemetryEventWithoutEnvironmentAnnotation(t *testing.T) {
-	// Verify that when no env annotation is present, the env field is empty
 	cronjob := &v1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-cronjob",
 			Namespace: "default",
 			UID:       "test-uid-123",
-			// No env annotation
 		},
 	}
 
@@ -400,16 +364,16 @@ func TestTelemetryEventWithoutEnvironmentAnnotation(t *testing.T) {
 		t.Errorf("expected empty env, got '%s'", telemetryEvent.Env)
 	}
 
-	// Verify env is NOT in query params
-	encoded := telemetryEvent.Encode()
-	params, _ := url.ParseQuery(encoded)
+	// Verify env is NOT in encoded params
+	params, _ := url.ParseQuery(telemetryEvent.Encode())
 	if params.Get("env") != "" {
 		t.Errorf("expected no env param, got '%s'", params.Get("env"))
 	}
 }
 
-func TestSendTelemetryPostRequest(t *testing.T) {
-	// Test that the telemetry request is sent with correct URL and params
+// TestSendTelemetryRequestVerifiesAllParams is a comprehensive test that verifies
+// the full HTTP request is constructed correctly with ALL parameters
+func TestSendTelemetryRequestVerifiesAllParams(t *testing.T) {
 	var capturedRequest *http.Request
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -419,7 +383,6 @@ func TestSendTelemetryPostRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Override hostname for test
 	viper.Set("hostname-override", server.URL)
 	defer viper.Set("hostname-override", "")
 
@@ -428,26 +391,26 @@ func TestSendTelemetryPostRequest(t *testing.T) {
 			Name:      "test-cronjob",
 			Namespace: "default",
 			UID:       "test-uid-123",
-			Annotations: map[string]string{
-				"k8s.cronitor.io/env": "test-environment",
-			},
 		},
 	}
 
 	series := types.UID("job-series-789")
+	exitCode := 0
 	telemetryEvent := &TelemetryEvent{
 		CronJob:   cronjob,
 		Event:     Complete,
-		Message:   "Job completed",
-		Env:       "test-environment",
-		Host:      "test-node",
+		Message:   "Job completed successfully",
+		Env:       "production",
+		Host:      "worker-node-1",
 		Timestamp: "1234567890",
 		Series:    &series,
+		ExitCode:  &exitCode,
+		Metric:    "duration:5000",
 	}
 
 	api := CronitorApi{
 		ApiKey:    "test-api-key",
-		UserAgent: "test-agent",
+		UserAgent: "cronitor-kubernetes/test",
 	}
 
 	_, err := api.sendTelemetryPostRequest(telemetryEvent)
@@ -460,29 +423,94 @@ func TestSendTelemetryPostRequest(t *testing.T) {
 		t.Errorf("expected POST method, got %s", capturedRequest.Method)
 	}
 
-	// Verify URL path contains correct components
-	expectedPathParts := []string{"/ping", "test-api-key", "test-uid-123", "complete"}
-	for _, part := range expectedPathParts {
-		if !strings.Contains(capturedRequest.URL.Path, part) {
-			t.Errorf("expected URL path to contain '%s', got '%s'", part, capturedRequest.URL.Path)
+	// Verify URL path format: /ping/{api_key}/{monitor_key}
+	expectedPath := "/ping/test-api-key/test-uid-123"
+	if capturedRequest.URL.Path != expectedPath {
+		t.Errorf("expected path '%s', got '%s'", expectedPath, capturedRequest.URL.Path)
+	}
+
+	// Verify state is NOT in path (should be query param)
+	if strings.Contains(capturedRequest.URL.Path, "complete") {
+		t.Error("state should not be in URL path")
+	}
+
+	// Verify ALL query params
+	queryParams := capturedRequest.URL.Query()
+
+	expectedQueryParams := map[string]string{
+		"state":     "complete",
+		"message":   "Job completed successfully",
+		"env":       "production",
+		"host":      "worker-node-1",
+		"stamp":     "1234567890",
+		"series":    "job-series-789",
+		"exit_code": "0",
+		"metric":    "duration:5000",
+	}
+
+	for key, expectedValue := range expectedQueryParams {
+		actualValue := queryParams.Get(key)
+		if actualValue != expectedValue {
+			t.Errorf("query param '%s': expected '%s', got '%s'", key, expectedValue, actualValue)
 		}
 	}
 
-	// Verify query params
-	queryParams := capturedRequest.URL.Query()
-	if queryParams.Get("env") != "test-environment" {
-		t.Errorf("expected env param 'test-environment', got '%s'", queryParams.Get("env"))
+	// Verify User-Agent header
+	if capturedRequest.Header.Get("User-Agent") != "cronitor-kubernetes/test" {
+		t.Errorf("expected User-Agent 'cronitor-kubernetes/test', got '%s'", capturedRequest.Header.Get("User-Agent"))
 	}
-	if queryParams.Get("host") != "test-node" {
-		t.Errorf("expected host param 'test-node', got '%s'", queryParams.Get("host"))
-	}
-	if queryParams.Get("series") != "job-series-789" {
-		t.Errorf("expected series param 'job-series-789', got '%s'", queryParams.Get("series"))
+}
+
+// TestSendTelemetryRequestMinimalParams verifies request with only required params
+func TestSendTelemetryRequestMinimalParams(t *testing.T) {
+	var capturedRequest *http.Request
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedRequest = r
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	viper.Set("hostname-override", server.URL)
+	defer viper.Set("hostname-override", "")
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cronjob",
+			Namespace: "default",
+			UID:       "test-uid-123",
+		},
 	}
 
-	// Verify User-Agent header
-	if capturedRequest.Header.Get("User-Agent") != "test-agent" {
-		t.Errorf("expected User-Agent 'test-agent', got '%s'", capturedRequest.Header.Get("User-Agent"))
+	// Minimal event - only state
+	telemetryEvent := &TelemetryEvent{
+		CronJob: cronjob,
+		Event:   Run,
+	}
+
+	api := CronitorApi{
+		ApiKey:    "test-api-key",
+		UserAgent: "test-agent",
+	}
+
+	_, err := api.sendTelemetryPostRequest(telemetryEvent)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	queryParams := capturedRequest.URL.Query()
+
+	// State is required
+	if queryParams.Get("state") != "run" {
+		t.Errorf("expected state 'run', got '%s'", queryParams.Get("state"))
+	}
+
+	// Optional params should not be present
+	optionalParams := []string{"message", "series", "exit_code", "env", "host", "stamp", "metric"}
+	for _, param := range optionalParams {
+		if queryParams.Get(param) != "" {
+			t.Errorf("param '%s' should not be present, got '%s'", param, queryParams.Get(param))
+		}
 	}
 }
 
@@ -526,5 +554,46 @@ func TestTelemetryFailureReturnsError(t *testing.T) {
 
 	if apiErr.Response.StatusCode != http.StatusUnauthorized {
 		t.Errorf("expected status code 401, got %d", apiErr.Response.StatusCode)
+	}
+}
+
+// TestTelemetryDryRunSkipsRequest verifies DryRun mode doesn't send requests
+func TestTelemetryDryRunSkipsRequest(t *testing.T) {
+	requestMade := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestMade = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	viper.Set("hostname-override", server.URL)
+	defer viper.Set("hostname-override", "")
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cronjob",
+			Namespace: "default",
+			UID:       "test-uid-123",
+		},
+	}
+
+	telemetryEvent := &TelemetryEvent{
+		CronJob: cronjob,
+		Event:   Run,
+	}
+
+	api := CronitorApi{
+		ApiKey:    "test-api-key",
+		UserAgent: "test-agent",
+		DryRun:    true,
+	}
+
+	err := api.sendTelemetryEvent(telemetryEvent)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if requestMade {
+		t.Error("request should not be made in DryRun mode")
 	}
 }
