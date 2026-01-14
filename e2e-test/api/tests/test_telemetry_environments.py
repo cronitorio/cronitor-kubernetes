@@ -1,6 +1,20 @@
-import pytest
+"""
+E2E Smoke Tests for Telemetry
+
+These tests verify the full end-to-end flow of sending telemetry (pings) to Cronitor.
+They require a real Kubernetes cluster with running CronJobs and Cronitor API access.
+
+These tests cannot be converted to Go unit tests because they verify:
+1. Telemetry is actually received by the Cronitor API
+2. Environment routing works correctly (pings go to the right env)
+3. Monitor status reflects actual job outcomes (passing/failing)
+
+The Go unit tests in pkg/api/telemetry_test.go verify URL construction and
+HTTP request formatting, but cannot verify the actual Cronitor behavior.
+"""
 from ..cronitor_wrapper import cronitor_wrapper_from_environment
 from ..kubernetes_wrapper import get_cronjob_by_name
+
 cronitor_wrapper = cronitor_wrapper_from_environment()
 
 
