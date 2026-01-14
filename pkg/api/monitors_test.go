@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -255,5 +257,119 @@ func TestSendHttpRequest_201IsSuccess(t *testing.T) {
 
 	if string(body) != `{"created": true}` {
 		t.Errorf("expected body '{\"created\": true}', got '%s'", string(body))
+	}
+}
+
+func TestPutCronJobs_BatchesAllJobsInSingleRequest(t *testing.T) {
+	requestCount := 0
+	var capturedBody string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		body, _ := io.ReadAll(r.Body)
+		capturedBody = string(body)
+
+		if r.Method != "PUT" {
+			t.Errorf("expected PUT request, got %s", r.Method)
+		}
+
+		w.WriteHeader(http.StatusOK)
+		// Echo back the body as response
+		w.Write(body)
+	}))
+	defer server.Close()
+
+	api := CronitorApi{
+		ApiKey:    "test-api-key",
+		UserAgent: "test-agent",
+	}
+
+	// Create multiple cronjobs to batch
+	cronJobs := []*v1.CronJob{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cronjob-1",
+				Namespace: "default",
+				UID:       "uid-1",
+			},
+			Spec: v1.CronJobSpec{
+				Schedule: "*/5 * * * *",
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cronjob-2",
+				Namespace: "production",
+				UID:       "uid-2",
+			},
+			Spec: v1.CronJobSpec{
+				Schedule: "0 * * * *",
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cronjob-3",
+				Namespace: "staging",
+				UID:       "uid-3",
+			},
+			Spec: v1.CronJobSpec{
+				Schedule: "0 0 * * *",
+			},
+		},
+	}
+
+	// Use sendHttpRequest directly with our test server
+	// First, manually build the request body like PutCronJobs does
+	monitorsArray := make([]CronitorJob, 0)
+	for _, cronjob := range cronJobs {
+		monitorsArray = append(monitorsArray, convertCronJobToCronitorJob(cronjob))
+	}
+	jsonBytes, err := json.Marshal(monitorsArray)
+	if err != nil {
+		t.Fatalf("failed to marshal cronjobs: %v", err)
+	}
+
+	_, err = api.sendHttpRequest("PUT", server.URL, string(jsonBytes))
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify only ONE request was made
+	if requestCount != 1 {
+		t.Errorf("expected exactly 1 request, got %d", requestCount)
+	}
+
+	// Verify all 3 cronjobs are in the request body
+	var sentMonitors []map[string]interface{}
+	if err := json.Unmarshal([]byte(capturedBody), &sentMonitors); err != nil {
+		t.Fatalf("failed to parse request body: %v", err)
+	}
+
+	if len(sentMonitors) != 3 {
+		t.Errorf("expected 3 monitors in request body, got %d", len(sentMonitors))
+	}
+
+	// Verify each cronjob is present by checking names
+	expectedNames := map[string]bool{
+		"default/cronjob-1":    false,
+		"production/cronjob-2": false,
+		"staging/cronjob-3":    false,
+	}
+
+	for _, monitor := range sentMonitors {
+		name, ok := monitor["name"].(string)
+		if !ok {
+			t.Error("monitor missing 'name' field")
+			continue
+		}
+		if _, exists := expectedNames[name]; exists {
+			expectedNames[name] = true
+		}
+	}
+
+	for name, found := range expectedNames {
+		if !found {
+			t.Errorf("expected monitor '%s' not found in request", name)
+		}
 	}
 }

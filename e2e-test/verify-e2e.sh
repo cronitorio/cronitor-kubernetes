@@ -7,6 +7,9 @@ set -e
 MOCK_POD="deployment/mock-cronitor-api"
 MOCK_NS="cronitor-mock"
 
+# Expected number of cronjobs deployed in e2e test (from e2e-tests.yml)
+EXPECTED_CRONJOB_COUNT=7
+
 echo "=== E2E Verification ==="
 echo ""
 
@@ -26,6 +29,14 @@ if [ "$MONITOR_COUNT" -lt 1 ]; then
     echo "FAIL: Expected at least 1 monitor sync request, got $MONITOR_COUNT"
     exit 1
 fi
+
+# CRITICAL: Verify all cronjobs are batched in a SINGLE request
+if [ "$MONITOR_COUNT" -ne 1 ]; then
+    echo "FAIL: Expected exactly 1 bulk PUT request, got $MONITOR_COUNT"
+    echo "      All cronjobs should be synced in a single batch API call"
+    exit 1
+fi
+echo "  ✓ All cronjobs batched in single request"
 
 # Check that the request was a PUT to /api/monitors
 MONITOR_METHOD=$(echo "$MONITOR_RESPONSE" | jq -r '.requests[0].method')
@@ -58,6 +69,16 @@ if [ "$MONITORS_SENT" -lt 1 ]; then
     echo "FAIL: Expected at least 1 monitor in request body"
     exit 1
 fi
+
+# Verify ALL expected cronjobs are present in the single request
+if [ "$MONITORS_SENT" -ne "$EXPECTED_CRONJOB_COUNT" ]; then
+    echo "FAIL: Expected $EXPECTED_CRONJOB_COUNT monitors in bulk request, got $MONITORS_SENT"
+    echo "      All cronjobs should be synced together in a single API call"
+    echo "      Monitors received:"
+    echo "$MONITOR_BODY" | jq -r '.[].name'
+    exit 1
+fi
+echo "  ✓ All $EXPECTED_CRONJOB_COUNT cronjobs present in bulk request"
 
 # Check first monitor has required fields
 FIRST_MONITOR_KEY=$(echo "$MONITOR_BODY" | jq -r '.[0].key // empty')
@@ -118,6 +139,7 @@ echo "=== All E2E checks passed ==="
 echo ""
 echo "Summary:"
 echo "  - Agent successfully synced $MONITORS_SENT monitors to mock server"
+echo "  - All $EXPECTED_CRONJOB_COUNT cronjobs batched in SINGLE PUT request"
 echo "  - Request format is correct (PUT /api/monitors)"
 echo "  - Monitor data structure is valid"
 echo "  - Names are human-readable (not UUIDs)"
