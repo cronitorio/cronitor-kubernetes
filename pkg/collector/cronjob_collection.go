@@ -166,6 +166,11 @@ func (coll CronJobCollection) GetAllWatchedCronJobUIDs() []types.UID {
 	return outList
 }
 
+func (coll CronJobCollection) IsTracked(uid types.UID) bool {
+	_, exists := coll.cronjobs[uid]
+	return exists
+}
+
 // CompareServerVersion will return 1 if the server version is higher than the compared version,
 // -1 if it is lower than the compared version, or 0 if they are the same
 func (coll CronJobCollection) CompareServerVersion(major int, minor int) (int, error) {

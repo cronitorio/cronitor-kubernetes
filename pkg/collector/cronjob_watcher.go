@@ -25,6 +25,15 @@ func onAdd(coll CronJobCollection, cronjob *v1.CronJob) {
 		return
 	}
 
+	// Skip if already tracked (was synced during initial LoadAllExistingCronJobs)
+	if coll.IsTracked(cronjob.GetUID()) {
+		slog.Debug("cronjob already tracked, skipping",
+			"namespace", cronjob.Namespace,
+			"name", cronjob.Name,
+			"UID", cronjob.UID)
+		return
+	}
+
 	if err := coll.AddCronJob(cronjob); err != nil {
 		// Error is already logged and sent to Sentry in AddCronJob
 		// Continue watching - the cronjob won't be tracked until a successful sync
