@@ -51,6 +51,11 @@ config:
   # Tip: Use negation to create a blacklist.
   podFilter: ''
 
+  # Override the Cronitor API hostname (for e2e testing only).
+  # When set, both monitor sync and telemetry requests will use this hostname
+  # instead of the default cronitor.io/cronitor.link endpoints.
+  hostnameOverride: ''
+
 rbac:
   # Specifies whether RBAC resources should be created
   create: true

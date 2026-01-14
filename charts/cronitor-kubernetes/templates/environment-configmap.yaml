@@ -24,3 +24,7 @@ data:
   {{ if .Values.config.yourEmail }}
   SUPPORT_EMAIL_ADDRESS: {{ .Values.config.yourEmail | quote }}
   {{ end }}
+
+  {{ if .Values.config.hostnameOverride }}
+  CRONITOR_HOSTNAME_OVERRIDE: {{ .Values.config.hostnameOverride | quote }}
+  {{ end }}
