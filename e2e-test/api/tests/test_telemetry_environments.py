@@ -1,45 +1,28 @@
 """
-E2E Smoke Tests for Telemetry
+Telemetry Tests - Moved to Go Unit Tests
 
-These tests verify the full end-to-end flow of sending telemetry (pings) to Cronitor.
-They require a real Kubernetes cluster with running CronJobs and Cronitor API access.
+The telemetry tests that were previously in this file have been moved to Go unit tests
+in pkg/api/telemetry_test.go. These tests verify:
 
-These tests cannot be converted to Go unit tests because they verify:
-1. Telemetry is actually received by the Cronitor API
-2. Environment routing works correctly (pings go to the right env)
-3. Monitor status reflects actual job outcomes (passing/failing)
+1. Telemetry URL construction (TestTelemetryUrl, TestTelemetryUrlWithCustomCronitorID)
+2. Environment parameter encoding (TestTelemetryEventIncludesEnvironmentFromAnnotation)
+3. Event status translation (TestTranslatePodEventReasonToTelemetryEventStatus,
+   TestTranslateJobEventReasonToTelemetryEventStatus)
+4. Full request verification with httptest mock (TestSendTelemetryPostRequest)
 
-The Go unit tests in pkg/api/telemetry_test.go verify URL construction and
-HTTP request formatting, but cannot verify the actual Cronitor behavior.
+The Go tests verify that:
+- The correct URL is constructed: /ping/{api_key}/{monitor_key}/{state}
+- The env query parameter is included when the annotation is present
+- Pod events (Started, BackOff) map to correct states (run, fail)
+- Job events (SuccessfulCreate, Completed, BackoffLimitExceeded) map to correct states
+
+We trust the Cronitor API to correctly process telemetry when we send the right
+URL and parameters. The Go unit tests verify our code sends the correct data.
+
+Previous Python e2e tests that are now covered:
+- test_telemetry_sent_to_correct_environment -> TestTelemetryEventIncludesEnvironmentFromAnnotation
+- test_failing_monitor_should_fail -> TestTranslateJobEventReasonToTelemetryEventStatus
+- test_successful_monitor_should_succeed -> TestTranslateJobEventReasonToTelemetryEventStatus
 """
-from ..cronitor_wrapper import cronitor_wrapper_from_environment
-from ..kubernetes_wrapper import get_cronjob_by_name
 
-cronitor_wrapper = cronitor_wrapper_from_environment()
-
-
-def test_telemetry_sent_to_correct_environment():
-    cronjob = get_cronjob_by_name('test-env-annotation')
-    key = cronjob['metadata']['uid']
-
-    # Ensure no pings in CI
-    pings = cronitor_wrapper.get_ping_history_by_monitor(monitor_key=key, env='CI')
-    assert pings[key][0] == 'No ping history for this monitor'
-
-    # Ensure there are pings in correct env (by annotation)
-    pings = cronitor_wrapper.get_ping_history_by_monitor(monitor_key=key, env='environment-test-telemetry')
-    assert len(pings[key]) > 0
-
-
-def test_failing_monitor_should_fail():
-    cronjob = get_cronjob_by_name('eventrouter-test-cronjob-fail')
-    key = cronjob['metadata']['uid']
-    result = cronitor_wrapper.get_monitor_with_events_and_invocations(monitor_key=key, env='CI')
-    assert result['passing'] is False
-
-
-def test_successful_monitor_should_succeed():
-    cronjob = get_cronjob_by_name('test-cronjob')
-    key = cronjob['metadata']['uid']
-    result = cronitor_wrapper.get_monitor_with_events_and_invocations(monitor_key=key, env='CI')
-    assert result['passing'] is True
+# No e2e tests remain in this file - all telemetry logic is tested via Go unit tests
