@@ -47,9 +47,8 @@ func NewCronJobCollection(pathToKubeconfig string, namespace string, cronitorApi
 	}, nil
 }
 
-func (coll *CronJobCollection) AddCronJob(cronjob *v1.CronJob) {
+func (coll *CronJobCollection) AddCronJob(cronjob *v1.CronJob) error {
 	_, err := coll.cronitorApi.PutCronJob(cronjob)
-	coll.cronjobs[cronjob.GetUID()] = cronjob
 	if err != nil {
 		sentry.CaptureException(err)
 		slog.Error("error adding cronjob to Cronitor",
@@ -57,12 +56,14 @@ func (coll *CronJobCollection) AddCronJob(cronjob *v1.CronJob) {
 			"name", cronjob.Name,
 			"UID", cronjob.UID,
 			"error", err)
-	} else {
-		slog.Info("cronjob added to Cronitor",
-			"namespace", cronjob.Namespace,
-			"name", cronjob.Name,
-			"UID", cronjob.UID)
+		return err
 	}
+	coll.cronjobs[cronjob.GetUID()] = cronjob
+	slog.Info("cronjob added to Cronitor",
+		"namespace", cronjob.Namespace,
+		"name", cronjob.Name,
+		"UID", cronjob.UID)
+	return nil
 }
 
 func (coll *CronJobCollection) RemoveCronJob(cronjob *v1.CronJob) {
@@ -102,15 +103,40 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 		return fmt.Errorf("unexpected apiVersion %s returned", version)
 	}
 
-	for _, cronjob := range cronjobs {
-		if included, err := pkg.NewCronitorConfigParser(&cronjob).IsCronJobIncluded(); err == nil && included {
-			coll.AddCronJob(&cronjob)
+	// Collect all included cronjobs first
+	var includedCronJobs []*v1.CronJob
+	for i := range cronjobs {
+		cronjob := &cronjobs[i]
+		if included, err := pkg.NewCronitorConfigParser(cronjob).IsCronJobIncluded(); err == nil && included {
+			includedCronJobs = append(includedCronJobs, cronjob)
 		}
 	}
+
+	// Sync all cronjobs to Cronitor in a single batch API call
+	if len(includedCronJobs) > 0 {
+		_, err := coll.cronitorApi.PutCronJobs(includedCronJobs)
+		if err != nil {
+			sentry.CaptureException(err)
+			slog.Error("failed to sync cronjobs to Cronitor - check your API key is a valid SDK key (not a telemetry key)",
+				"cronjob_count", len(includedCronJobs),
+				"error", err)
+			return fmt.Errorf("failed to sync cronjobs to Cronitor: %w", err)
+		}
+
+		// Only add to local collection after successful API call
+		for _, cronjob := range includedCronJobs {
+			coll.cronjobs[cronjob.GetUID()] = cronjob
+			slog.Debug("cronjob synced to Cronitor",
+				"namespace", cronjob.Namespace,
+				"name", cronjob.Name,
+				"UID", cronjob.UID)
+		}
+	}
+
 	coll.loaded = true
-	slog.Info("existing CronJobs have loaded",
+	slog.Info("existing CronJobs have been synced to Cronitor",
 		"total_found", len(cronjobs),
-		"included_count", len(coll.cronjobs))
+		"synced_count", len(coll.cronjobs))
 	return nil
 }
 

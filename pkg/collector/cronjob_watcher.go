@@ -25,7 +25,11 @@ func onAdd(coll CronJobCollection, cronjob *v1.CronJob) {
 		return
 	}
 
-	coll.AddCronJob(cronjob)
+	if err := coll.AddCronJob(cronjob); err != nil {
+		// Error is already logged and sent to Sentry in AddCronJob
+		// Continue watching - the cronjob won't be tracked until a successful sync
+		return
+	}
 }
 
 func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.CronJob) {
