@@ -53,7 +53,10 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 		panic(err)
 	}
 	if !wasIncluded && nowIncluded {
-		onAdd(coll, cronjobNew)
+		// Newly included - sync it (bypass IsTracked check since it's a deliberate add)
+		if err := coll.AddCronJob(cronjobNew); err != nil {
+			return
+		}
 	} else if wasIncluded && !nowIncluded {
 		onDelete(coll, cronjobOld)
 	} else if wasIncluded && nowIncluded {
@@ -66,9 +69,11 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 			"configOld", configParserOld.GetSchedule(),
 			"configNew", configParserNew.GetSchedule())
 
-		// If the schedule is updated
+		// If the schedule is updated, sync the change
 		if configParserOld.GetSchedule() != configParserNew.GetSchedule() {
-			onAdd(coll, cronjobNew)
+			if err := coll.AddCronJob(cronjobNew); err != nil {
+				return
+			}
 		}
 	}
 }
