@@ -100,7 +100,7 @@ func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 }
 
 func convertCronJobsToCronitorJobs(jobs []*v1.CronJob) []CronitorJob {
-	outputList := make([]CronitorJob, len(jobs))
+	outputList := make([]CronitorJob, 0, len(jobs))
 	for _, job := range jobs {
 		outputList = append(outputList, convertCronJobToCronitorJob(job))
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
@@ -21,6 +22,7 @@ type CronJobCollection struct {
 	serverVersion       *version.Info
 	cronitorApi         *api.CronitorApi
 	cronjobs            map[types.UID]*v1.CronJob
+	cronjobsMu          sync.RWMutex // protects cronjobs map
 	kubernetesNamespace string
 	loaded              bool
 	stopper             func()
@@ -58,7 +60,9 @@ func (coll *CronJobCollection) AddCronJob(cronjob *v1.CronJob) error {
 			"error", err)
 		return err
 	}
+	coll.cronjobsMu.Lock()
 	coll.cronjobs[cronjob.GetUID()] = cronjob
+	coll.cronjobsMu.Unlock()
 	slog.Info("cronjob added to Cronitor",
 		"namespace", cronjob.Namespace,
 		"name", cronjob.Name,
@@ -67,7 +71,9 @@ func (coll *CronJobCollection) AddCronJob(cronjob *v1.CronJob) error {
 }
 
 func (coll *CronJobCollection) RemoveCronJob(cronjob *v1.CronJob) {
+	coll.cronjobsMu.Lock()
 	delete(coll.cronjobs, cronjob.GetUID())
+	coll.cronjobsMu.Unlock()
 	slog.Info("cronjob no longer watched (Still present in Cronitor)",
 		"namespace", cronjob.Namespace,
 		"name", cronjob.Name)
@@ -124,6 +130,7 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 		}
 
 		// Only add to local collection after successful API call
+		coll.cronjobsMu.Lock()
 		for _, cronjob := range includedCronJobs {
 			coll.cronjobs[cronjob.GetUID()] = cronjob
 			slog.Debug("cronjob synced to Cronitor",
@@ -131,6 +138,7 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 				"name", cronjob.Name,
 				"UID", cronjob.UID)
 		}
+		coll.cronjobsMu.Unlock()
 	}
 
 	coll.loaded = true
@@ -158,17 +166,28 @@ func (coll CronJobCollection) StopWatchingAll() {
 	coll.stopper = nil
 }
 
-func (coll CronJobCollection) GetAllWatchedCronJobUIDs() []types.UID {
+func (coll *CronJobCollection) GetAllWatchedCronJobUIDs() []types.UID {
+	coll.cronjobsMu.RLock()
+	defer coll.cronjobsMu.RUnlock()
 	var outList []types.UID
-	for k, _ := range coll.cronjobs {
+	for k := range coll.cronjobs {
 		outList = append(outList, k)
 	}
 	return outList
 }
 
-func (coll CronJobCollection) IsTracked(uid types.UID) bool {
+func (coll *CronJobCollection) IsTracked(uid types.UID) bool {
+	coll.cronjobsMu.RLock()
+	defer coll.cronjobsMu.RUnlock()
 	_, exists := coll.cronjobs[uid]
 	return exists
+}
+
+func (coll *CronJobCollection) GetCronJob(uid types.UID) (*v1.CronJob, bool) {
+	coll.cronjobsMu.RLock()
+	defer coll.cronjobsMu.RUnlock()
+	cronjob, exists := coll.cronjobs[uid]
+	return cronjob, exists
 }
 
 // CompareServerVersion will return 1 if the server version is higher than the compared version,
