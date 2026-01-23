@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"regexp"
+	"sync/atomic"
 
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
@@ -22,18 +23,16 @@ import (
 	"k8s.io/client-go/tools/watch"
 )
 
-var watchStartTime = meta_v1.Now()
-
-var podFilter *regexp.Regexp
-
 type EventHandler struct {
-	collection *CronJobCollection
+	collection     *CronJobCollection
+	podFilter      *regexp.Regexp
+	watchStartTime atomic.Pointer[meta_v1.Time]
 }
 
 func createPodFilter() *regexp.Regexp {
-	if podFilter := viper.GetString("pod-filter"); podFilter != "" {
-		slog.Debug("pod filter enabled", "filter", podFilter)
-		return regexp.MustCompile(podFilter)
+	if filterStr := viper.GetString("pod-filter"); filterStr != "" {
+		slog.Debug("pod filter enabled", "filter", filterStr)
+		return regexp.MustCompile(filterStr)
 	}
 
 	return nil
@@ -119,12 +118,10 @@ func (e EventHandler) fetchJob(namespace string, name string) (*v1.Job, error) {
 }
 
 func (e EventHandler) fetchCronJob(uid types.UID) (*v1.CronJob, error) {
-	cronjobs := e.collection.cronjobs
-	if val, ok := cronjobs[uid]; ok {
-		return val, nil
-	} else {
-		return nil, fmt.Errorf("cronjob %s not found in collection", string(uid))
+	if cronjob, ok := e.collection.GetCronJob(uid); ok {
+		return cronjob, nil
 	}
+	return nil, fmt.Errorf("cronjob %s not found in collection", string(uid))
 }
 
 func (e EventHandler) fetchPodLogs(pod *corev1.Pod) (string, error) {
@@ -161,9 +158,18 @@ func (e EventHandler) FetchObjectsFromPodEvent(event *pkg.PodEvent) (pod *corev1
 	if err != nil {
 		return
 	}
+	if job == nil {
+		err = fmt.Errorf("pod %s/%s does not belong to a job", namespace, podName)
+		return
+	}
+	if len(job.ObjectMeta.OwnerReferences) == 0 {
+		err = fmt.Errorf("job %s/%s has no owner references", namespace, job.Name)
+		return
+	}
 	ownerReference := job.ObjectMeta.OwnerReferences[0]
 	if ownerReference.Kind != "CronJob" {
 		err = fmt.Errorf("expected ownerReference of CronJob, got %s", ownerReference.Kind)
+		return
 	}
 	ownerUID := ownerReference.UID
 	cronjob, err = e.fetchCronJob(ownerUID)
@@ -185,9 +191,14 @@ func (e EventHandler) FetchObjectsFromJobEvent(event *pkg.JobEvent) (pod *corev1
 		return
 	}
 
+	if len(job.ObjectMeta.OwnerReferences) == 0 {
+		err = fmt.Errorf("job %s/%s has no owner references", namespace, jobName)
+		return
+	}
 	ownerReference := job.ObjectMeta.OwnerReferences[0]
 	if ownerReference.Kind != "CronJob" {
 		err = fmt.Errorf("expected ownerReference of CronJob, got %s", ownerReference.Kind)
+		return
 	}
 	ownerUID := ownerReference.UID
 	cronjob, err = e.fetchCronJob(ownerUID)
@@ -236,10 +247,10 @@ func (e EventHandler) CheckJobIsWatched(jobNamespace string, jobName string) boo
 }
 
 func (e EventHandler) CheckPodFilter(podName string) bool {
-	if podFilter == nil {
+	if e.podFilter == nil {
 		return true
 	}
-	return podFilter.MatchString(podName)
+	return e.podFilter.MatchString(podName)
 }
 
 func (e EventHandler) OnAdd(obj interface{}) {
@@ -252,14 +263,15 @@ func (e EventHandler) OnAdd(obj interface{}) {
 
 		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
 		// then ignore the event
-		if eventTime.Before(&watchStartTime) {
+		watchStart := e.watchStartTime.Load()
+		if watchStart != nil && eventTime.Before(watchStart) {
 			slog.Info("ignored event from the past",
 				"name", typedEvent.InvolvedObject.Name,
 				"kind", typedEvent.InvolvedObject.Kind,
 				"eventMessage", typedEvent.Message,
 				"eventReason", typedEvent.Reason,
 				"eventTime", eventTime,
-				"watchStartTime", watchStartTime)
+				"watchStartTime", *watchStart)
 			return
 		}
 
@@ -289,14 +301,15 @@ func (e EventHandler) OnAdd(obj interface{}) {
 
 		// If this event is an older, stale event--e.g., it happened before this version of the agent started to run--
 		// then ignore the event
-		if eventTime.Before(&watchStartTime) {
+		watchStart := e.watchStartTime.Load()
+		if watchStart != nil && eventTime.Before(watchStart) {
 			slog.Info("ignored event from the past",
 				"name", typedEvent.InvolvedObject.Name,
 				"kind", typedEvent.InvolvedObject.Kind,
 				"eventMessage", typedEvent.Message,
 				"eventReason", typedEvent.Reason,
 				"eventTime", eventTime,
-				"watchStartTime", watchStartTime)
+				"watchStartTime", *watchStart)
 			return
 		}
 
@@ -359,25 +372,27 @@ func (e EventHandler) OnAdd(obj interface{}) {
 }
 
 type WatchWrapper struct {
-	watcher apiWatch.Interface
-	onAdd   func(obj interface{})
+	watcher      apiWatch.Interface
+	eventHandler *EventHandler
+	stopped      bool
 }
 
-func (w WatchWrapper) Start() {
+func (w *WatchWrapper) Start() {
 	defer runtime.HandleCrash()
 	slog.Info("the jobs watcher is starting...")
 
-	podFilter = createPodFilter()
-
 	ch := w.watcher.ResultChan()
 	for event := range ch {
-		w.onAdd(event.Object)
+		w.eventHandler.OnAdd(event.Object)
 	}
-	panic("The job watcher stopped unexpectedly!")
+	if !w.stopped {
+		slog.Error("the job watcher stopped unexpectedly")
+	}
 }
 
-func (w WatchWrapper) Stop() {
+func (w *WatchWrapper) Stop() {
 	slog.Info("the jobs watcher is stopping...")
+	w.stopped = true
 	w.watcher.Stop()
 }
 
@@ -387,9 +402,19 @@ func NewJobsEventWatcher(collection *CronJobCollection) *WatchWrapper {
 	if collection.kubernetesNamespace != "" {
 		namespace = collection.kubernetesNamespace
 	}
+
+	eventHandler := &EventHandler{
+		collection: collection,
+		podFilter:  createPodFilter(),
+	}
+	// Initialize watchStartTime
+	now := meta_v1.Now()
+	eventHandler.watchStartTime.Store(&now)
+
 	watchFunc := func(options meta_v1.ListOptions) (apiWatch.Interface, error) {
-		// Setting the time here *should* be safe, as when watchFunc runs, the watch handler by definition is stopped
-		watchStartTime = meta_v1.Now()
+		// Update watchStartTime when the watch restarts
+		now := meta_v1.Now()
+		eventHandler.watchStartTime.Store(&now)
 		return clientset.CoreV1().Events(namespace).Watch(context.Background(), meta_v1.ListOptions{})
 	}
 
@@ -398,12 +423,8 @@ func NewJobsEventWatcher(collection *CronJobCollection) *WatchWrapper {
 		panic(err)
 	}
 
-	eventHandler := &EventHandler{
-		collection: collection,
-	}
-
 	return &WatchWrapper{
-		watcher: watcher,
-		onAdd:   eventHandler.OnAdd,
+		watcher:      watcher,
+		eventHandler: eventHandler,
 	}
 }
