@@ -53,6 +53,19 @@ if [ "$MONITOR_PATH" != "/api/monitors" ]; then
     echo "FAIL: Expected path /api/monitors, got $MONITOR_PATH"
     exit 1
 fi
+echo "  ✓ Correct HTTP method and path"
+
+# Verify Authorization header is present (Basic auth)
+AUTH_HEADER=$(echo "$MONITOR_RESPONSE" | jq -r '.requests[0].headers.Authorization // empty')
+if [ -z "$AUTH_HEADER" ]; then
+    echo "FAIL: Missing Authorization header"
+    exit 1
+fi
+if [[ ! "$AUTH_HEADER" =~ ^Basic ]]; then
+    echo "FAIL: Expected Basic auth, got: $AUTH_HEADER"
+    exit 1
+fi
+echo "  ✓ Authorization header present (Basic auth)"
 
 # Check the body contains monitors
 MONITOR_BODY=$(echo "$MONITOR_RESPONSE" | jq -r '.requests[0].body')
@@ -133,6 +146,62 @@ if [ "$HAS_K8S_TAG" -lt 1 ]; then
     echo "FAIL: Monitor missing 'kubernetes' tag"
     exit 1
 fi
+echo "  ✓ Required fields and tags present"
+
+# =====================================================
+# Verify specific annotation-based monitors
+# =====================================================
+echo ""
+echo "Checking annotation-based monitors..."
+
+# Find monitor with custom cronitor-id
+CUSTOM_ID_MONITOR=$(echo "$MONITOR_BODY" | jq -r '.[] | select(.key == "my-custom-id") | .name // empty')
+if [ -z "$CUSTOM_ID_MONITOR" ]; then
+    echo "FAIL: Expected monitor with key 'my-custom-id' (from cronitor-id annotation)"
+    echo "      Available keys:"
+    echo "$MONITOR_BODY" | jq -r '.[].key'
+    exit 1
+fi
+echo "  ✓ cronitor-id annotation works (key: my-custom-id)"
+
+# Find monitor with custom name
+CUSTOM_NAME_MONITOR=$(echo "$MONITOR_BODY" | jq -r '.[] | select(.name == "my-custom-monitor-name") | .key // empty')
+if [ -z "$CUSTOM_NAME_MONITOR" ]; then
+    echo "FAIL: Expected monitor with name 'my-custom-monitor-name' (from cronitor-name annotation)"
+    echo "      Available names:"
+    echo "$MONITOR_BODY" | jq -r '.[].name'
+    exit 1
+fi
+echo "  ✓ cronitor-name annotation works (name: my-custom-monitor-name)"
+
+# Check for environment annotation (staging env)
+ENV_MONITOR=$(echo "$MONITOR_BODY" | jq -r '.[] | select(.tags | index("env:staging")) | .name // empty')
+if [ -z "$ENV_MONITOR" ]; then
+    echo "WARN: No monitor with 'env:staging' tag found (from env annotation)"
+    echo "      Tags in first monitor: $FIRST_MONITOR_TAGS"
+fi
+
+# Check for group annotation
+GROUP_MONITOR=$(echo "$MONITOR_BODY" | jq -r '.[] | select(.group == "my-test-group") | .name // empty')
+if [ -z "$GROUP_MONITOR" ]; then
+    echo "FAIL: Expected monitor with group 'my-test-group' (from cronitor-group annotation)"
+    echo "      Available groups:"
+    echo "$MONITOR_BODY" | jq -r '.[].group // "null"'
+    exit 1
+fi
+echo "  ✓ cronitor-group annotation works (group: my-test-group)"
+
+# Check for notify annotation
+NOTIFY_MONITOR=$(echo "$MONITOR_BODY" | jq -r '.[] | select(.notify | length > 0) | .name' | head -1)
+if [ -z "$NOTIFY_MONITOR" ]; then
+    echo "WARN: No monitor with notify list found (from cronitor-notify annotation)"
+fi
+
+# Check for grace-seconds annotation
+GRACE_MONITOR=$(echo "$MONITOR_BODY" | jq -r '.[] | select(.grace_seconds != null and .grace_seconds > 0) | .name' | head -1)
+if [ -z "$GRACE_MONITOR" ]; then
+    echo "WARN: No monitor with grace_seconds found (from cronitor-grace-seconds annotation)"
+fi
 
 echo ""
 echo "=== All E2E checks passed ==="
@@ -140,7 +209,8 @@ echo ""
 echo "Summary:"
 echo "  - Agent successfully synced $MONITORS_SENT monitors to mock server"
 echo "  - All $EXPECTED_CRONJOB_COUNT cronjobs batched in SINGLE PUT request"
-echo "  - Request format is correct (PUT /api/monitors)"
+echo "  - Request format is correct (PUT /api/monitors with Basic auth)"
 echo "  - Monitor data structure is valid"
 echo "  - Names are human-readable (not UUIDs)"
 echo "  - Required tags are present"
+echo "  - Annotation-based customizations work correctly"

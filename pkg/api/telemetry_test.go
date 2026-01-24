@@ -597,3 +597,427 @@ func TestTelemetryDryRunSkipsRequest(t *testing.T) {
 		t.Error("request should not be made in DryRun mode")
 	}
 }
+
+// =============================================================================
+// Integration tests for MakeAndSendTelemetry* functions
+// These test the full path from Kubernetes events to HTTP requests
+// =============================================================================
+
+// TestMakeAndSendTelemetryJobEvent_CompletedJob verifies the full integration path
+// when a job completes successfully
+func TestMakeAndSendTelemetryJobEvent_CompletedJob(t *testing.T) {
+	var capturedRequest *http.Request
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedRequest = r
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}))
+	defer server.Close()
+
+	viper.Set("hostname-override", server.URL)
+	defer viper.Set("hostname-override", "")
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-scheduled-job",
+			Namespace: "production",
+			UID:       "cronjob-uid-abc123",
+			Annotations: map[string]string{
+				"k8s.cronitor.io/env": "production",
+			},
+		},
+	}
+
+	job := &v1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-scheduled-job-28571234",
+			Namespace: "production",
+			UID:       "job-uid-xyz789",
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-scheduled-job-28571234-abc",
+			Namespace: "production",
+		},
+		Spec: corev1.PodSpec{
+			NodeName: "worker-node-3",
+		},
+	}
+
+	jobEvent := &pkg.JobEvent{}
+	jobEvent.Reason = "Completed"
+	jobEvent.Message = "Job completed successfully"
+
+	api := CronitorApi{
+		ApiKey:    "my-api-key",
+		UserAgent: "cronitor-kubernetes/test",
+	}
+
+	err := api.MakeAndSendTelemetryJobEventAndLogs(jobEvent, "", pod, job, cronjob)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify request was made
+	if capturedRequest == nil {
+		t.Fatal("expected request to be made")
+	}
+
+	// Verify URL path: /ping/{api_key}/{monitor_key}
+	// monitor_key should be the cronjob UID since no cronitor-id annotation
+	expectedPath := "/ping/my-api-key/cronjob-uid-abc123"
+	if capturedRequest.URL.Path != expectedPath {
+		t.Errorf("expected path '%s', got '%s'", expectedPath, capturedRequest.URL.Path)
+	}
+
+	// Verify query params
+	params := capturedRequest.URL.Query()
+
+	if params.Get("state") != "complete" {
+		t.Errorf("expected state 'complete', got '%s'", params.Get("state"))
+	}
+
+	if params.Get("env") != "production" {
+		t.Errorf("expected env 'production', got '%s'", params.Get("env"))
+	}
+
+	if params.Get("series") != "job-uid-xyz789" {
+		t.Errorf("expected series 'job-uid-xyz789', got '%s'", params.Get("series"))
+	}
+
+	if params.Get("host") != "worker-node-3" {
+		t.Errorf("expected host 'worker-node-3', got '%s'", params.Get("host"))
+	}
+
+	if params.Get("message") != "Job completed successfully" {
+		t.Errorf("expected message 'Job completed successfully', got '%s'", params.Get("message"))
+	}
+}
+
+// TestMakeAndSendTelemetryJobEvent_WithCustomCronitorID verifies the monitor key
+// is taken from the cronitor-id annotation when present
+func TestMakeAndSendTelemetryJobEvent_WithCustomCronitorID(t *testing.T) {
+	var capturedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedPath = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	viper.Set("hostname-override", server.URL)
+	defer viper.Set("hostname-override", "")
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-scheduled-job",
+			Namespace: "production",
+			UID:       "cronjob-uid-abc123",
+			Annotations: map[string]string{
+				"k8s.cronitor.io/cronitor-id": "my-custom-monitor-key",
+			},
+		},
+	}
+
+	job := &v1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-scheduled-job-28571234",
+			Namespace: "production",
+			UID:       "job-uid-xyz789",
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-scheduled-job-28571234-abc",
+			Namespace: "production",
+		},
+		Spec: corev1.PodSpec{
+			NodeName: "worker-node-1",
+		},
+	}
+
+	jobEvent := &pkg.JobEvent{}
+	jobEvent.Reason = "Completed"
+
+	api := CronitorApi{
+		ApiKey:    "my-api-key",
+		UserAgent: "cronitor-kubernetes/test",
+	}
+
+	err := api.MakeAndSendTelemetryJobEventAndLogs(jobEvent, "", pod, job, cronjob)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify the custom cronitor-id is used as the monitor key
+	expectedPath := "/ping/my-api-key/my-custom-monitor-key"
+	if capturedPath != expectedPath {
+		t.Errorf("expected path '%s', got '%s'", expectedPath, capturedPath)
+	}
+}
+
+// TestMakeAndSendTelemetryJobEvent_FailedJob verifies failure events are sent correctly
+func TestMakeAndSendTelemetryJobEvent_FailedJob(t *testing.T) {
+	var capturedState string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedState = r.URL.Query().Get("state")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	viper.Set("hostname-override", server.URL)
+	defer viper.Set("hostname-override", "")
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "failing-job",
+			Namespace: "default",
+			UID:       "cronjob-uid-fail",
+		},
+	}
+
+	job := &v1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "failing-job-123",
+			Namespace: "default",
+			UID:       "job-uid-fail",
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "failing-job-123-pod",
+			Namespace: "default",
+		},
+		Spec: corev1.PodSpec{
+			NodeName: "node-1",
+		},
+	}
+
+	jobEvent := &pkg.JobEvent{}
+	jobEvent.Reason = "BackoffLimitExceeded"
+	jobEvent.Message = "Job has reached the specified backoff limit"
+
+	api := CronitorApi{
+		ApiKey:    "test-key",
+		UserAgent: "test-agent",
+	}
+
+	err := api.MakeAndSendTelemetryJobEventAndLogs(jobEvent, "", pod, job, cronjob)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if capturedState != "fail" {
+		t.Errorf("expected state 'fail', got '%s'", capturedState)
+	}
+}
+
+// TestMakeAndSendTelemetryPodEvent_Started verifies pod start events are sent correctly
+func TestMakeAndSendTelemetryPodEvent_Started(t *testing.T) {
+	var capturedRequest *http.Request
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedRequest = r
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	viper.Set("hostname-override", server.URL)
+	defer viper.Set("hostname-override", "")
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "scheduled-task",
+			Namespace: "apps",
+			UID:       "cronjob-uid-pod-test",
+			Annotations: map[string]string{
+				"k8s.cronitor.io/cronitor-id": "my-task-monitor",
+				"k8s.cronitor.io/env":         "staging",
+			},
+		},
+	}
+
+	job := &v1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "scheduled-task-12345",
+			Namespace: "apps",
+			UID:       "job-uid-pod-test",
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "scheduled-task-12345-xyz",
+			Namespace: "apps",
+		},
+		Spec: corev1.PodSpec{
+			NodeName: "node-2",
+		},
+	}
+
+	podEvent := &pkg.PodEvent{}
+	podEvent.Reason = "Started"
+	podEvent.Message = "Started container"
+
+	api := CronitorApi{
+		ApiKey:    "pod-test-key",
+		UserAgent: "cronitor-kubernetes/test",
+	}
+
+	err := api.MakeAndSendTelemetryPodEventAndLogs(podEvent, "", pod, job, cronjob)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify request was made
+	if capturedRequest == nil {
+		t.Fatal("expected request to be made")
+	}
+
+	// Verify URL uses custom cronitor-id
+	expectedPath := "/ping/pod-test-key/my-task-monitor"
+	if capturedRequest.URL.Path != expectedPath {
+		t.Errorf("expected path '%s', got '%s'", expectedPath, capturedRequest.URL.Path)
+	}
+
+	params := capturedRequest.URL.Query()
+
+	if params.Get("state") != "run" {
+		t.Errorf("expected state 'run', got '%s'", params.Get("state"))
+	}
+
+	if params.Get("env") != "staging" {
+		t.Errorf("expected env 'staging', got '%s'", params.Get("env"))
+	}
+
+	if params.Get("series") != "job-uid-pod-test" {
+		t.Errorf("expected series 'job-uid-pod-test', got '%s'", params.Get("series"))
+	}
+}
+
+// TestMakeAndSendTelemetryPodEvent_BackOff verifies pod backoff events are sent as failures
+func TestMakeAndSendTelemetryPodEvent_BackOff(t *testing.T) {
+	var capturedState string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedState = r.URL.Query().Get("state")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	viper.Set("hostname-override", server.URL)
+	defer viper.Set("hostname-override", "")
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "flaky-job",
+			Namespace: "default",
+			UID:       "cronjob-uid-backoff",
+		},
+	}
+
+	job := &v1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "flaky-job-999",
+			Namespace: "default",
+			UID:       "job-uid-backoff",
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "flaky-job-999-pod",
+			Namespace: "default",
+		},
+		Spec: corev1.PodSpec{
+			NodeName: "node-1",
+		},
+	}
+
+	podEvent := &pkg.PodEvent{}
+	podEvent.Reason = "BackOff"
+	podEvent.Message = "Back-off restarting failed container"
+
+	api := CronitorApi{
+		ApiKey:    "test-key",
+		UserAgent: "test-agent",
+	}
+
+	err := api.MakeAndSendTelemetryPodEventAndLogs(podEvent, "", pod, job, cronjob)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if capturedState != "fail" {
+		t.Errorf("expected state 'fail', got '%s'", capturedState)
+	}
+}
+
+// TestTelemetryURLVerification is a comprehensive test that explicitly documents
+// and verifies the expected Cronitor API endpoints
+func TestTelemetryURLVerification(t *testing.T) {
+	t.Run("default telemetry URL is cronitor.link", func(t *testing.T) {
+		// Clear any override
+		viper.Set("hostname-override", "")
+
+		cronjob := &v1.CronJob{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-job",
+				Namespace: "default",
+				UID:       "test-uid",
+			},
+		}
+
+		api := CronitorApi{
+			ApiKey: "my-api-key",
+		}
+
+		telemetryEvent := &TelemetryEvent{
+			CronJob: cronjob,
+			Event:   Run,
+		}
+
+		url := api.telemetryUrl(telemetryEvent)
+
+		// CRITICAL: This verifies we're hitting the right production endpoint
+		expectedURL := "https://cronitor.link/ping/my-api-key/test-uid"
+		if url != expectedURL {
+			t.Errorf("CRITICAL: Telemetry URL mismatch!\n  Expected: %s\n  Got: %s", expectedURL, url)
+		}
+	})
+
+	t.Run("hostname-override redirects telemetry", func(t *testing.T) {
+		viper.Set("hostname-override", "http://mock-server.local")
+		defer viper.Set("hostname-override", "")
+
+		cronjob := &v1.CronJob{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-job",
+				Namespace: "default",
+				UID:       "test-uid",
+			},
+		}
+
+		api := CronitorApi{
+			ApiKey: "my-api-key",
+		}
+
+		telemetryEvent := &TelemetryEvent{
+			CronJob: cronjob,
+			Event:   Run,
+		}
+
+		url := api.telemetryUrl(telemetryEvent)
+
+		expectedURL := "http://mock-server.local/ping/my-api-key/test-uid"
+		if url != expectedURL {
+			t.Errorf("hostname-override not working!\n  Expected: %s\n  Got: %s", expectedURL, url)
+		}
+	})
+}

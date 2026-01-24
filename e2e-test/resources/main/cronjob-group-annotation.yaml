@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: test-group-annotation
   annotations:
-    k8s.cronitor.io/cronitor-group: 'test-group'
+    k8s.cronitor.io/cronitor-group: 'my-test-group'
 spec:
   schedule: "*/1 * * * *"
   jobTemplate:
