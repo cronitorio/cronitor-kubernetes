@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: test-env-annotation
   annotations:
-    k8s.cronitor.io/env: 'environment-test-telemetry'
+    k8s.cronitor.io/env: 'staging'
 spec:
   schedule: "*/1 * * * *"
   jobTemplate:

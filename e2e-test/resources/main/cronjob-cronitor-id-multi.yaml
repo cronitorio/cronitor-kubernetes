@@ -3,8 +3,8 @@ kind: CronJob
 metadata:
   name: test-id-annotation-multiple-env1
   annotations:
-    k8s.cronitor.io/cronitor-id: ''
-    k8s.cronitor.io/cronitor-name: ''
+    k8s.cronitor.io/cronitor-id: 'multi-env1-id'
+    k8s.cronitor.io/cronitor-name: 'multi-env1-name'
     k8s.cronitor.io/env: 'env1'
 spec:
   schedule: "*/1 * * * *"
@@ -28,8 +28,8 @@ kind: CronJob
 metadata:
   name: test-id-annotation-multiple-env2
   annotations:
-    k8s.cronitor.io/cronitor-id: ''
-    k8s.cronitor.io/cronitor-name: ''
+    k8s.cronitor.io/cronitor-id: 'multi-env2-id'
+    k8s.cronitor.io/cronitor-name: 'multi-env2-name'
     k8s.cronitor.io/env: 'env2'
 spec:
   schedule: "*/1 * * * *"

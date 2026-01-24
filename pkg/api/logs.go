@@ -95,7 +95,7 @@ func (api CronitorApi) ShipLogData(params *TelemetryEvent) ([]byte, error) {
 		Timeout: 120 * time.Second,
 	}
 	response2, err := client.Do(req)
-	if err != nil || response == nil {
+	if err != nil || response2 == nil {
 		return nil, CronitorApiError{
 			Err:      err,
 			Response: response2,

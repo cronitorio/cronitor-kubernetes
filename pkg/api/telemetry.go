@@ -164,6 +164,8 @@ func NewTelemetryEventFromKubernetesJobEvent(event *pkg.JobEvent, logs string, p
 
 func (t TelemetryEvent) Encode() string {
 	q := url.Values{}
+	// State is required
+	q.Add("state", string(t.Event))
 	if t.Message != "" {
 		q.Add("message", t.Message)
 	}
@@ -188,7 +190,8 @@ func (t TelemetryEvent) Encode() string {
 	return q.Encode()
 }
 
-// telemetryUrl generates the URL required to send events to the Telemetry API.
+// telemetryUrl generates the base URL for the Telemetry API.
+// The state and other parameters are passed as query params via Encode().
 func (api CronitorApi) telemetryUrl(params *TelemetryEvent) string {
 	cronitorID := pkg.NewCronitorConfigParser(params.CronJob).GetCronitorID()
 	var hostname string
@@ -197,7 +200,7 @@ func (api CronitorApi) telemetryUrl(params *TelemetryEvent) string {
 	} else {
 		hostname = "https://cronitor.link"
 	}
-	return fmt.Sprintf("%s/ping/%s/%s/%s", hostname, api.ApiKey, cronitorID, params.Event)
+	return fmt.Sprintf("%s/ping/%s/%s", hostname, api.ApiKey, cronitorID)
 }
 
 func (api CronitorApi) sendTelemetryPostRequest(params *TelemetryEvent) ([]byte, error) {

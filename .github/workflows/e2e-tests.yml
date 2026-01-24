@@ -1,0 +1,112 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    # Allows manual triggering from the Actions tab
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Run unit tests first
+        run: go test ./...
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: cronitor-e2e
+
+      - name: Build mock server image
+        run: |
+          docker build -t mock-cronitor-api:latest ./e2e-test/mock-server
+
+      - name: Build agent image
+        run: |
+          docker build -t cronitor-kubernetes:e2e .
+
+      - name: Load images into Kind
+        run: |
+          kind load docker-image mock-cronitor-api:latest --name cronitor-e2e
+          kind load docker-image cronitor-kubernetes:e2e --name cronitor-e2e
+
+      - name: Deploy mock server
+        run: |
+          kubectl apply -f ./e2e-test/mock-server/k8s-manifests.yaml
+          kubectl wait --for=condition=ready pod -l app=mock-cronitor-api -n cronitor-mock --timeout=60s
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Create namespace and apply test CronJobs BEFORE agent starts
+        run: |
+          # Create namespace first
+          kubectl create namespace cronitor
+
+          # Apply all test CronJobs BEFORE the agent starts
+          # This ensures they get batched in LoadAllExistingCronJobs()
+          kubectl apply -f ./e2e-test/resources/main/cronjob.yaml -n cronitor
+          kubectl apply -f ./e2e-test/resources/main/cronjob-env-annotation.yaml -n cronitor
+          kubectl apply -f ./e2e-test/resources/main/cronjob-cronitor-id.yaml -n cronitor
+          kubectl apply -f ./e2e-test/resources/main/cronjob-cronitor-name.yaml -n cronitor
+          kubectl apply -f ./e2e-test/resources/main/cronjob-group-annotation.yaml -n cronitor
+          kubectl apply -f ./e2e-test/resources/main/cronjob-notify-annotation.yaml -n cronitor
+          kubectl apply -f ./e2e-test/resources/main/cronjob-grace-annotation.yaml -n cronitor
+
+      - name: Deploy cronitor-kubernetes agent
+        run: |
+          helm install cronitor-agent ./charts/cronitor-kubernetes \
+            --namespace cronitor \
+            --set image=cronitor-kubernetes:e2e \
+            --set imagePullPolicy=Never \
+            --set credentials.createSecret.apiKey=e2e-test-key \
+            --set config.hostnameOverride=http://mock-cronitor-api.cronitor-mock.svc.cluster.local \
+            --set config.sentryEnabled=false \
+            --set config.logLevel=DEBUG
+
+          # Wait for agent to be ready
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=cronitor-kubernetes -n cronitor --timeout=120s
+
+      - name: Wait for sync to occur
+        run: |
+          echo "Waiting for agent to sync CronJobs to mock server..."
+          sleep 15
+
+          # Show agent logs for debugging
+          echo "=== Agent logs ==="
+          kubectl logs -l app.kubernetes.io/name=cronitor-kubernetes -n cronitor --tail=100
+
+      - name: Run e2e verification
+        run: |
+          chmod +x ./e2e-test/verify-e2e.sh
+          ./e2e-test/verify-e2e.sh
+
+      - name: Show mock server captured requests (debug)
+        if: always()
+        run: |
+          echo "=== Monitor sync requests ==="
+          kubectl exec -n cronitor-mock deployment/mock-cronitor-api -- wget -q -O- http://localhost:8080/debug/monitors || true
+
+          echo ""
+          echo "=== Telemetry requests ==="
+          kubectl exec -n cronitor-mock deployment/mock-cronitor-api -- wget -q -O- http://localhost:8080/debug/telemetry || true
+
+      - name: Show agent logs (debug)
+        if: failure()
+        run: |
+          echo "=== Agent logs ==="
+          kubectl logs -l app.kubernetes.io/name=cronitor-kubernetes -n cronitor --tail=200
+
+          echo ""
+          echo "=== Agent pod description ==="
+          kubectl describe pod -l app.kubernetes.io/name=cronitor-kubernetes -n cronitor

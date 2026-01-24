@@ -25,7 +25,20 @@ func onAdd(coll CronJobCollection, cronjob *v1.CronJob) {
 		return
 	}
 
-	coll.AddCronJob(cronjob)
+	// Skip if already tracked (was synced during initial LoadAllExistingCronJobs)
+	if coll.IsTracked(cronjob.GetUID()) {
+		slog.Debug("cronjob already tracked, skipping",
+			"namespace", cronjob.Namespace,
+			"name", cronjob.Name,
+			"UID", cronjob.UID)
+		return
+	}
+
+	if err := coll.AddCronJob(cronjob); err != nil {
+		// Error is already logged and sent to Sentry in AddCronJob
+		// Continue watching - the cronjob won't be tracked until a successful sync
+		return
+	}
 }
 
 func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.CronJob) {
@@ -40,7 +53,10 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 		panic(err)
 	}
 	if !wasIncluded && nowIncluded {
-		onAdd(coll, cronjobNew)
+		// Newly included - sync it (bypass IsTracked check since it's a deliberate add)
+		if err := coll.AddCronJob(cronjobNew); err != nil {
+			return
+		}
 	} else if wasIncluded && !nowIncluded {
 		onDelete(coll, cronjobOld)
 	} else if wasIncluded && nowIncluded {
@@ -53,9 +69,11 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 			"configOld", configParserOld.GetSchedule(),
 			"configNew", configParserNew.GetSchedule())
 
-		// If the schedule is updated
+		// If the schedule is updated, sync the change
 		if configParserOld.GetSchedule() != configParserNew.GetSchedule() {
-			onAdd(coll, cronjobNew)
+			if err := coll.AddCronJob(cronjobNew); err != nil {
+				return
+			}
 		}
 	}
 }
@@ -128,13 +146,29 @@ func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			onAdd(coll, coerceObjToV1CronJob(version, obj))
+			cronjob := coerceObjToV1CronJob(version, obj)
+			if cronjob == nil {
+				slog.Error("failed to coerce object to CronJob", "version", version)
+				return
+			}
+			onAdd(coll, cronjob)
 		},
 		DeleteFunc: func(obj interface{}) {
-			onDelete(coll, coerceObjToV1CronJob(version, obj))
+			cronjob := coerceObjToV1CronJob(version, obj)
+			if cronjob == nil {
+				slog.Error("failed to coerce object to CronJob", "version", version)
+				return
+			}
+			onDelete(coll, cronjob)
 		},
 		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-			onUpdate(coll, coerceObjToV1CronJob(version, oldObj), coerceObjToV1CronJob(version, newObj))
+			oldCronjob := coerceObjToV1CronJob(version, oldObj)
+			newCronjob := coerceObjToV1CronJob(version, newObj)
+			if oldCronjob == nil || newCronjob == nil {
+				slog.Error("failed to coerce object to CronJob", "version", version)
+				return
+			}
+			onUpdate(coll, oldCronjob, newCronjob)
 		},
 	})
 

@@ -1,6 +1,8 @@
 name: Publish Docker image and Helm chart
 on:
-  push
+  push:
+  workflow_dispatch:
+    # Allows manual triggering from the Actions tab
 
 jobs:
   run_tests:

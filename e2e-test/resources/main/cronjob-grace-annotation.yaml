@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: test-grace-seconds-annotation
   annotations:
-    k8s.cronitor.io/cronitor-grace-seconds: 305
+    k8s.cronitor.io/cronitor-grace-seconds: "305"
 spec:
   schedule: "*/1 * * * *"
   jobTemplate:

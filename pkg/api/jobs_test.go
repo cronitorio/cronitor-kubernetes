@@ -171,3 +171,94 @@ func TestValidateTagName(t *testing.T) {
 		t.Errorf("expected validated tag for '%s' to be '%s', got '%s'", longTag, expectedNewTag, newTag)
 	}
 }
+
+func TestCronitorNameAnnotation(t *testing.T) {
+	annotations := []pkg.Annotation{
+		{Key: "k8s.cronitor.io/cronitor-name", Value: "my-custom-monitor-name"},
+	}
+	cronJob, err := pkg.CronJobFromAnnotations(annotations)
+	if err != nil {
+		t.Fatalf("unexpected error unmarshalling json: %v", err)
+	}
+	cronitorJob := convertCronJobToCronitorJob(&cronJob)
+
+	if cronitorJob.Name != "my-custom-monitor-name" {
+		t.Errorf("expected cronitor name 'my-custom-monitor-name', got '%s'", cronitorJob.Name)
+	}
+}
+
+func TestMonitorNameIsNeverUUID(t *testing.T) {
+	// This test ensures that CronitorJob.Name is set to a human-readable name,
+	// not the Kubernetes UID. This was a bug in the past where monitors would
+	// be created with UUID names instead of the namespace/name format.
+	tests := []struct {
+		name        string
+		annotations []pkg.Annotation
+	}{
+		{
+			name:        "default behavior - no annotations",
+			annotations: []pkg.Annotation{},
+		},
+		{
+			name: "with cronitor-id annotation",
+			annotations: []pkg.Annotation{
+				{Key: "k8s.cronitor.io/cronitor-id", Value: "custom-id"},
+			},
+		},
+		{
+			name: "with empty cronitor-id annotation",
+			annotations: []pkg.Annotation{
+				{Key: "k8s.cronitor.io/cronitor-id", Value: ""},
+			},
+		},
+		{
+			name: "with cronitor-name annotation",
+			annotations: []pkg.Annotation{
+				{Key: "k8s.cronitor.io/cronitor-name", Value: "custom-name"},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cronJob, err := pkg.CronJobFromAnnotations(tc.annotations)
+			if err != nil {
+				t.Fatalf("unexpected error unmarshalling json: %v", err)
+			}
+			cronitorJob := convertCronJobToCronitorJob(&cronJob)
+
+			// The Name should never be empty
+			if cronitorJob.Name == "" {
+				t.Error("CronitorJob.Name should not be empty")
+			}
+
+			// The Name should never equal the UID (which is a UUID)
+			if cronitorJob.Name == string(cronJob.GetUID()) {
+				t.Errorf("CronitorJob.Name should not be the UID, got '%s'", cronitorJob.Name)
+			}
+
+			// The Name should not look like a UUID (36 chars with hyphens in specific positions)
+			if len(cronitorJob.Name) == 36 &&
+				cronitorJob.Name[8] == '-' &&
+				cronitorJob.Name[13] == '-' &&
+				cronitorJob.Name[18] == '-' &&
+				cronitorJob.Name[23] == '-' {
+				t.Errorf("CronitorJob.Name appears to be a UUID: '%s'", cronitorJob.Name)
+			}
+		})
+	}
+}
+
+func TestDefaultMonitorName(t *testing.T) {
+	// Verify that by default, the monitor name is "namespace/name"
+	cronJob, err := pkg.CronJobFromAnnotations([]pkg.Annotation{})
+	if err != nil {
+		t.Fatalf("unexpected error unmarshalling json: %v", err)
+	}
+	cronitorJob := convertCronJobToCronitorJob(&cronJob)
+
+	expectedName := fmt.Sprintf("%s/%s", cronJob.Namespace, cronJob.Name)
+	if cronitorJob.Name != expectedName {
+		t.Errorf("expected default name '%s', got '%s'", expectedName, cronitorJob.Name)
+	}
+}
