@@ -104,6 +104,15 @@ func (cronitorParser CronitorConfigParser) GetSchedule() string {
 	return cronitorParser.cronjob.Spec.Schedule
 }
 
+// GetTimezone returns the timezone from the CronJob spec if set.
+// Returns empty string if no timezone is specified.
+func (cronitorParser CronitorConfigParser) GetTimezone() string {
+	if cronitorParser.cronjob.Spec.TimeZone != nil {
+		return *cronitorParser.cronjob.Spec.TimeZone
+	}
+	return ""
+}
+
 func (cronitorParser CronitorConfigParser) GetTags() []string {
 	var tagList []string
 

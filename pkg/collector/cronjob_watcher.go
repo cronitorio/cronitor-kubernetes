@@ -66,11 +66,14 @@ func onUpdate(coll CronJobCollection, cronjobOld *v1.CronJob, cronjobNew *v1.Cro
 			"UID", cronjobNew.UID,
 			"oldSchedule", cronjobOld.Spec.Schedule,
 			"newSchedule", cronjobNew.Spec.Schedule,
+			"oldTimezone", configParserOld.GetTimezone(),
+			"newTimezone", configParserNew.GetTimezone(),
 			"configOld", configParserOld.GetSchedule(),
 			"configNew", configParserNew.GetSchedule())
 
-		// If the schedule is updated, sync the change
-		if configParserOld.GetSchedule() != configParserNew.GetSchedule() {
+		// If the schedule or timezone is updated, sync the change
+		if configParserOld.GetSchedule() != configParserNew.GetSchedule() ||
+			configParserOld.GetTimezone() != configParserNew.GetTimezone() {
 			if err := coll.AddCronJob(cronjobNew); err != nil {
 				return
 			}

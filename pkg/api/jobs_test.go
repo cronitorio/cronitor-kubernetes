@@ -7,6 +7,7 @@ import (
 
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	v1 "k8s.io/api/batch/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestNamespaceTag(t *testing.T) {
@@ -260,5 +261,90 @@ func TestDefaultMonitorName(t *testing.T) {
 	expectedName := fmt.Sprintf("%s/%s", cronJob.Namespace, cronJob.Name)
 	if cronitorJob.Name != expectedName {
 		t.Errorf("expected default name '%s', got '%s'", expectedName, cronitorJob.Name)
+	}
+}
+
+func TestTimezone(t *testing.T) {
+	timezone := "America/New_York"
+	cronJob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cronjob",
+			Namespace: "default",
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
+			TimeZone: &timezone,
+		},
+	}
+
+	cronitorJob := convertCronJobToCronitorJob(cronJob)
+
+	if cronitorJob.Timezone != timezone {
+		t.Errorf("expected timezone '%s', got '%s'", timezone, cronitorJob.Timezone)
+	}
+}
+
+func TestTimezoneEmpty(t *testing.T) {
+	// Test that when no timezone is specified, the field is empty
+	cronJob, err := pkg.CronJobFromAnnotations([]pkg.Annotation{})
+	if err != nil {
+		t.Fatalf("unexpected error unmarshalling json: %v", err)
+	}
+	cronitorJob := convertCronJobToCronitorJob(&cronJob)
+
+	if cronitorJob.Timezone != "" {
+		t.Errorf("expected empty timezone when not specified, got '%s'", cronitorJob.Timezone)
+	}
+}
+
+func TestTimezoneInJSON(t *testing.T) {
+	// Test that the timezone field appears in JSON output
+	timezone := "Europe/London"
+	cronJob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cronjob",
+			Namespace: "default",
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "0 9 * * *",
+			TimeZone: &timezone,
+		},
+	}
+
+	cronitorJob := convertCronJobToCronitorJob(cronJob)
+	jsonBytes, err := json.Marshal(cronitorJob)
+	if err != nil {
+		t.Fatalf("failed to marshal cronitorJob: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	if tz, ok := result["timezone"]; !ok || tz != timezone {
+		t.Errorf("expected timezone '%s' in JSON, got '%v'", timezone, tz)
+	}
+}
+
+func TestTimezoneOmittedWhenEmpty(t *testing.T) {
+	// Test that the timezone field is omitted from JSON when empty (omitempty)
+	cronJob, err := pkg.CronJobFromAnnotations([]pkg.Annotation{})
+	if err != nil {
+		t.Fatalf("unexpected error unmarshalling json: %v", err)
+	}
+	cronitorJob := convertCronJobToCronitorJob(&cronJob)
+	jsonBytes, err := json.Marshal(cronitorJob)
+	if err != nil {
+		t.Fatalf("failed to marshal cronitorJob: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	if _, ok := result["timezone"]; ok {
+		t.Error("expected timezone field to be omitted from JSON when empty")
 	}
 }
