@@ -20,7 +20,7 @@ import (
 type CronitorJob struct {
 	Key          string   `json:"key"`
 	Name         string   `json:"name,omitempty"`
-	DefaultNote  string   `json:"defaultNote,omitempty"`
+	Note         string   `json:"note,omitempty"`
 	Metadata     string   `json:"metadata"` // This is actually a string rather than a map
 	Type_        string   `json:"type"`     // 'job'
 	Schedule     string   `json:"schedule"`
@@ -83,16 +83,16 @@ func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 	}
 
 	cronitorJob := CronitorJob{
-		Key:         configParser.GetCronitorID(),
-		Name:        truncateName(configParser.GetCronitorName()),
-		DefaultNote: configParser.GetNote(),
-		Schedule:    cronJob.Spec.Schedule,
-		Timezone:    configParser.GetTimezone(),
-		Metadata:    string(metadataJson),
-		Type_:       "job",
-		Tags:        allTags,
-		Notify:      configParser.GetNotify(),
-		Group:       configParser.GetGroup(),
+		Key:      configParser.GetCronitorID(),
+		Name:     truncateName(configParser.GetCronitorName()),
+		Note:     configParser.GetNote(),
+		Schedule: cronJob.Spec.Schedule,
+		Timezone: configParser.GetTimezone(),
+		Metadata: string(metadataJson),
+		Type_:    "job",
+		Tags:     allTags,
+		Notify:   configParser.GetNotify(),
+		Group:    configParser.GetGroup(),
 	}
 
 	if graceSeconds := configParser.GetGraceSeconds(); graceSeconds != -1 {
