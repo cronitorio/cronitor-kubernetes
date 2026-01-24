@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/spf13/viper"
 	v1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -16,19 +17,23 @@ func TestPutCronJobs_Success(t *testing.T) {
 		if r.Method != "PUT" {
 			t.Errorf("expected PUT request, got %s", r.Method)
 		}
+		if r.URL.Path != "/api/monitors" {
+			t.Errorf("expected path /api/monitors, got %s", r.URL.Path)
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`[]`))
 	}))
 	defer server.Close()
 
+	// Use viper to override the hostname so PutCronJobs uses our mock server
+	viper.Set("hostname-override", server.URL)
+	defer viper.Set("hostname-override", "")
+
 	api := CronitorApi{
 		ApiKey:    "test-api-key",
 		UserAgent: "test-agent",
 	}
-	// Override the URL by using hostname-override via the test server
-	// Since we can't easily override, let's test sendHttpRequest directly
 
-	// For now, test that the function signature works
 	cronJobs := []*v1.CronJob{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -42,11 +47,9 @@ func TestPutCronJobs_Success(t *testing.T) {
 		},
 	}
 
-	// This will fail because we can't override the URL, but it tests the code path
 	_, err := api.PutCronJobs(cronJobs)
-	// We expect an error since we're hitting the real API with a fake key
-	if err == nil {
-		t.Log("PutCronJobs returned nil error (dry run or unexpected success)")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
 }
 

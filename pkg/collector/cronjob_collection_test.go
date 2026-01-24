@@ -2,8 +2,9 @@ package collector
 
 import (
 	"fmt"
-	"k8s.io/apimachinery/pkg/version"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/version"
 )
 
 func TestServerVersionCompare(t *testing.T) {
@@ -49,5 +50,27 @@ func TestRightBatchApiVersion(t *testing.T) {
 				t.Errorf("for server %s.%s expecting %s got %s", s.Version.Major, s.Version.Minor, s.ExpectedApiVersion, version)
 			}
 		})
+	}
+}
+
+func TestStopWatchingAll_WhenNotStarted(t *testing.T) {
+	// StopWatchingAll should not panic when stopper is nil
+	// This tests the nil check we added
+	coll := &CronJobCollection{
+		stopper: nil,
+	}
+
+	// This should not panic - just log a warning and return
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("StopWatchingAll panicked when stopper was nil: %v", r)
+		}
+	}()
+
+	coll.StopWatchingAll()
+
+	// Verify stopper is still nil (wasn't set to something else)
+	if coll.stopper != nil {
+		t.Error("stopper should remain nil after StopWatchingAll on unstarted collection")
 	}
 }

@@ -148,8 +148,8 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 	return nil
 }
 
-func (coll CronJobCollection) StartWatchingAll() {
-	cronJobWatcher := NewCronJobWatcher(coll)
+func (coll *CronJobCollection) StartWatchingAll() {
+	cronJobWatcher := NewCronJobWatcher(*coll)
 
 	coll.stopper = func() {
 		cronJobWatcher.StopWatching()
@@ -158,9 +158,10 @@ func (coll CronJobCollection) StartWatchingAll() {
 	cronJobWatcher.StartWatching()
 }
 
-func (coll CronJobCollection) StopWatchingAll() {
+func (coll *CronJobCollection) StopWatchingAll() {
 	if coll.stopper == nil {
-		slog.Warn("CronJobCollection.stopper() called, but it wasn't running")
+		slog.Warn("CronJobCollection.StopWatchingAll() called, but it wasn't running")
+		return
 	}
 	coll.stopper()
 	coll.stopper = nil
