@@ -170,6 +170,188 @@ func TestOnUpdate_SkipsWhenScheduleUnchanged(t *testing.T) {
 	}
 }
 
+func TestOnUpdate_SyncsWhenTimezoneChanges(t *testing.T) {
+	mockServer := newMockAPIServer()
+	defer mockServer.close()
+
+	coll := createTestCollection(mockServer)
+
+	oldTimezone := "America/New_York"
+	newTimezone := "Europe/London"
+
+	// Create old cronjob with one timezone
+	oldCronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-job",
+			Namespace: "default",
+			UID:       "uid-tz-1",
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
+			TimeZone: &oldTimezone,
+		},
+	}
+
+	// Create new cronjob with different timezone (same schedule)
+	newCronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-job",
+			Namespace: "default",
+			UID:       "uid-tz-1",
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
+			TimeZone: &newTimezone,
+		},
+	}
+
+	// Pre-add the old cronjob to simulate it being tracked
+	coll.cronjobs[oldCronjob.GetUID()] = oldCronjob
+
+	// Call onUpdate with timezone change
+	onUpdate(coll, oldCronjob, newCronjob)
+
+	// Verify API call was made to sync the update
+	if mockServer.getRequestCount() != 1 {
+		t.Errorf("expected 1 API call when timezone changes, got %d", mockServer.getRequestCount())
+	}
+}
+
+func TestOnUpdate_SyncsWhenTimezoneAdded(t *testing.T) {
+	mockServer := newMockAPIServer()
+	defer mockServer.close()
+
+	coll := createTestCollection(mockServer)
+
+	newTimezone := "America/Los_Angeles"
+
+	// Create old cronjob without timezone
+	oldCronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-job",
+			Namespace: "default",
+			UID:       "uid-tz-2",
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
+		},
+	}
+
+	// Create new cronjob with timezone added
+	newCronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-job",
+			Namespace: "default",
+			UID:       "uid-tz-2",
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
+			TimeZone: &newTimezone,
+		},
+	}
+
+	// Pre-add the old cronjob
+	coll.cronjobs[oldCronjob.GetUID()] = oldCronjob
+
+	// Call onUpdate with timezone added
+	onUpdate(coll, oldCronjob, newCronjob)
+
+	// Verify API call was made
+	if mockServer.getRequestCount() != 1 {
+		t.Errorf("expected 1 API call when timezone added, got %d", mockServer.getRequestCount())
+	}
+}
+
+func TestOnUpdate_SyncsWhenTimezoneRemoved(t *testing.T) {
+	mockServer := newMockAPIServer()
+	defer mockServer.close()
+
+	coll := createTestCollection(mockServer)
+
+	oldTimezone := "Asia/Tokyo"
+
+	// Create old cronjob with timezone
+	oldCronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-job",
+			Namespace: "default",
+			UID:       "uid-tz-3",
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
+			TimeZone: &oldTimezone,
+		},
+	}
+
+	// Create new cronjob with timezone removed
+	newCronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-job",
+			Namespace: "default",
+			UID:       "uid-tz-3",
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
+		},
+	}
+
+	// Pre-add the old cronjob
+	coll.cronjobs[oldCronjob.GetUID()] = oldCronjob
+
+	// Call onUpdate with timezone removed
+	onUpdate(coll, oldCronjob, newCronjob)
+
+	// Verify API call was made
+	if mockServer.getRequestCount() != 1 {
+		t.Errorf("expected 1 API call when timezone removed, got %d", mockServer.getRequestCount())
+	}
+}
+
+func TestOnUpdate_SkipsWhenScheduleAndTimezoneUnchanged(t *testing.T) {
+	mockServer := newMockAPIServer()
+	defer mockServer.close()
+
+	coll := createTestCollection(mockServer)
+
+	timezone := "America/Chicago"
+
+	// Create old and new versions with same schedule and timezone
+	oldCronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-job",
+			Namespace: "default",
+			UID:       "uid-tz-4",
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
+			TimeZone: &timezone,
+		},
+	}
+
+	newCronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-job",
+			Namespace: "default",
+			UID:       "uid-tz-4",
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
+			TimeZone: &timezone,
+		},
+	}
+
+	// Pre-add the old cronjob
+	coll.cronjobs[oldCronjob.GetUID()] = oldCronjob
+
+	// Call onUpdate with no changes
+	onUpdate(coll, oldCronjob, newCronjob)
+
+	// Verify no API call was made
+	if mockServer.getRequestCount() != 0 {
+		t.Errorf("expected 0 API calls when schedule and timezone unchanged, got %d", mockServer.getRequestCount())
+	}
+}
+
 func TestOnUpdate_SyncsWhenJobBecomesIncluded(t *testing.T) {
 	mockServer := newMockAPIServer()
 	defer mockServer.close()

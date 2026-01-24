@@ -46,6 +46,33 @@ You can customize your installation of the Cronitor Kubernetes agent by overridi
 
 To learn what options are customizable in the chart, please see [this repository's documented `values.yaml`][1] file.
 
+### Timezone support
+
+The Cronitor Kubernetes agent automatically extracts the `timeZone` field from your Kubernetes CronJob spec (available in Kubernetes 1.24+) and sends it to Cronitor. This allows you to schedule jobs in specific timezones with proper daylight saving time handling.
+
+Example CronJob with timezone:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-job
+spec:
+  schedule: "0 9 * * *"
+  timeZone: "America/New_York"  # Automatically synced to Cronitor
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox
+            command: ["/bin/sh", "-c", "echo Hello"]
+          restartPolicy: OnFailure
+```
+
+When the timezone is set, Cronitor will evaluate the cron schedule in that timezone rather than UTC.
+
 ### CronJob annotations
 
 The Cronitor Kubernetes agent's behavior has a number of defaults that are configurable via the chart's `values.yaml`. However, in certain situations you may want to override the defaults on a per-`CronJob` basis. You can do so using Kubernetes annotations on your `CronJob` objects as you create them.

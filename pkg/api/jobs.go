@@ -24,6 +24,7 @@ type CronitorJob struct {
 	Metadata     string   `json:"metadata"` // This is actually a string rather than a map
 	Type_        string   `json:"type"`     // 'job'
 	Schedule     string   `json:"schedule"`
+	Timezone     string   `json:"timezone,omitempty"`
 	Tags         []string `json:"tags,omitempty"`
 	Notify       []string `json:"notify,omitempty"`
 	Group        string   `json:"group,omitempty"`
@@ -85,6 +86,7 @@ func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 		Key:         configParser.GetCronitorID(),
 		Name:        truncateName(configParser.GetCronitorName()),
 		Schedule:    cronJob.Spec.Schedule,
+		Timezone:    configParser.GetTimezone(),
 		Metadata:    string(metadataJson),
 		Type_:       "job",
 		Tags:        allTags,
