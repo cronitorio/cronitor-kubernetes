@@ -46,32 +46,6 @@ You can customize your installation of the Cronitor Kubernetes agent by overridi
 
 To learn what options are customizable in the chart, please see [this repository's documented `values.yaml`][1] file.
 
-### Timezone support
-
-The Cronitor Kubernetes agent automatically extracts the `timeZone` field from your Kubernetes CronJob spec (available in Kubernetes 1.24+) and sends it to Cronitor. This allows you to schedule jobs in specific timezones with proper daylight saving time handling.
-
-Example CronJob with timezone:
-
-```yaml
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: my-job
-spec:
-  schedule: "0 9 * * *"
-  timeZone: "America/New_York"  # Automatically synced to Cronitor
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-          - name: hello
-            image: busybox
-            command: ["/bin/sh", "-c", "echo Hello"]
-          restartPolicy: OnFailure
-```
-
-When the timezone is set, Cronitor will evaluate the cron schedule in that timezone rather than UTC.
 
 ### CronJob annotations
 
@@ -104,31 +78,51 @@ For backwards compatibility, the following legacy annotation names are still sup
 | `k8s.cronitor.io/cronitor-notify` | `k8s.cronitor.io/notify` |
 | `k8s.cronitor.io/cronitor-grace-seconds` | `k8s.cronitor.io/grace-seconds` |
 
-### FAQ
-<details>
-    <summary>Does this pull in all my <code>CronJobs</code> across my cluster by default?</summary>
 
-By default, the agent will monitor all `CronJobs` in your Kubernetes cluster, but this
-is easily changeable. See below in the FAQ for additional information on how to handle various
-circumstances of `CronJob` inclusion or exclusion by annotation or namespace.
-</details>
-<details>
-    <summary>The Kubernetes cluster I want to monitor is locked down with RBAC, and I only have access
-to one or a couple of namespaces. What do I do?</summary>
+### Timezone support
+
+The Cronitor Kubernetes agent automatically extracts the `timeZone` field from your Kubernetes CronJob spec (available in Kubernetes 1.24+) and sends it to Cronitor. This allows you to schedule jobs in specific timezones with proper daylight saving time handling.
+
+Example CronJob with timezone:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-job
+spec:
+  schedule: "0 9 * * *"
+  timeZone: "America/New_York"  # Automatically synced to Cronitor
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox
+            command: ["/bin/sh", "-c", "echo Hello"]
+          restartPolicy: OnFailure
+```
+
+When the timezone is set, Cronitor will evaluate the cron schedule in that timezone rather than timezone set on your account (defaults to UTC).
+
+### FAQ
+
+**Does this pull in all my `CronJobs` across my cluster by default?**
+
+By default, the agent will monitor all `CronJobs` in your Kubernetes cluster, but this is easily changeable. See below in the FAQ for additional information on how to handle various circumstances of `CronJob` inclusion or exclusion by annotation or namespace.
+
+**The Kubernetes cluster I want to monitor is locked down with RBAC, and I only have access to one or a couple of namespaces. What do I do?**
 
 You can configure the agent to only monitor a single namespace rather than the entire cluster. To do this, when deploying the agent, set `rbac.clusterScope` to `"namespace"` in [`values.yaml`][1]. In this setup, the agent will only monitor `CronJobs` within the namespace in which it is deployed, and it will not attempt to monitor anything outside of that namespace. It will not request permissions outside of its namespace either, using `Role` instead of `ClusterRole`.
 
 If you have more than one namespace you need to monitor with this setup, you'll need to deploy multiple copies of the Cronitor Kubernetes agent, one in each namespace. When using chart-managed secrets (`credentials.createSecret.apiKey`), the Secret will be automatically created in each namespace during deployment. If using external Secret management, you will need to create a copy of the Secret containing your Cronitor API key in each namespace.
 
-</details>
-<details>
-    <summary>What if I want just to try out this Kubernetes agent without pulling in <strong>all</strong> of my <code>CronJobs</code>? Can I do that?</summary>
+**What if I want just to try out this Kubernetes agent without pulling in all of my `CronJobs`? Can I do that?**
 
-Yes, you definitely can! To <strong>exclude</strong> all of your Kubernetes <code>CronJobs</code> by default and only include the ones you explicitly choose, you can do the following:
+Yes, you definitely can! To exclude all of your Kubernetes `CronJobs` by default and only include the ones you explicitly choose, you can do the following:
 
 1. When deploying the Cronitor Kubernetes agent, set `config.default` to `exclude`. You can do this in your custom `values.yaml` you use to deploy the Helm chart, or by passing the additional parameter `--set config.default=exclude` to Helm when you install or upgrade the release. This will exclude/ignore all of your cron jobs by default.
 2. For any `CronJob` that you would like to be monitored by Cronitor, add the annotation `k8s.cronitor.io/include: true`. The agent honors any annotations explicitly set on `CronJobs` over whatever is set as the configuration default.
-
-</details>
 
 [1]: charts/cronitor-kubernetes/values.yaml
