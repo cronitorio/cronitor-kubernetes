@@ -223,7 +223,7 @@ echo "Checking agent log format..."
 
 # Get agent pod logs
 AGENT_NS="cronitor"
-AGENT_POD=$(kubectl get pods -n "$AGENT_NS" -l app.kubernetes.io/name=cronitor-kubernetes-agent -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+AGENT_POD=$(kubectl get pods -n "$AGENT_NS" -l app.kubernetes.io/name=cronitor-kubernetes -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
 
 if [ -n "$AGENT_POD" ]; then
     # Get a sample of agent logs
