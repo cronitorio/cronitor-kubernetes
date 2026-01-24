@@ -43,27 +43,51 @@ const (
 	// Appends to any chart-wide tags.
 	AnnotationTags CronitorAnnotation = "k8s.cronitor.io/tags"
 
-	// AnnotationCronitorID is a pre-existing Cronitor monitor key, for use if you are
+	// AnnotationKey is a pre-existing Cronitor monitor key, for use if you are
 	// having the Cronitor agent watch some CronJobs that are already present in Cronitor
 	// via manual instrumentation, and you'd like to use the same Monitor object.
+	AnnotationKey CronitorAnnotation = "k8s.cronitor.io/key"
+
+	// AnnotationCronitorID is the legacy annotation for AnnotationKey.
+	// Deprecated: Use AnnotationKey instead.
 	AnnotationCronitorID CronitorAnnotation = "k8s.cronitor.io/cronitor-id"
 
-	// AnnotationCronitorName lets you override the Name created by the agent to
+	// AnnotationName lets you override the Name created by the agent to
 	// create the monitor in Cronitor with a custom specified name. This is especially useful
 	// if you are attaching the same CronJob across multiple namespaces/clusters to a single
 	// Cronitor Monitor across multiple environments.
+	AnnotationName CronitorAnnotation = "k8s.cronitor.io/name"
+
+	// AnnotationCronitorName is the legacy annotation for AnnotationName.
+	// Deprecated: Use AnnotationName instead.
 	AnnotationCronitorName CronitorAnnotation = "k8s.cronitor.io/cronitor-name"
 
-	// AnnotationCronitorGroup lets you provide the key for a Group within the Cronitor application.
+	// AnnotationGroup lets you provide the key for a Group within the Cronitor application.
 	// This is useful if you want to organize monitors within the Cronitor application as they are first created.
+	AnnotationGroup CronitorAnnotation = "k8s.cronitor.io/group"
+
+	// AnnotationCronitorGroup is the legacy annotation for AnnotationGroup.
+	// Deprecated: Use AnnotationGroup instead.
 	AnnotationCronitorGroup CronitorAnnotation = "k8s.cronitor.io/cronitor-group"
 
-	// AnnotationCronitorNotify lets you provide a comma-separated list of Notification List
+	// AnnotationNotify lets you provide a comma-separated list of Notification List
 	// keys (https://cronitor.io/app/settings/alerts) to be used for dispatching alerts when a job fails/recovers.
+	AnnotationNotify CronitorAnnotation = "k8s.cronitor.io/notify"
+
+	// AnnotationCronitorNotify is the legacy annotation for AnnotationNotify.
+	// Deprecated: Use AnnotationNotify instead.
 	AnnotationCronitorNotify CronitorAnnotation = "k8s.cronitor.io/cronitor-notify"
 
-	// AnnotationCronitorGraceSeconds lets you provide the number of seconds to wait before sending a failure alert.
+	// AnnotationGraceSeconds lets you provide the number of seconds to wait before sending a failure alert.
+	AnnotationGraceSeconds CronitorAnnotation = "k8s.cronitor.io/grace-seconds"
+
+	// AnnotationCronitorGraceSeconds is the legacy annotation for AnnotationGraceSeconds.
+	// Deprecated: Use AnnotationGraceSeconds instead.
 	AnnotationCronitorGraceSeconds CronitorAnnotation = "k8s.cronitor.io/cronitor-grace-seconds"
+
+	// AnnotationNote lets you provide a default note for the monitor.
+	// This note will be displayed in the Cronitor dashboard.
+	AnnotationNote CronitorAnnotation = "k8s.cronitor.io/note"
 
 	// AnnotationIDInference lets you decide how the Cronitor ID is determined.
 	// The only valid values are "k8s" and "name". Default is "k8s".
@@ -88,6 +112,21 @@ func NewCronitorConfigParser(cronjob *v1.CronJob) CronitorConfigParser {
 	return CronitorConfigParser{
 		cronjob: cronjob,
 	}
+}
+
+// getAnnotationWithFallback retrieves an annotation value, checking the preferred annotation first
+// and falling back to the legacy annotation if not found. This provides backwards compatibility
+// for users who have the older cronitor- prefixed annotations.
+func (cronitorParser CronitorConfigParser) getAnnotationWithFallback(preferred, legacy CronitorAnnotation) (string, bool) {
+	// Check preferred annotation first
+	if value, ok := cronitorParser.cronjob.Annotations[string(preferred)]; ok {
+		return value, true
+	}
+	// Fall back to legacy annotation
+	if value, ok := cronitorParser.cronjob.Annotations[string(legacy)]; ok {
+		return value, true
+	}
+	return "", false
 }
 
 func (cronitorParser CronitorConfigParser) GetEnvironment() string {
@@ -133,10 +172,11 @@ func (cronitorParser CronitorConfigParser) GetTags() []string {
 	return tagList
 }
 
-// GetSpecifiedCronitorID returns the pre-specified Cronitor monitor ID, if provided as an annotation
-// on the CronJob object. If not provided, returns an empty string
+// GetSpecifiedCronitorID returns the pre-specified Cronitor monitor key, if provided as an annotation
+// on the CronJob object. If not provided, returns an empty string.
+// Supports both k8s.cronitor.io/key (preferred) and k8s.cronitor.io/cronitor-id (legacy).
 func (cronitorParser CronitorConfigParser) GetSpecifiedCronitorID() string {
-	if assignedId, ok := cronitorParser.cronjob.Annotations[string(AnnotationCronitorID)]; ok && assignedId != "" {
+	if assignedId, ok := cronitorParser.getAnnotationWithFallback(AnnotationKey, AnnotationCronitorID); ok && assignedId != "" {
 		return assignedId
 	}
 
@@ -169,9 +209,10 @@ func (cronitorParser CronitorConfigParser) GetCronitorID() string {
 }
 
 // GetSpecifiedCronitorName returns the pre-specified Cronitor monitor name, if provided as an annotation
-// on the CronJob object. If not provided, returns an empty string
+// on the CronJob object. If not provided, returns an empty string.
+// Supports both k8s.cronitor.io/name (preferred) and k8s.cronitor.io/cronitor-name (legacy).
 func (cronitorParser CronitorConfigParser) GetSpecifiedCronitorName() string {
-	if assignedName, ok := cronitorParser.cronjob.Annotations[string(AnnotationCronitorName)]; ok && assignedName != "" {
+	if assignedName, ok := cronitorParser.getAnnotationWithFallback(AnnotationName, AnnotationCronitorName); ok && assignedName != "" {
 		return assignedName
 	}
 
@@ -241,10 +282,12 @@ func (cronitorParser CronitorConfigParser) IsCronJobIncluded() (bool, error) {
 	}
 }
 
+// GetNotify returns the notification list keys for this CronJob.
+// Supports both k8s.cronitor.io/notify (preferred) and k8s.cronitor.io/cronitor-notify (legacy).
 func (cronitorParser CronitorConfigParser) GetNotify() []string {
 	var notifications []string
 
-	if stringNotificationList, ok := cronitorParser.cronjob.Annotations[string(AnnotationCronitorNotify)]; ok {
+	if stringNotificationList, ok := cronitorParser.getAnnotationWithFallback(AnnotationNotify, AnnotationCronitorNotify); ok {
 		for _, value := range strings.Split(stringNotificationList, ",") {
 			notifications = append(notifications, strings.TrimSpace(value))
 		}
@@ -252,15 +295,19 @@ func (cronitorParser CronitorConfigParser) GetNotify() []string {
 	return notifications
 }
 
+// GetGroup returns the group key for this CronJob.
+// Supports both k8s.cronitor.io/group (preferred) and k8s.cronitor.io/cronitor-group (legacy).
 func (cronitorParser CronitorConfigParser) GetGroup() string {
-	if group, ok := cronitorParser.cronjob.Annotations[string(AnnotationCronitorGroup)]; ok {
+	if group, ok := cronitorParser.getAnnotationWithFallback(AnnotationGroup, AnnotationCronitorGroup); ok {
 		return group
 	}
 	return ""
 }
 
+// GetGraceSeconds returns the grace seconds for this CronJob.
+// Supports both k8s.cronitor.io/grace-seconds (preferred) and k8s.cronitor.io/cronitor-grace-seconds (legacy).
 func (cronitorParser CronitorConfigParser) GetGraceSeconds() int {
-	if graceSeconds, ok := cronitorParser.cronjob.Annotations[string(AnnotationCronitorGraceSeconds)]; ok {
+	if graceSeconds, ok := cronitorParser.getAnnotationWithFallback(AnnotationGraceSeconds, AnnotationCronitorGraceSeconds); ok {
 		graceSecondsInt, err := strconv.Atoi(graceSeconds)
 		if err != nil {
 			return -1
@@ -268,6 +315,14 @@ func (cronitorParser CronitorConfigParser) GetGraceSeconds() int {
 		return graceSecondsInt
 	}
 	return -1
+}
+
+// GetNote returns the default note for this CronJob's monitor.
+func (cronitorParser CronitorConfigParser) GetNote() string {
+	if note, ok := cronitorParser.cronjob.Annotations[string(AnnotationNote)]; ok {
+		return note
+	}
+	return ""
 }
 
 // LogCompleteEvent determines whether job completion events should be sent as log events (true)

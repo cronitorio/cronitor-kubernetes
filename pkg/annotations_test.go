@@ -207,3 +207,288 @@ func TestLogCompleteEvent(t *testing.T) {
 		})
 	}
 }
+
+// TestAnnotationBackwardsCompatibility verifies that both the new (preferred) annotation names
+// and the legacy (cronitor- prefixed) annotation names work correctly, and that the new
+// annotation takes precedence when both are present.
+func TestAnnotationBackwardsCompatibility(t *testing.T) {
+	t.Run("Key annotation", func(t *testing.T) {
+		tests := []struct {
+			name        string
+			annotations []Annotation
+			expectedID  string
+		}{
+			{
+				name: "new annotation (k8s.cronitor.io/key)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/key", Value: "new-key"},
+				},
+				expectedID: "new-key",
+			},
+			{
+				name: "legacy annotation (k8s.cronitor.io/cronitor-id)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/cronitor-id", Value: "legacy-id"},
+				},
+				expectedID: "legacy-id",
+			},
+			{
+				name: "new annotation takes precedence",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/key", Value: "new-key"},
+					{Key: "k8s.cronitor.io/cronitor-id", Value: "legacy-id"},
+				},
+				expectedID: "new-key",
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				cronJob, err := CronJobFromAnnotations(tc.annotations)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				parser := NewCronitorConfigParser(&cronJob)
+				if id := parser.GetSpecifiedCronitorID(); id != tc.expectedID {
+					t.Errorf("expected ID %s, got %s", tc.expectedID, id)
+				}
+			})
+		}
+	})
+
+	t.Run("Name annotation", func(t *testing.T) {
+		tests := []struct {
+			name         string
+			annotations  []Annotation
+			expectedName string
+		}{
+			{
+				name: "new annotation (k8s.cronitor.io/name)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/name", Value: "new-name"},
+				},
+				expectedName: "new-name",
+			},
+			{
+				name: "legacy annotation (k8s.cronitor.io/cronitor-name)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/cronitor-name", Value: "legacy-name"},
+				},
+				expectedName: "legacy-name",
+			},
+			{
+				name: "new annotation takes precedence",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/name", Value: "new-name"},
+					{Key: "k8s.cronitor.io/cronitor-name", Value: "legacy-name"},
+				},
+				expectedName: "new-name",
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				cronJob, err := CronJobFromAnnotations(tc.annotations)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				parser := NewCronitorConfigParser(&cronJob)
+				if name := parser.GetCronitorName(); name != tc.expectedName {
+					t.Errorf("expected Name %s, got %s", tc.expectedName, name)
+				}
+			})
+		}
+	})
+
+	t.Run("Group annotation", func(t *testing.T) {
+		tests := []struct {
+			name          string
+			annotations   []Annotation
+			expectedGroup string
+		}{
+			{
+				name: "new annotation (k8s.cronitor.io/group)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/group", Value: "new-group"},
+				},
+				expectedGroup: "new-group",
+			},
+			{
+				name: "legacy annotation (k8s.cronitor.io/cronitor-group)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/cronitor-group", Value: "legacy-group"},
+				},
+				expectedGroup: "legacy-group",
+			},
+			{
+				name: "new annotation takes precedence",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/group", Value: "new-group"},
+					{Key: "k8s.cronitor.io/cronitor-group", Value: "legacy-group"},
+				},
+				expectedGroup: "new-group",
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				cronJob, err := CronJobFromAnnotations(tc.annotations)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				parser := NewCronitorConfigParser(&cronJob)
+				if group := parser.GetGroup(); group != tc.expectedGroup {
+					t.Errorf("expected Group %s, got %s", tc.expectedGroup, group)
+				}
+			})
+		}
+	})
+
+	t.Run("Notify annotation", func(t *testing.T) {
+		tests := []struct {
+			name           string
+			annotations    []Annotation
+			expectedNotify []string
+		}{
+			{
+				name: "new annotation (k8s.cronitor.io/notify)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/notify", Value: "new-notify"},
+				},
+				expectedNotify: []string{"new-notify"},
+			},
+			{
+				name: "legacy annotation (k8s.cronitor.io/cronitor-notify)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/cronitor-notify", Value: "legacy-notify"},
+				},
+				expectedNotify: []string{"legacy-notify"},
+			},
+			{
+				name: "new annotation takes precedence",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/notify", Value: "new-notify"},
+					{Key: "k8s.cronitor.io/cronitor-notify", Value: "legacy-notify"},
+				},
+				expectedNotify: []string{"new-notify"},
+			},
+			{
+				name: "comma-separated values work with new annotation",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/notify", Value: "notify1, notify2, notify3"},
+				},
+				expectedNotify: []string{"notify1", "notify2", "notify3"},
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				cronJob, err := CronJobFromAnnotations(tc.annotations)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				parser := NewCronitorConfigParser(&cronJob)
+				notify := parser.GetNotify()
+				if len(notify) != len(tc.expectedNotify) {
+					t.Errorf("expected %d notify entries, got %d", len(tc.expectedNotify), len(notify))
+					return
+				}
+				for i, n := range notify {
+					if n != tc.expectedNotify[i] {
+						t.Errorf("expected Notify[%d] %s, got %s", i, tc.expectedNotify[i], n)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("GraceSeconds annotation", func(t *testing.T) {
+		tests := []struct {
+			name                 string
+			annotations          []Annotation
+			expectedGraceSeconds int
+		}{
+			{
+				name: "new annotation (k8s.cronitor.io/grace-seconds)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/grace-seconds", Value: "120"},
+				},
+				expectedGraceSeconds: 120,
+			},
+			{
+				name: "legacy annotation (k8s.cronitor.io/cronitor-grace-seconds)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/cronitor-grace-seconds", Value: "60"},
+				},
+				expectedGraceSeconds: 60,
+			},
+			{
+				name: "new annotation takes precedence",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/grace-seconds", Value: "120"},
+					{Key: "k8s.cronitor.io/cronitor-grace-seconds", Value: "60"},
+				},
+				expectedGraceSeconds: 120,
+			},
+			{
+				name:                 "no annotation returns -1",
+				annotations:          []Annotation{},
+				expectedGraceSeconds: -1,
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				cronJob, err := CronJobFromAnnotations(tc.annotations)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				parser := NewCronitorConfigParser(&cronJob)
+				if graceSeconds := parser.GetGraceSeconds(); graceSeconds != tc.expectedGraceSeconds {
+					t.Errorf("expected GraceSeconds %d, got %d", tc.expectedGraceSeconds, graceSeconds)
+				}
+			})
+		}
+	})
+}
+
+func TestGetNote(t *testing.T) {
+	tests := []struct {
+		name         string
+		annotations  []Annotation
+		expectedNote string
+	}{
+		{
+			name: "note annotation present",
+			annotations: []Annotation{
+				{Key: "k8s.cronitor.io/note", Value: "This is my job description"},
+			},
+			expectedNote: "This is my job description",
+		},
+		{
+			name:         "no note annotation",
+			annotations:  []Annotation{},
+			expectedNote: "",
+		},
+		{
+			name: "empty note annotation",
+			annotations: []Annotation{
+				{Key: "k8s.cronitor.io/note", Value: ""},
+			},
+			expectedNote: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cronJob, err := CronJobFromAnnotations(tc.annotations)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			parser := NewCronitorConfigParser(&cronJob)
+			if note := parser.GetNote(); note != tc.expectedNote {
+				t.Errorf("expected Note %q, got %q", tc.expectedNote, note)
+			}
+		})
+	}
+}
