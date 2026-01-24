@@ -110,3 +110,76 @@ jobs:
           echo ""
           echo "=== Agent pod description ==="
           kubectl describe pod -l app.kubernetes.io/name=cronitor-kubernetes -n cronitor
+
+  e2e-tests-json-logging:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: cronitor-e2e-json
+
+      - name: Build mock server image
+        run: |
+          docker build -t mock-cronitor-api:latest ./e2e-test/mock-server
+
+      - name: Build agent image
+        run: |
+          docker build -t cronitor-kubernetes:e2e .
+
+      - name: Load images into Kind
+        run: |
+          kind load docker-image mock-cronitor-api:latest --name cronitor-e2e-json
+          kind load docker-image cronitor-kubernetes:e2e --name cronitor-e2e-json
+
+      - name: Deploy mock server
+        run: |
+          kubectl apply -f ./e2e-test/mock-server/k8s-manifests.yaml
+          kubectl wait --for=condition=ready pod -l app=mock-cronitor-api -n cronitor-mock --timeout=60s
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Create namespace and apply test CronJob
+        run: |
+          kubectl create namespace cronitor
+          kubectl apply -f ./e2e-test/resources/main/cronjob.yaml -n cronitor
+
+      - name: Deploy cronitor-kubernetes agent with JSON logging
+        run: |
+          helm install cronitor-agent ./charts/cronitor-kubernetes \
+            --namespace cronitor \
+            --set image=cronitor-kubernetes:e2e \
+            --set imagePullPolicy=Never \
+            --set credentials.createSecret.apiKey=e2e-test-key \
+            --set config.hostnameOverride=http://mock-cronitor-api.cronitor-mock.svc.cluster.local \
+            --set config.sentryEnabled=false \
+            --set config.logLevel=DEBUG \
+            --set config.logFormat=json
+
+          # Wait for agent to be ready
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=cronitor-kubernetes -n cronitor --timeout=120s
+
+      - name: Wait for sync to occur
+        run: |
+          echo "Waiting for agent to sync CronJobs to mock server..."
+          sleep 10
+
+      - name: Verify JSON log format
+        run: |
+          chmod +x ./e2e-test/verify-log-format.sh
+          LOG_FORMAT=json ./e2e-test/verify-log-format.sh
+
+      - name: Show agent logs (debug)
+        if: always()
+        run: |
+          echo "=== Agent logs (should be JSON) ==="
+          kubectl logs -l app.kubernetes.io/name=cronitor-kubernetes -n cronitor --tail=50
