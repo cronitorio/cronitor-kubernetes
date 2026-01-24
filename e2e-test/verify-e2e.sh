@@ -239,3 +239,44 @@ echo "  - Names are human-readable (not UUIDs)"
 echo "  - Required tags are present"
 echo "  - Exclusion annotation works (excluded jobs NOT synced)"
 echo "  - Annotation-based customizations work correctly"
+
+# =====================================================
+# Log format verification (optional - only if configured)
+# =====================================================
+echo ""
+echo "Checking agent log format..."
+
+# Get agent pod logs
+AGENT_NS="cronitor"
+AGENT_POD=$(kubectl get pods -n "$AGENT_NS" -l app.kubernetes.io/name=cronitor-kubernetes -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+
+if [ -n "$AGENT_POD" ]; then
+    # Get a sample of agent logs
+    AGENT_LOGS=$(kubectl logs -n "$AGENT_NS" "$AGENT_POD" --tail=10 2>/dev/null || true)
+
+    if [ -n "$AGENT_LOGS" ]; then
+        # Check if logs are JSON formatted (first non-empty line should be valid JSON if JSON format is enabled)
+        FIRST_LOG_LINE=$(echo "$AGENT_LOGS" | grep -v '^$' | head -1)
+
+        if echo "$FIRST_LOG_LINE" | jq . >/dev/null 2>&1; then
+            echo "  ✓ Agent logs are in JSON format"
+
+            # Verify JSON log structure
+            HAS_TIME=$(echo "$FIRST_LOG_LINE" | jq 'has("time")' 2>/dev/null || echo "false")
+            HAS_LEVEL=$(echo "$FIRST_LOG_LINE" | jq 'has("level")' 2>/dev/null || echo "false")
+            HAS_MSG=$(echo "$FIRST_LOG_LINE" | jq 'has("msg")' 2>/dev/null || echo "false")
+
+            if [ "$HAS_TIME" = "true" ] && [ "$HAS_LEVEL" = "true" ] && [ "$HAS_MSG" = "true" ]; then
+                echo "  ✓ JSON logs have required fields (time, level, msg)"
+            else
+                echo "  WARN: JSON logs may be missing standard fields"
+            fi
+        else
+            echo "  ✓ Agent logs are in text format (default)"
+        fi
+    else
+        echo "  SKIP: Could not retrieve agent logs"
+    fi
+else
+    echo "  SKIP: Agent pod not found for log verification"
+fi

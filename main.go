@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	// Configure slog with JSON handler (or TextHandler if you prefer)
+	// Configure default slog handler (can be overridden via --log-format and --log-level flags)
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level:     slog.LevelInfo,
 		AddSource: false,

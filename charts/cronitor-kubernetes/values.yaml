@@ -43,8 +43,12 @@ config:
   yourEmail: ''
 
   # The log level at which the agent will print its own logs.
-  # Available levels: TRACE, DEBUG, INFO, WARN, ERROR
+  # Available levels: DEBUG, INFO, WARN, ERROR
   logLevel: ''
+
+  # The log output format for the agent.
+  # Available formats: text, json
+  logFormat: ''
 
   # Optional regular expression (on pod.name) to limit which pods are monitored.
   #	If provided, a valid regex is required, and pod names that do not match the regex are ignored.
