@@ -43,6 +43,7 @@ helm install cronitor-agent cronitor/cronitor-kubernetes \
 | `config.sentryEnabled` | Enable Sentry telemetry | `true` |
 | `config.yourEmail` | Your email for Cronitor support | `""` |
 | `config.logLevel` | Agent log level (DEBUG, INFO, WARN, ERROR) | `""` |
+| `config.logFormat` | Agent log output format (text, json) | `""` |
 | `config.podFilter` | Regex to filter pods by name | `""` |
 | `config.hostnameOverride` | Override Cronitor API hostname (for testing) | `""` |
 
