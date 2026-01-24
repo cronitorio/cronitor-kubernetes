@@ -28,6 +28,7 @@ func init() {
 	RootCmd.PersistentFlags().String("apikey", "", "Cronitor.io API key")
 	RootCmd.PersistentFlags().String("hostname-override", "", "App hostname to use (mainly for testing)")
 	RootCmd.PersistentFlags().String("log-level", "", "Minimum log level to print for the agent (DEBUG, INFO, WARN, ERROR)")
+	RootCmd.PersistentFlags().String("log-format", "", "Log output format (text, json)")
 	_ = RootCmd.PersistentFlags().MarkHidden("hostname-override")
 	RootCmd.PersistentFlags().Bool("dev", false, "Set the CLI to dev mode (for things like logs, etc.)")
 	_ = RootCmd.PersistentFlags().MarkHidden("dev")
@@ -39,6 +40,7 @@ func initializeConfig(cmd *cobra.Command, args []string) error {
 	_ = viper.BindEnv("hostname-override", "CRONITOR_HOSTNAME_OVERRIDE")
 	_ = viper.BindPFlag("dev", cmd.Flags().Lookup("dev"))
 	_ = viper.BindPFlag("log-level", cmd.Flags().Lookup("log-level"))
+	_ = viper.BindPFlag("log-format", cmd.Flags().Lookup("log-format"))
 	_ = viper.BindEnv("version", "APP_VERSION")
 
 	_ = viper.BindEnv("apikey", "CRONITOR_API_KEY")
@@ -55,12 +57,16 @@ func initializeConfig(cmd *cobra.Command, args []string) error {
 		return errors.New(message)
 	}
 
-	if logLevel := viper.GetString("log-level"); logLevel != "" {
+	// Configure logging based on level and format
+	logLevel := viper.GetString("log-level")
+	logFormat := viper.GetString("log-format")
+
+	if logLevel != "" || logFormat != "" {
 		var level slog.Level
 		switch logLevel {
 		case "DEBUG":
 			level = slog.LevelDebug
-		case "INFO":
+		case "INFO", "":
 			level = slog.LevelInfo
 		case "WARN":
 			level = slog.LevelWarn
@@ -70,9 +76,20 @@ func initializeConfig(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("invalid log level: %s", logLevel)
 		}
 
-		handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		opts := &slog.HandlerOptions{
 			Level: level,
-		})
+		}
+
+		var handler slog.Handler
+		switch logFormat {
+		case "json":
+			handler = slog.NewJSONHandler(os.Stdout, opts)
+		case "text", "":
+			handler = slog.NewTextHandler(os.Stdout, opts)
+		default:
+			return fmt.Errorf("invalid log format: %s (must be 'text' or 'json')", logFormat)
+		}
+
 		slog.SetDefault(slog.New(handler))
 	}
 
