@@ -146,13 +146,29 @@ func NewCronJobWatcher(coll CronJobCollection) CronJobWatcher {
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			onAdd(coll, coerceObjToV1CronJob(version, obj))
+			cronjob := coerceObjToV1CronJob(version, obj)
+			if cronjob == nil {
+				slog.Error("failed to coerce object to CronJob", "version", version)
+				return
+			}
+			onAdd(coll, cronjob)
 		},
 		DeleteFunc: func(obj interface{}) {
-			onDelete(coll, coerceObjToV1CronJob(version, obj))
+			cronjob := coerceObjToV1CronJob(version, obj)
+			if cronjob == nil {
+				slog.Error("failed to coerce object to CronJob", "version", version)
+				return
+			}
+			onDelete(coll, cronjob)
 		},
 		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-			onUpdate(coll, coerceObjToV1CronJob(version, oldObj), coerceObjToV1CronJob(version, newObj))
+			oldCronjob := coerceObjToV1CronJob(version, oldObj)
+			newCronjob := coerceObjToV1CronJob(version, newObj)
+			if oldCronjob == nil || newCronjob == nil {
+				slog.Error("failed to coerce object to CronJob", "version", version)
+				return
+			}
+			onUpdate(coll, oldCronjob, newCronjob)
 		},
 	})
 

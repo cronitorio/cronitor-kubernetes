@@ -317,3 +317,33 @@ func TestBulkSync_AllJobsInSingleRequest(t *testing.T) {
 		}
 	}
 }
+
+func TestCoerceObjToV1CronJob_ReturnsNilForUnknownVersion(t *testing.T) {
+	// coerceObjToV1CronJob should return nil for unknown versions
+	// This tests that event handlers properly check for nil
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-job",
+			Namespace: "default",
+			UID:       "uid-123",
+		},
+	}
+
+	// Test with valid v1 version - should return cronjob
+	result := coerceObjToV1CronJob("v1", cronjob)
+	if result == nil {
+		t.Error("expected non-nil result for v1 version")
+	}
+
+	// Test with unknown version - should return nil
+	result = coerceObjToV1CronJob("v2", cronjob)
+	if result != nil {
+		t.Error("expected nil result for unknown version")
+	}
+
+	result = coerceObjToV1CronJob("", cronjob)
+	if result != nil {
+		t.Error("expected nil result for empty version")
+	}
+}
