@@ -85,6 +85,10 @@ const (
 	// Deprecated: Use AnnotationGraceSeconds instead.
 	AnnotationCronitorGraceSeconds CronitorAnnotation = "k8s.cronitor.io/cronitor-grace-seconds"
 
+	// AnnotationNote lets you provide a default note for the monitor.
+	// This note will be displayed in the Cronitor dashboard.
+	AnnotationNote CronitorAnnotation = "k8s.cronitor.io/note"
+
 	// AnnotationIDInference lets you decide how the Cronitor ID is determined.
 	// The only valid values are "k8s" and "name". Default is "k8s".
 	AnnotationIDInference CronitorAnnotation = "k8s.cronitor.io/id-inference"
@@ -311,6 +315,14 @@ func (cronitorParser CronitorConfigParser) GetGraceSeconds() int {
 		return graceSecondsInt
 	}
 	return -1
+}
+
+// GetNote returns the default note for this CronJob's monitor.
+func (cronitorParser CronitorConfigParser) GetNote() string {
+	if note, ok := cronitorParser.cronjob.Annotations[string(AnnotationNote)]; ok {
+		return note
+	}
+	return ""
 }
 
 // LogCompleteEvent determines whether job completion events should be sent as log events (true)

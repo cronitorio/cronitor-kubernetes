@@ -85,6 +85,7 @@ func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 	cronitorJob := CronitorJob{
 		Key:         configParser.GetCronitorID(),
 		Name:        truncateName(configParser.GetCronitorName()),
+		DefaultNote: configParser.GetNote(),
 		Schedule:    cronJob.Spec.Schedule,
 		Timezone:    configParser.GetTimezone(),
 		Metadata:    string(metadataJson),

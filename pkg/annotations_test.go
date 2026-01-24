@@ -451,3 +451,44 @@ func TestAnnotationBackwardsCompatibility(t *testing.T) {
 		}
 	})
 }
+
+func TestGetNote(t *testing.T) {
+	tests := []struct {
+		name         string
+		annotations  []Annotation
+		expectedNote string
+	}{
+		{
+			name: "note annotation present",
+			annotations: []Annotation{
+				{Key: "k8s.cronitor.io/note", Value: "This is my job description"},
+			},
+			expectedNote: "This is my job description",
+		},
+		{
+			name:         "no note annotation",
+			annotations:  []Annotation{},
+			expectedNote: "",
+		},
+		{
+			name: "empty note annotation",
+			annotations: []Annotation{
+				{Key: "k8s.cronitor.io/note", Value: ""},
+			},
+			expectedNote: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cronJob, err := CronJobFromAnnotations(tc.annotations)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			parser := NewCronitorConfigParser(&cronJob)
+			if note := parser.GetNote(); note != tc.expectedNote {
+				t.Errorf("expected Note %q, got %q", tc.expectedNote, note)
+			}
+		})
+	}
+}
