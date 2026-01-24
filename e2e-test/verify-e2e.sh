@@ -8,6 +8,7 @@ MOCK_POD="deployment/mock-cronitor-api"
 MOCK_NS="cronitor-mock"
 
 # Expected number of cronjobs deployed in e2e test (from e2e-tests.yml)
+# Note: 8 total CronJobs are deployed, but 1 has exclude annotation, so expect 7
 EXPECTED_CRONJOB_COUNT=7
 
 echo "=== E2E Verification ==="
@@ -149,6 +150,29 @@ fi
 echo "  ✓ Required fields and tags present"
 
 # =====================================================
+# TEST: Exclusion Annotation
+# Verify that CronJobs with k8s.cronitor.io/exclude: "true" are NOT synced
+# =====================================================
+echo ""
+echo "Checking exclusion annotation..."
+
+# The excluded CronJob is named "eventrouter-test-croonjob-excluder"
+EXCLUDED_MONITOR=$(echo "$MONITOR_BODY" | jq -r '.[] | select(.name | contains("eventrouter-test-croonjob-excluder")) | .name // empty')
+if [ -n "$EXCLUDED_MONITOR" ]; then
+    echo "FAIL: Excluded CronJob was synced to Cronitor (found: $EXCLUDED_MONITOR)"
+    echo "      CronJobs with 'k8s.cronitor.io/exclude: true' should NOT be synced"
+    exit 1
+fi
+
+# Also check by looking for any monitor key containing the excluded job name
+EXCLUDED_KEY=$(echo "$MONITOR_BODY" | jq -r '.[] | select(.key | contains("excluder")) | .key // empty')
+if [ -n "$EXCLUDED_KEY" ]; then
+    echo "FAIL: Excluded CronJob was synced to Cronitor (found key: $EXCLUDED_KEY)"
+    exit 1
+fi
+echo "  ✓ Exclusion annotation works (excluded job NOT synced)"
+
+# =====================================================
 # Verify specific annotation-based monitors
 # =====================================================
 echo ""
@@ -213,4 +237,5 @@ echo "  - Request format is correct (PUT /api/monitors with Basic auth)"
 echo "  - Monitor data structure is valid"
 echo "  - Names are human-readable (not UUIDs)"
 echo "  - Required tags are present"
+echo "  - Exclusion annotation works (excluded jobs NOT synced)"
 echo "  - Annotation-based customizations work correctly"

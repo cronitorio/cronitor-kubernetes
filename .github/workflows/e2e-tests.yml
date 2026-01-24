@@ -62,6 +62,8 @@ jobs:
           kubectl apply -f ./e2e-test/resources/main/cronjob-group-annotation.yaml -n cronitor
           kubectl apply -f ./e2e-test/resources/main/cronjob-notify-annotation.yaml -n cronitor
           kubectl apply -f ./e2e-test/resources/main/cronjob-grace-annotation.yaml -n cronitor
+          # Also deploy excluded CronJob - should NOT be synced
+          kubectl apply -f ./e2e-test/resources/main/cronjob-exclude.yaml -n cronitor
 
       - name: Deploy cronitor-kubernetes agent
         run: |
@@ -90,6 +92,11 @@ jobs:
         run: |
           chmod +x ./e2e-test/verify-e2e.sh
           ./e2e-test/verify-e2e.sh
+
+      - name: Run dynamic update test
+        run: |
+          chmod +x ./e2e-test/verify-dynamic-update.sh
+          ./e2e-test/verify-dynamic-update.sh
 
       - name: Show mock server captured requests (debug)
         if: always()
