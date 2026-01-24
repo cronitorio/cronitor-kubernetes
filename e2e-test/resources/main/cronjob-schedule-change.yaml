@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: test-schedule-change
   annotations:
-    k8s.cronitor.io/cronitor-id: ''
+    k8s.cronitor.io/cronitor-id: 'schedule-change-test-id'
 spec:
   schedule: "*/5 */10 * * *"
   jobTemplate:
