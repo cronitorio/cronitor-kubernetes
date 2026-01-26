@@ -53,12 +53,17 @@ The Cronitor Kubernetes agent's behavior has a number of defaults that are confi
 
 #### Inclusion and exclusion
 
-Control whether a CronJob is monitored by Cronitor. By default, all CronJobs are included (configurable via `config.default` in [`values.yaml`][1]).
+By default, all CronJobs are monitored. To exclude specific jobs, add:
+```yaml
+annotations:
+  k8s.cronitor.io/exclude: "true"
+```
 
-| Annotation | Description | Values | Default |
-|------------|-------------|--------|---------|
-| `k8s.cronitor.io/include` | Explicitly include this CronJob in Cronitor monitoring. Use when `config.default` is set to `exclude`. | `"true"`, `"false"` | `"false"` |
-| `k8s.cronitor.io/exclude` | Explicitly exclude this CronJob from Cronitor monitoring. Use when `config.default` is set to `include`. | `"true"`, `"false"` | `"false"` |
+Alternatively, you can set `config.default: exclude` in your Helm values to ignore all jobs by default, then opt-in specific jobs with:
+```yaml
+annotations:
+  k8s.cronitor.io/include: "true"
+```
 
 #### Monitor identity
 
