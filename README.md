@@ -51,20 +51,51 @@ To learn what options are customizable in the chart, please see [this repository
 
 The Cronitor Kubernetes agent's behavior has a number of defaults that are configurable via the chart's `values.yaml`. However, in certain situations you may want to override the defaults on a per-`CronJob` basis. You can do so using Kubernetes annotations on your `CronJob` objects as you create them.
 
-Here is the list of supported annotations:
-* `k8s.cronitor.io/include` - Override this CronJob to be explicitly tracked by Cronitor. Values are "true" or "false". (The agent default behavior is `config.default` in [`values.yaml`][1].)
-* `k8s.cronitor.io/exclude` - Override this CronJob to be explicitly **not** tracked by Cronitor. Values are "true" or "false". (The agent default behavior is `config.default` in [`values.yaml`][1].)
-* `k8s.cronitor.io/env` - Override the environment for this CronJob.
-* `k8s.cronitor.io/tags` - Comma-separated list of tags for this cron job for use within the Cronitor application.
-* `k8s.cronitor.io/key` - Manually specify a key for your monitor in Cronitor rather than autogenerating a new one. Use this when you already have jobs you are tracking in Cronitor that you want to keep the history of and you are migrating to the Cronitor agent, or if you are deleting and recreating your `CronJob` objects (e.g., you are migrating clusters or namespaces). You may also use this if you have a single CronJob that you run in different environments (staging, prod, etc.) and you want them all to report to the same monitor in Cronitor in different Cronitor environments.
-* `k8s.cronitor.io/key-inference` - Specify how the Cronitor key is determined. Valid values are `k8s` (default) or `name`. `k8s` uses the Kubernetes UID. `name` hashes the name of the job itself (which is useful when you want standardization across environments).
-* `k8s.cronitor.io/name` - Manually specify the name within the Cronitor dashboard for this CronJob. Please note if you are using `k8s.cronitor.io/key` you must ensure that CronJobs with the same key also have the same name, or the different names will overwrite each other.
-* `k8s.cronitor.io/name-prefix` - Provides control over the prefix of the name. `none` uses the name as-is. `namespace` prepends the Kubernetes namespace. Any other string provided will be prepended to the name as-is.
-* `k8s.cronitor.io/notify` - Comma-separated list of Notification List `key`s to assign alert destinations.
-* `k8s.cronitor.io/group` - Group `key` attribute for grouping the monitor within the Cronitor application.
-* `k8s.cronitor.io/grace-seconds` - The number of seconds that Cronitor should wait after the scheduled execution time before sending an alert. If the monitor is healthy at the end of the period no alert will be sent.
-* `k8s.cronitor.io/note` - Default note for the monitor, displayed in the Cronitor dashboard.
-* `k8s.cronitor.io/log-complete-event` - Controls whether the job completion event should be sent as a log record instead of a stateful completion. When set to `true`, the agent will not send telemetry events with state=complete, but will send a log event recording the completion. This supports async workflows where the actual task completion occurs outside the Kubernetes job. Valid values are `"true"` or `"false"`, default is `false`.
+#### Inclusion and exclusion
+
+Control whether a CronJob is monitored by Cronitor. By default, all CronJobs are included (configurable via `config.default` in [`values.yaml`][1]).
+
+| Annotation | Description | Values | Default |
+|------------|-------------|--------|---------|
+| `k8s.cronitor.io/include` | Explicitly include this CronJob in Cronitor monitoring. Use when `config.default` is set to `exclude`. | `"true"`, `"false"` | `"false"` |
+| `k8s.cronitor.io/exclude` | Explicitly exclude this CronJob from Cronitor monitoring. Use when `config.default` is set to `include`. | `"true"`, `"false"` | `"false"` |
+
+#### Monitor identity
+
+Control how the monitor is identified and named in Cronitor.
+
+| Annotation | Description | Values | Default |
+|------------|-------------|--------|---------|
+| `k8s.cronitor.io/key` | Manually specify the monitor key. Use when migrating existing monitors to the agent, recreating CronJobs, or sharing a monitor across environments. | Any string | Auto-generated (see `key-inference`) |
+| `k8s.cronitor.io/key-inference` | How the monitor key is auto-generated when `key` is not set. `k8s` uses the Kubernetes UID (unique per CronJob instance). `name` hashes the CronJob name (consistent across clusters/namespaces). | `"k8s"`, `"name"` | `"k8s"` |
+| `k8s.cronitor.io/name` | Display name shown in the Cronitor dashboard. If using `key` to share a monitor, ensure all CronJobs with the same key use the same name. | Any string | `namespace/cronjob-name` |
+| `k8s.cronitor.io/name-prefix` | Control the prefix added to auto-generated names. | `"namespace"`, `"none"`, or any custom string | `"namespace"` |
+
+#### Organization
+
+Control how the monitor is organized in the Cronitor dashboard.
+
+| Annotation | Description | Values | Default |
+|------------|-------------|--------|---------|
+| `k8s.cronitor.io/env` | Environment name for this CronJob, shown in Cronitor. Overrides the chart-wide default. | Any string | Chart default (`config.defaultEnv`) |
+| `k8s.cronitor.io/tags` | Tags for organizing and filtering monitors in Cronitor. | Comma-separated list | None |
+| `k8s.cronitor.io/group` | Group key for organizing monitors within Cronitor. | Group key string | None |
+
+#### Alerting
+
+Control alert behavior for this monitor.
+
+| Annotation | Description | Values | Default |
+|------------|-------------|--------|---------|
+| `k8s.cronitor.io/notify` | Notification lists to alert when the job fails or recovers. Use keys from your [Cronitor notification settings](https://cronitor.io/app/settings/alerts). | Comma-separated list of keys | Account default |
+| `k8s.cronitor.io/grace-seconds` | Seconds to wait after the scheduled time before alerting on a missing job. No alert is sent if the job completes within this period. | Integer | Account default |
+
+#### Additional configuration
+
+| Annotation | Description | Values | Default |
+|------------|-------------|--------|---------|
+| `k8s.cronitor.io/note` | A note displayed on the monitor in the Cronitor dashboard. Useful for documentation or runbook links. | Any string | None |
+| `k8s.cronitor.io/log-complete-event` | Send job completion as a log event instead of a state change. Use for async workflows where the actual task completion occurs outside the Kubernetes job. | `"true"`, `"false"` | `"false"` |
 
 #### Legacy annotation names
 
