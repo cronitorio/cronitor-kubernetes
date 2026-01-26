@@ -48,29 +48,29 @@ func TestGetSchedule(t *testing.T) {
 
 func TestGetCronitorID(t *testing.T) {
 	tests := []struct {
-		name                  string
-		annotationIDInference string
-		annotationCronitorID  string
-		expectedID            string
+		name                   string
+		annotationKeyInference string
+		annotationCronitorID   string
+		expectedID             string
 	}{
 		{
-			name:                  "hashed name as ID",
-			annotationIDInference: "name",
-			annotationCronitorID:  "",
-			expectedID:            "3278d16696a89a92d297b7c46bfd286b20dc3896",
+			name:                   "hashed name as ID",
+			annotationKeyInference: "name",
+			annotationCronitorID:   "",
+			expectedID:             "3278d16696a89a92d297b7c46bfd286b20dc3896",
 		},
 		{
-			name:                  "specific cronitor id",
-			annotationIDInference: "",
-			annotationCronitorID:  "1234",
-			expectedID:            "1234",
+			name:                   "specific cronitor id",
+			annotationKeyInference: "",
+			annotationCronitorID:   "1234",
+			expectedID:             "1234",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			annotations := []Annotation{
-				{Key: "k8s.cronitor.io/id-inference", Value: tc.annotationIDInference},
+				{Key: "k8s.cronitor.io/key-inference", Value: tc.annotationKeyInference},
 				{Key: "k8s.cronitor.io/cronitor-id", Value: tc.annotationCronitorID},
 			}
 
@@ -446,6 +446,53 @@ func TestAnnotationBackwardsCompatibility(t *testing.T) {
 				parser := NewCronitorConfigParser(&cronJob)
 				if graceSeconds := parser.GetGraceSeconds(); graceSeconds != tc.expectedGraceSeconds {
 					t.Errorf("expected GraceSeconds %d, got %d", tc.expectedGraceSeconds, graceSeconds)
+				}
+			})
+		}
+	})
+
+	t.Run("KeyInference annotation", func(t *testing.T) {
+		// Expected hash when using "name" inference with default name "default/test-cronjob"
+		expectedHashedID := "3278d16696a89a92d297b7c46bfd286b20dc3896"
+
+		tests := []struct {
+			name       string
+			annotations []Annotation
+			expectedID string
+		}{
+			{
+				name: "new annotation (k8s.cronitor.io/key-inference)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/key-inference", Value: "name"},
+				},
+				expectedID: expectedHashedID,
+			},
+			{
+				name: "legacy annotation (k8s.cronitor.io/id-inference)",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/id-inference", Value: "name"},
+				},
+				expectedID: expectedHashedID,
+			},
+			{
+				name: "new annotation takes precedence",
+				annotations: []Annotation{
+					{Key: "k8s.cronitor.io/key-inference", Value: "name"},
+					{Key: "k8s.cronitor.io/id-inference", Value: "k8s"},
+				},
+				expectedID: expectedHashedID,
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				cronJob, err := CronJobFromAnnotations(tc.annotations)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				parser := NewCronitorConfigParser(&cronJob)
+				if id := parser.GetCronitorID(); id != tc.expectedID {
+					t.Errorf("expected ID %s, got %s", tc.expectedID, id)
 				}
 			})
 		}
