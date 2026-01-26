@@ -57,7 +57,7 @@ Here is the list of supported annotations:
 * `k8s.cronitor.io/env` - Override the environment for this CronJob.
 * `k8s.cronitor.io/tags` - Comma-separated list of tags for this cron job for use within the Cronitor application.
 * `k8s.cronitor.io/key` - Manually specify a key for your monitor in Cronitor rather than autogenerating a new one. Use this when you already have jobs you are tracking in Cronitor that you want to keep the history of and you are migrating to the Cronitor agent, or if you are deleting and recreating your `CronJob` objects (e.g., you are migrating clusters or namespaces). You may also use this if you have a single CronJob that you run in different environments (staging, prod, etc.) and you want them all to report to the same monitor in Cronitor in different Cronitor environments.
-* `k8s.cronitor.io/id-inference` - Specify how the Cronitor ID is determined. `k8s` uses the Kubernetes UID. `name` hashes the name of the job itself (which is useful when you want standardization across environments).
+* `k8s.cronitor.io/key-inference` - Specify how the Cronitor key is determined. Valid values are `k8s` (default) or `name`. `k8s` uses the Kubernetes UID. `name` hashes the name of the job itself (which is useful when you want standardization across environments).
 * `k8s.cronitor.io/name` - Manually specify the name within the Cronitor dashboard for this CronJob. Please note if you are using `k8s.cronitor.io/key` you must ensure that CronJobs with the same key also have the same name, or the different names will overwrite each other.
 * `k8s.cronitor.io/name-prefix` - Provides control over the prefix of the name. `none` uses the name as-is. `namespace` prepends the Kubernetes namespace. Any other string provided will be prepended to the name as-is.
 * `k8s.cronitor.io/notify` - Comma-separated list of Notification List `key`s to assign alert destinations.
@@ -77,6 +77,7 @@ For backwards compatibility, the following legacy annotation names are still sup
 | `k8s.cronitor.io/cronitor-group` | `k8s.cronitor.io/group` |
 | `k8s.cronitor.io/cronitor-notify` | `k8s.cronitor.io/notify` |
 | `k8s.cronitor.io/cronitor-grace-seconds` | `k8s.cronitor.io/grace-seconds` |
+| `k8s.cronitor.io/id-inference` | `k8s.cronitor.io/key-inference` |
 
 
 ### Timezone support

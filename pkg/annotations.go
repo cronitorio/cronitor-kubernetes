@@ -89,8 +89,13 @@ const (
 	// This note will be displayed in the Cronitor dashboard.
 	AnnotationNote CronitorAnnotation = "k8s.cronitor.io/note"
 
-	// AnnotationIDInference lets you decide how the Cronitor ID is determined.
+	// AnnotationKeyInference lets you decide how the Cronitor key is determined.
 	// The only valid values are "k8s" and "name". Default is "k8s".
+	// "k8s" uses the Kubernetes UID, "name" hashes the name of the job itself.
+	AnnotationKeyInference CronitorAnnotation = "k8s.cronitor.io/key-inference"
+
+	// AnnotationIDInference is the legacy annotation for AnnotationKeyInference.
+	// Deprecated: Use AnnotationKeyInference instead.
 	AnnotationIDInference CronitorAnnotation = "k8s.cronitor.io/id-inference"
 
 	// AnnotationNamePrefix lets you control the prefix of the name.
@@ -185,8 +190,9 @@ func (cronitorParser CronitorConfigParser) GetSpecifiedCronitorID() string {
 
 // GetCronitorID returns the correct Cronitor monitor ID for the CronJob.
 // Defaults to the CronJob's Kubernetes UID if no pre-specified monitor ID is provided by the user.
+// Supports both k8s.cronitor.io/key-inference (preferred) and k8s.cronitor.io/id-inference (legacy).
 func (cronitorParser CronitorConfigParser) GetCronitorID() string {
-	// Default behavior
+	// Default behavior is "k8s" which uses the Kubernetes UID
 	inference := "k8s"
 
 	// Check if a specific Cronitor ID is assigned and return it if present
@@ -195,7 +201,8 @@ func (cronitorParser CronitorConfigParser) GetCronitorID() string {
 	}
 
 	// Override default inference if an annotation is provided
-	if annotation, ok := cronitorParser.cronjob.Annotations[string(AnnotationIDInference)]; ok && annotation != "" {
+	// Supports both new (key-inference) and legacy (id-inference) annotation names
+	if annotation, ok := cronitorParser.getAnnotationWithFallback(AnnotationKeyInference, AnnotationIDInference); ok && annotation != "" {
 		inference = annotation
 	}
 
