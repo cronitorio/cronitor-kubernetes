@@ -107,6 +107,13 @@ const (
 	// This supports async workflows where the actual task completion occurs outside the Kubernetes job.
 	// The only valid values are "true" and "false". Default is "false".
 	AnnotationLogCompleteEvent CronitorAnnotation = "k8s.cronitor.io/log-complete-event"
+
+	// AnnotationMetricDuration lets you set duration assertions on the monitor.
+	// The value should be a comparison string starting with "<" or ">", followed by a number and an optional time unit.
+	// Multiple assertions can be comma-separated.
+	// Examples: "< 5 seconds", "> 1 minute", "< 30 seconds, > 5 seconds"
+	// Supported time units: "seconds", "minutes", "hours" (singular forms are also accepted).
+	AnnotationMetricDuration CronitorAnnotation = "k8s.cronitor.io/metric.duration"
 )
 
 type CronitorConfigParser struct {
@@ -347,4 +354,14 @@ func (cronitorParser CronitorConfigParser) LogCompleteEvent() (bool, error) {
 	}
 
 	return false, nil
+}
+
+// GetMetricDuration returns the raw metric.duration annotation value.
+// The value is expected to be a comparison string like "< 5 seconds" or "> 1 minute".
+// Multiple assertions can be comma-separated.
+func (cronitorParser CronitorConfigParser) GetMetricDuration() string {
+	if val, ok := cronitorParser.cronjob.Annotations[string(AnnotationMetricDuration)]; ok {
+		return val
+	}
+	return ""
 }

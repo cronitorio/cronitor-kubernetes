@@ -327,6 +327,167 @@ func TestTimezoneInJSON(t *testing.T) {
 	}
 }
 
+func TestMetricDurationAnnotation(t *testing.T) {
+	tests := []struct {
+		name          string
+		annotationVal string
+		expectedRules []Rule
+	}{
+		{
+			name:          "less than with seconds",
+			annotationVal: "< 5 seconds",
+			expectedRules: []Rule{
+				{RuleType: "metric.duration", Value: "< 5", TimeUnit: "seconds"},
+			},
+		},
+		{
+			name:          "greater than with seconds",
+			annotationVal: "> 1 second",
+			expectedRules: []Rule{
+				{RuleType: "metric.duration", Value: "> 1", TimeUnit: "seconds"},
+			},
+		},
+		{
+			name:          "less than with minutes",
+			annotationVal: "< 10 minutes",
+			expectedRules: []Rule{
+				{RuleType: "metric.duration", Value: "< 10", TimeUnit: "minutes"},
+			},
+		},
+		{
+			name:          "greater than with hours",
+			annotationVal: "> 2 hours",
+			expectedRules: []Rule{
+				{RuleType: "metric.duration", Value: "> 2", TimeUnit: "hours"},
+			},
+		},
+		{
+			name:          "comma-separated multiple rules",
+			annotationVal: "< 30 seconds, > 5 seconds",
+			expectedRules: []Rule{
+				{RuleType: "metric.duration", Value: "< 30", TimeUnit: "seconds"},
+				{RuleType: "metric.duration", Value: "> 5", TimeUnit: "seconds"},
+			},
+		},
+		{
+			name:          "without time unit",
+			annotationVal: "< 5",
+			expectedRules: []Rule{
+				{RuleType: "metric.duration", Value: "< 5"},
+			},
+		},
+		{
+			name:          "singular time unit normalized to plural",
+			annotationVal: "> 1 minute",
+			expectedRules: []Rule{
+				{RuleType: "metric.duration", Value: "> 1", TimeUnit: "minutes"},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			annotations := []pkg.Annotation{
+				{Key: "k8s.cronitor.io/metric.duration", Value: tc.annotationVal},
+			}
+			cronJob, err := pkg.CronJobFromAnnotations(annotations)
+			if err != nil {
+				t.Fatalf("unexpected error unmarshalling json: %v", err)
+			}
+			cronitorJob := convertCronJobToCronitorJob(&cronJob)
+
+			if len(cronitorJob.Rules) != len(tc.expectedRules) {
+				t.Fatalf("expected %d rules, got %d", len(tc.expectedRules), len(cronitorJob.Rules))
+			}
+			for i, rule := range cronitorJob.Rules {
+				if rule.RuleType != tc.expectedRules[i].RuleType {
+					t.Errorf("rule[%d].RuleType = %q, want %q", i, rule.RuleType, tc.expectedRules[i].RuleType)
+				}
+				if rule.Value != tc.expectedRules[i].Value {
+					t.Errorf("rule[%d].Value = %q, want %q", i, rule.Value, tc.expectedRules[i].Value)
+				}
+				if rule.TimeUnit != tc.expectedRules[i].TimeUnit {
+					t.Errorf("rule[%d].TimeUnit = %q, want %q", i, rule.TimeUnit, tc.expectedRules[i].TimeUnit)
+				}
+			}
+		})
+	}
+}
+
+func TestMetricDurationNoAnnotation(t *testing.T) {
+	cronJob, err := pkg.CronJobFromAnnotations([]pkg.Annotation{})
+	if err != nil {
+		t.Fatalf("unexpected error unmarshalling json: %v", err)
+	}
+	cronitorJob := convertCronJobToCronitorJob(&cronJob)
+
+	if len(cronitorJob.Rules) != 0 {
+		t.Errorf("expected no rules when annotation is absent, got %d", len(cronitorJob.Rules))
+	}
+}
+
+func TestMetricDurationInJSON(t *testing.T) {
+	annotations := []pkg.Annotation{
+		{Key: "k8s.cronitor.io/metric.duration", Value: "< 5 seconds"},
+	}
+	cronJob, err := pkg.CronJobFromAnnotations(annotations)
+	if err != nil {
+		t.Fatalf("unexpected error unmarshalling json: %v", err)
+	}
+	cronitorJob := convertCronJobToCronitorJob(&cronJob)
+	jsonBytes, err := json.Marshal(cronitorJob)
+	if err != nil {
+		t.Fatalf("failed to marshal cronitorJob: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	rules, ok := result["rules"]
+	if !ok {
+		t.Fatal("expected 'rules' field in JSON output")
+	}
+
+	rulesArr, ok := rules.([]interface{})
+	if !ok || len(rulesArr) != 1 {
+		t.Fatalf("expected 1 rule in JSON, got %v", rules)
+	}
+
+	ruleMap := rulesArr[0].(map[string]interface{})
+	if ruleMap["rule_type"] != "metric.duration" {
+		t.Errorf("expected rule_type 'metric.duration', got %v", ruleMap["rule_type"])
+	}
+	if ruleMap["value"] != "< 5" {
+		t.Errorf("expected value '< 5', got %v", ruleMap["value"])
+	}
+	if ruleMap["time_unit"] != "seconds" {
+		t.Errorf("expected time_unit 'seconds', got %v", ruleMap["time_unit"])
+	}
+}
+
+func TestMetricDurationRulesOmittedWhenEmpty(t *testing.T) {
+	cronJob, err := pkg.CronJobFromAnnotations([]pkg.Annotation{})
+	if err != nil {
+		t.Fatalf("unexpected error unmarshalling json: %v", err)
+	}
+	cronitorJob := convertCronJobToCronitorJob(&cronJob)
+	jsonBytes, err := json.Marshal(cronitorJob)
+	if err != nil {
+		t.Fatalf("failed to marshal cronitorJob: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	if _, ok := result["rules"]; ok {
+		t.Error("expected 'rules' field to be omitted from JSON when empty")
+	}
+}
+
 func TestTimezoneOmittedWhenEmpty(t *testing.T) {
 	// Test that the timezone field is omitted from JSON when empty (omitempty)
 	cronJob, err := pkg.CronJobFromAnnotations([]pkg.Annotation{})

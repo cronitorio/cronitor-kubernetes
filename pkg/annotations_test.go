@@ -499,6 +499,54 @@ func TestAnnotationBackwardsCompatibility(t *testing.T) {
 	})
 }
 
+func TestGetMetricDuration(t *testing.T) {
+	tests := []struct {
+		name        string
+		annotations []Annotation
+		expected    string
+	}{
+		{
+			name: "less than duration",
+			annotations: []Annotation{
+				{Key: "k8s.cronitor.io/metric.duration", Value: "< 5 seconds"},
+			},
+			expected: "< 5 seconds",
+		},
+		{
+			name: "greater than duration",
+			annotations: []Annotation{
+				{Key: "k8s.cronitor.io/metric.duration", Value: "> 1 minute"},
+			},
+			expected: "> 1 minute",
+		},
+		{
+			name: "comma-separated values",
+			annotations: []Annotation{
+				{Key: "k8s.cronitor.io/metric.duration", Value: "< 5 seconds, > 1 second"},
+			},
+			expected: "< 5 seconds, > 1 second",
+		},
+		{
+			name:        "no annotation",
+			annotations: []Annotation{},
+			expected:    "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cronJob, err := CronJobFromAnnotations(tc.annotations)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			parser := NewCronitorConfigParser(&cronJob)
+			if got := parser.GetMetricDuration(); got != tc.expected {
+				t.Errorf("GetMetricDuration() = %q, want %q", got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestGetNote(t *testing.T) {
 	tests := []struct {
 		name         string

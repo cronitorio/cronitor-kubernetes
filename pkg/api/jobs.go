@@ -29,6 +29,13 @@ type CronitorJob struct {
 	Notify       []string `json:"notify,omitempty"`
 	Group        string   `json:"group,omitempty"`
 	GraceSeconds int      `json:"grace_seconds,omitempty"`
+	Rules        []Rule   `json:"rules,omitempty"`
+}
+
+type Rule struct {
+	RuleType string `json:"rule_type"`
+	Value    string `json:"value"`
+	TimeUnit string `json:"time_unit,omitempty"`
 }
 
 func (cronitorJob CronitorJob) GetEnvironment() string {
@@ -99,7 +106,61 @@ func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 		cronitorJob.GraceSeconds = graceSeconds
 	}
 
+	if metricDuration := configParser.GetMetricDuration(); metricDuration != "" {
+		cronitorJob.Rules = parseMetricDurationRules(metricDuration)
+	}
+
 	return cronitorJob
+}
+
+func parseMetricDurationRules(value string) []Rule {
+	var rules []Rule
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if rule, ok := parseMetricDurationRule(part); ok {
+			rules = append(rules, rule)
+		}
+	}
+	return rules
+}
+
+func parseMetricDurationRule(value string) (Rule, bool) {
+	fields := strings.Fields(value)
+	if len(fields) < 2 {
+		return Rule{}, false
+	}
+
+	operator := fields[0]
+	if operator != "<" && operator != ">" {
+		return Rule{}, false
+	}
+
+	rule := Rule{
+		RuleType: "metric.duration",
+		Value:    operator + " " + fields[1],
+	}
+
+	if len(fields) >= 3 {
+		rule.TimeUnit = normalizeTimeUnit(fields[2])
+	}
+
+	return rule, true
+}
+
+func normalizeTimeUnit(unit string) string {
+	switch strings.ToLower(unit) {
+	case "second", "seconds":
+		return "seconds"
+	case "minute", "minutes":
+		return "minutes"
+	case "hour", "hours":
+		return "hours"
+	default:
+		return unit
+	}
 }
 
 func convertCronJobsToCronitorJobs(jobs []*v1.CronJob) []CronitorJob {
