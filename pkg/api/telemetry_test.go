@@ -5,7 +5,9 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/spf13/viper"
@@ -1020,4 +1022,230 @@ func TestTelemetryURLVerification(t *testing.T) {
 			t.Errorf("hostname-override not working!\n  Expected: %s\n  Got: %s", expectedURL, url)
 		}
 	})
+}
+
+// =============================================================================
+// Async log shipping tests
+// =============================================================================
+
+// TestMakeAndSendTelemetryJobEventAndLogs_AsyncLogShipping verifies that
+// MakeAndSendTelemetryJobEventAndLogs returns quickly even when log shipping
+// would be slow, because log shipping now runs asynchronously in a goroutine.
+func TestMakeAndSendTelemetryJobEventAndLogs_AsyncLogShipping(t *testing.T) {
+	// goroutineDone signals when the async goroutine has finished all its work.
+	// The goroutine flow: presign (slow) → error (empty URL) → log telemetry ping.
+	// We track the last request (log telemetry ping) to know when it's safe to clean up.
+	goroutineDone := make(chan struct{}, 1)
+	var presignHit int32
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/logs/presign") {
+			// Simulate slow presign endpoint
+			time.Sleep(200 * time.Millisecond)
+			atomic.StoreInt32(&presignHit, 1)
+			w.WriteHeader(http.StatusOK)
+			// Return empty URL — ShipLogData will error, goroutine falls through
+			// to sendTelemetryEvent for the log telemetry event
+			w.Write([]byte(`{"url": ""}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/ping/") {
+			// Could be the initial telemetry ping OR the log telemetry ping from the goroutine.
+			// The goroutine's log telemetry ping arrives after presign, so signal done.
+			if atomic.LoadInt32(&presignHit) == 1 {
+				select {
+				case goroutineDone <- struct{}{}:
+				default:
+				}
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}))
+	defer server.Close()
+
+	viper.Set("hostname-override", server.URL)
+	viper.Set("ship-logs", true)
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "async-test-job", Namespace: "default", UID: "async-uid",
+		},
+	}
+	job := &v1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "async-test-job-123", Namespace: "default", UID: "async-job-uid",
+		},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "async-pod", Namespace: "default"},
+		Spec:       corev1.PodSpec{NodeName: "node-1"},
+	}
+
+	jobEvent := &pkg.JobEvent{}
+	jobEvent.Reason = "Completed"
+	jobEvent.Message = "Job completed"
+
+	cronitorApi := CronitorApi{ApiKey: "test-key", UserAgent: "test-agent"}
+
+	start := time.Now()
+	err := cronitorApi.MakeAndSendTelemetryJobEventAndLogs(jobEvent, "some error logs here", pod, job, cronjob)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The function should return quickly (well under 200ms) because log shipping is async
+	if elapsed > 100*time.Millisecond {
+		t.Errorf("MakeAndSendTelemetryJobEventAndLogs took %v, expected <100ms (async log shipping)", elapsed)
+	}
+
+	// Wait for the async goroutine to fully complete before cleaning up viper
+	select {
+	case <-goroutineDone:
+		// good — goroutine finished all work
+	case <-time.After(3 * time.Second):
+		t.Error("async log shipping goroutine did not complete within timeout")
+	}
+
+	// Clean up viper AFTER goroutine is done to avoid races
+	viper.Set("hostname-override", "")
+	viper.Set("ship-logs", false)
+}
+
+// TestMakeAndSendTelemetryPodEventAndLogs_AsyncLogShipping verifies async behavior for pod events.
+func TestMakeAndSendTelemetryPodEventAndLogs_AsyncLogShipping(t *testing.T) {
+	goroutineDone := make(chan struct{}, 1)
+	var presignHit int32
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/logs/presign") {
+			time.Sleep(200 * time.Millisecond)
+			atomic.StoreInt32(&presignHit, 1)
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"url": ""}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/ping/") {
+			if atomic.LoadInt32(&presignHit) == 1 {
+				select {
+				case goroutineDone <- struct{}{}:
+				default:
+				}
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}))
+	defer server.Close()
+
+	viper.Set("hostname-override", server.URL)
+	viper.Set("ship-logs", true)
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "async-pod-test", Namespace: "default", UID: "async-pod-uid",
+		},
+	}
+	job := &v1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "async-pod-job", Namespace: "default", UID: "async-pod-job-uid",
+		},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "async-pod-pod", Namespace: "default"},
+		Spec:       corev1.PodSpec{NodeName: "node-1"},
+	}
+
+	podEvent := &pkg.PodEvent{}
+	podEvent.Reason = "Started"
+	podEvent.Message = "Container started"
+
+	cronitorApi := CronitorApi{ApiKey: "test-key", UserAgent: "test-agent"}
+
+	start := time.Now()
+	err := cronitorApi.MakeAndSendTelemetryPodEventAndLogs(podEvent, "some pod logs here", pod, job, cronjob)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if elapsed > 100*time.Millisecond {
+		t.Errorf("MakeAndSendTelemetryPodEventAndLogs took %v, expected <100ms (async log shipping)", elapsed)
+	}
+
+	select {
+	case <-goroutineDone:
+	case <-time.After(3 * time.Second):
+		t.Error("async log shipping goroutine did not complete within timeout")
+	}
+
+	viper.Set("hostname-override", "")
+	viper.Set("ship-logs", false)
+}
+
+// TestMakeAndSendTelemetry_NoLogs_SkipsLogShipping verifies that when there are no logs,
+// only the telemetry ping is sent and no log shipping request is made.
+func TestMakeAndSendTelemetry_NoLogs_SkipsLogShipping(t *testing.T) {
+	var pingCount int32
+	var presignCount int32
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/logs/presign") {
+			atomic.AddInt32(&presignCount, 1)
+		} else if strings.Contains(r.URL.Path, "/ping/") {
+			atomic.AddInt32(&pingCount, 1)
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}))
+	defer server.Close()
+
+	viper.Set("hostname-override", server.URL)
+	viper.Set("ship-logs", true)
+	defer func() {
+		viper.Set("hostname-override", "")
+		viper.Set("ship-logs", false)
+	}()
+
+	cronjob := &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "no-logs-job", Namespace: "default", UID: "no-logs-uid",
+		},
+	}
+	job := &v1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "no-logs-job-123", Namespace: "default", UID: "no-logs-job-uid",
+		},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "no-logs-pod", Namespace: "default"},
+		Spec:       corev1.PodSpec{NodeName: "node-1"},
+	}
+
+	jobEvent := &pkg.JobEvent{}
+	jobEvent.Reason = "Completed"
+
+	cronitorApi := CronitorApi{ApiKey: "test-key", UserAgent: "test-agent"}
+
+	// Empty logs — should NOT trigger log shipping
+	err := cronitorApi.MakeAndSendTelemetryJobEventAndLogs(jobEvent, "", pod, job, cronjob)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Give the goroutine time to run (if it would)
+	time.Sleep(100 * time.Millisecond)
+
+	// Only 1 ping request should be made (the telemetry ping), no presign requests
+	pings := atomic.LoadInt32(&pingCount)
+	presigns := atomic.LoadInt32(&presignCount)
+	if pings != 1 {
+		t.Errorf("expected 1 telemetry ping request, got %d", pings)
+	}
+	if presigns != 0 {
+		t.Errorf("expected 0 log presign requests, got %d", presigns)
+	}
 }

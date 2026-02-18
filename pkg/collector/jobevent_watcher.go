@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"regexp"
+	"sync"
 	"sync/atomic"
 
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
@@ -51,36 +52,8 @@ func (e EventHandler) fetchPod(namespace string, podName string) (*corev1.Pod, e
 	return pod, nil
 }
 
-func (e EventHandler) fetchJobByPod(namespace string, podName string) (*v1.Job, error) {
-	clientset := e.collection.clientset
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	podsClient := clientset.CoreV1().Pods(namespace)
-	pod, err := podsClient.Get(ctx, podName, meta_v1.GetOptions{})
-	if err != nil {
-		return nil, PodNotFoundError{namespace, podName, err}
-	}
-
-	var ownerReference = new(meta_v1.OwnerReference)
-	for _, ref := range pod.OwnerReferences {
-		if ref.Kind == "Job" {
-			ownerReference = &ref
-			break
-		}
-	}
-	if ownerReference == nil {
-		// If there is no job owning the pod at all,
-		// then it's definitely not a CronJob pod, but it's
-		// also not an error.
-		return nil, nil
-	}
-
-	return e.fetchJob(namespace, ownerReference.Name)
-}
-
 // fetchPodByJobName grabs the Pod metadata from the Kubernetes API
 func (e EventHandler) fetchPodByJobName(namespace string, jobName string) (*corev1.Pod, error) {
-	// This could potentially be moved off of EventHandler into its own kube package
 	clientset := e.collection.clientset
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -105,7 +78,6 @@ func (e EventHandler) fetchPodByJobName(namespace string, jobName string) (*core
 
 // fetchJob gets the Job's information from the Kubernetes API.
 func (e EventHandler) fetchJob(namespace string, name string) (*v1.Job, error) {
-	// Note: this might be a bit expensive, should we memoize it when possible?
 	clientset := e.collection.clientset
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -146,104 +118,108 @@ func (e EventHandler) fetchPodLogs(pod *corev1.Pod) (string, error) {
 	return str, nil
 }
 
-func (e EventHandler) FetchObjectsFromPodEvent(event *pkg.PodEvent) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1.CronJob, err error) {
-	namespace := event.InvolvedObject.Namespace
-	podName := event.InvolvedObject.Name
-
-	pod, err = e.fetchPod(namespace, podName)
-	if err != nil {
-		return
-	}
-	job, err = e.fetchJobByPod(namespace, podName)
-	if err != nil {
-		return
-	}
-	if job == nil {
-		err = fmt.Errorf("pod %s/%s does not belong to a job", namespace, podName)
-		return
-	}
-	if len(job.ObjectMeta.OwnerReferences) == 0 {
-		err = fmt.Errorf("job %s/%s has no owner references", namespace, job.Name)
-		return
-	}
-	ownerReference := job.ObjectMeta.OwnerReferences[0]
-	if ownerReference.Kind != "CronJob" {
-		err = fmt.Errorf("expected ownerReference of CronJob, got %s", ownerReference.Kind)
-		return
-	}
-	ownerUID := ownerReference.UID
-	cronjob, err = e.fetchCronJob(ownerUID)
-	if err != nil {
-		return
-	}
-
-	// Logs may not be available because the pod hasn't started yet, or maybe logs just aren't available.
-	// In that case, ignore. Logs are retrieved on a best-effort basis.
-	logs, _ = e.fetchPodLogs(pod)
-	return
-}
-
-func (e EventHandler) FetchObjectsFromJobEvent(event *pkg.JobEvent) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1.CronJob, err error) {
-	namespace := event.InvolvedObject.Namespace
-	jobName := event.InvolvedObject.Name
+// FetchAndCheckJobEvent is a single-pass method that fetches a Job, validates
+// the owner chain to a watched CronJob, and retrieves the associated Pod and logs.
+// It replaces the old CheckJobIsWatched + FetchObjectsFromJobEvent combination,
+// eliminating redundant API calls.
+func (e EventHandler) FetchAndCheckJobEvent(namespace, jobName string) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1.CronJob, watched bool, err error) {
+	// 1. Single GET for the Job
 	job, err = e.fetchJob(namespace, jobName)
 	if err != nil {
 		return
 	}
 
+	// 2. Validate owner chain -> CronJob
 	if len(job.ObjectMeta.OwnerReferences) == 0 {
-		err = fmt.Errorf("job %s/%s has no owner references", namespace, jobName)
 		return
 	}
 	ownerReference := job.ObjectMeta.OwnerReferences[0]
 	if ownerReference.Kind != "CronJob" {
-		err = fmt.Errorf("expected ownerReference of CronJob, got %s", ownerReference.Kind)
 		return
 	}
+
+	// 3. Check if tracked (in-memory)
 	ownerUID := ownerReference.UID
+	if !e.collection.IsTracked(ownerUID) {
+		return
+	}
+	watched = true
+
+	// 4. Fetch CronJob (in-memory)
 	cronjob, err = e.fetchCronJob(ownerUID)
 	if err != nil {
 		return
 	}
 
+	// 5. Single LIST for the Pod
 	pod, err = e.fetchPodByJobName(namespace, jobName)
 	if err != nil {
 		return
 	}
 
-	if e.CheckPodFilter(pod.Name) == false {
-		return
-	}
-
-	// Logs may not be available because the pod hasn't started yet, or maybe logs just aren't available.
-	// In that case, ignore. Logs are retrieved on a best-effort basis.
+	// 6. Conditionally fetch logs
 	if viper.GetBool("ship-logs") {
 		logs, _ = e.fetchPodLogs(pod)
 	}
 	return
 }
 
-func (e EventHandler) CheckJobIsWatched(jobNamespace string, jobName string) bool {
-	job, err := e.fetchJob(jobNamespace, jobName)
+// FetchAndCheckPodEvent is a single-pass method that fetches a Pod, walks the
+// owner chain through Job to CronJob, checks whether the CronJob is watched,
+// and retrieves logs. It replaces the old fetchJobByPod + CheckJobIsWatched +
+// FetchObjectsFromPodEvent combination, eliminating redundant API calls.
+func (e EventHandler) FetchAndCheckPodEvent(namespace, podName string) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1.CronJob, watched bool, err error) {
+	// 1. Single GET for the Pod
+	pod, err = e.fetchPod(namespace, podName)
 	if err != nil {
-		// Job doesn't exist
-		return false
+		err = PodNotFoundError{namespace, podName, err}
+		return
 	}
 
+	// 2. Extract Job owner from pod.OwnerReferences (in-memory)
+	var jobOwnerRef *meta_v1.OwnerReference
+	for i := range pod.OwnerReferences {
+		if pod.OwnerReferences[i].Kind == "Job" {
+			jobOwnerRef = &pod.OwnerReferences[i]
+			break
+		}
+	}
+	if jobOwnerRef == nil {
+		// Pod is not owned by a Job — not a CronJob pod
+		return
+	}
+
+	// 3. Single GET for the Job
+	job, err = e.fetchJob(namespace, jobOwnerRef.Name)
+	if err != nil {
+		return
+	}
+
+	// 4. Validate owner chain -> CronJob
 	if len(job.ObjectMeta.OwnerReferences) == 0 {
-		return false
+		return
 	}
 	ownerReference := job.ObjectMeta.OwnerReferences[0]
 	if ownerReference.Kind != "CronJob" {
-		return false
+		return
 	}
+
+	// 5. Check if tracked (in-memory)
 	ownerUID := ownerReference.UID
-	for _, b := range e.collection.GetAllWatchedCronJobUIDs() {
-		if b == ownerUID {
-			return true
-		}
+	if !e.collection.IsTracked(ownerUID) {
+		return
 	}
-	return false
+	watched = true
+
+	// 6. Fetch CronJob (in-memory)
+	cronjob, err = e.fetchCronJob(ownerUID)
+	if err != nil {
+		return
+	}
+
+	// 7. Conditionally fetch logs
+	logs, _ = e.fetchPodLogs(pod)
+	return
 }
 
 func (e EventHandler) CheckPodFilter(podName string) bool {
@@ -275,17 +251,17 @@ func (e EventHandler) OnAdd(obj interface{}) {
 			return
 		}
 
-		if e.CheckJobIsWatched(typedEvent.InvolvedObject.Namespace, typedEvent.InvolvedObject.Name) {
+		pod, logs, job, cronjob, watched, err := e.FetchAndCheckJobEvent(typedEvent.InvolvedObject.Namespace, typedEvent.InvolvedObject.Name)
+		if err != nil {
+			slog.Warn("could not fetch objects related to event", "error", err)
+			return
+		}
+		if watched {
 			slog.Info("job event added",
 				"name", typedEvent.InvolvedObject.Name,
 				"kind", typedEvent.InvolvedObject.Kind,
 				"eventMessage", typedEvent.Message,
 				"eventReason", typedEvent.Reason)
-			pod, logs, job, cronjob, err := e.FetchObjectsFromJobEvent(&typedEvent)
-			if err != nil {
-				slog.Warn("could not fetch objects related to event", "error", err)
-				return
-			}
 			_ = e.collection.cronitorApi.MakeAndSendTelemetryJobEventAndLogs(&typedEvent, logs, pod, job, cronjob)
 		}
 
@@ -319,10 +295,11 @@ func (e EventHandler) OnAdd(obj interface{}) {
 		if _, err := api.TranslatePodEventReasonToTelemetryEventStatus(&typedEvent); err != nil {
 			return
 		}
+
 		podNamespace := typedEvent.InvolvedObject.Namespace
 		podName := typedEvent.InvolvedObject.Name
 
-		job, err := e.fetchJobByPod(podNamespace, podName)
+		pod, logs, job, cronjob, watched, err := e.FetchAndCheckPodEvent(podNamespace, podName)
 		if err != nil {
 			switch t := err.(type) {
 			case PodNotFoundError:
@@ -343,28 +320,25 @@ func (e EventHandler) OnAdd(obj interface{}) {
 					"error", err)
 			}
 			return
-		} else if job == nil {
-			slog.Debug("pod does not belong to a job; discarded",
-				"namespace", podNamespace,
-				"pod", podName)
+		}
+
+		if !watched {
+			if job == nil {
+				slog.Debug("pod does not belong to a job; discarded",
+					"namespace", podNamespace,
+					"pod", podName)
+			}
 			return
 		}
 
-		if e.CheckJobIsWatched(job.Namespace, job.Name) {
-			slog.Info("pod event added",
-				"name", typedEvent.InvolvedObject.Name,
-				"kind", typedEvent.InvolvedObject.Kind,
-				"eventMessage", typedEvent.Message,
-				"eventReason", typedEvent.Reason,
-				"eventTime", typedEvent.EventTime,
-				"lastTimestamp", typedEvent.LastTimestamp)
-			pod, logs, job, cronjob, err := e.FetchObjectsFromPodEvent(&typedEvent)
-			if err != nil {
-				slog.Warn("could not fetch objects related to event", "error", err)
-				return
-			}
-			_ = e.collection.cronitorApi.MakeAndSendTelemetryPodEventAndLogs(&typedEvent, logs, pod, job, cronjob)
-		}
+		slog.Info("pod event added",
+			"name", typedEvent.InvolvedObject.Name,
+			"kind", typedEvent.InvolvedObject.Kind,
+			"eventMessage", typedEvent.Message,
+			"eventReason", typedEvent.Reason,
+			"eventTime", typedEvent.EventTime,
+			"lastTimestamp", typedEvent.LastTimestamp)
+		_ = e.collection.cronitorApi.MakeAndSendTelemetryPodEventAndLogs(&typedEvent, logs, pod, job, cronjob)
 
 	default:
 		return
@@ -372,19 +346,29 @@ func (e EventHandler) OnAdd(obj interface{}) {
 }
 
 type WatchWrapper struct {
-	watcher      apiWatch.Interface
-	eventHandler *EventHandler
-	stopped      bool
+	watcher        apiWatch.Interface
+	eventHandler   *EventHandler
+	stopped        bool
+	workerPoolSize int
 }
 
 func (w *WatchWrapper) Start() {
 	defer runtime.HandleCrash()
 	slog.Info("the jobs watcher is starting...")
 
+	sem := make(chan struct{}, w.workerPoolSize)
+	var wg sync.WaitGroup
+
 	ch := w.watcher.ResultChan()
 	for event := range ch {
-		w.eventHandler.OnAdd(event.Object)
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(obj interface{}) {
+			defer func() { <-sem; wg.Done() }()
+			w.eventHandler.OnAdd(obj)
+		}(event.Object)
 	}
+	wg.Wait()
 	if !w.stopped {
 		slog.Error("the job watcher stopped unexpectedly")
 	}
@@ -424,7 +408,8 @@ func NewJobsEventWatcher(collection *CronJobCollection) *WatchWrapper {
 	}
 
 	return &WatchWrapper{
-		watcher:      watcher,
-		eventHandler: eventHandler,
+		watcher:        watcher,
+		eventHandler:   eventHandler,
+		workerPoolSize: 4,
 	}
 }
