@@ -339,6 +339,15 @@ func (e EventHandler) OnAdd(obj interface{}) {
 			return
 		}
 
+		// By default, skip Pod "Started" → run events because the Job-level SuccessfulCreate
+		// already sends a run event. Users can opt in via the send-pod-start-event annotation.
+		if typedEvent.Reason == "Started" && !pkg.NewCronitorConfigParser(cronjob).SendPodStartEvent() {
+			slog.Debug("pod Started event skipped (opt in via send-pod-start-event annotation)",
+				"namespace", podNamespace,
+				"pod", podName)
+			return
+		}
+
 		slog.Info("pod event added",
 			"name", typedEvent.InvolvedObject.Name,
 			"kind", typedEvent.InvolvedObject.Kind,

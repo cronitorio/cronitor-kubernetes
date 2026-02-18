@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
 	"github.com/spf13/viper"
 	v1 "k8s.io/api/batch/v1"
@@ -68,6 +69,20 @@ func testPod(name string, jobName string) *corev1.Pod {
 		},
 		Spec: corev1.PodSpec{
 			NodeName: "test-node",
+		},
+	}
+}
+
+func testCronJobWithAnnotations(uid string, annotations map[string]string) *v1.CronJob {
+	return &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "test-cronjob-" + uid,
+			Namespace:   "default",
+			UID:         types.UID(uid),
+			Annotations: annotations,
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
 		},
 	}
 }
@@ -333,6 +348,79 @@ func TestFetchAndCheckPodEvent_SkipsLogsOnNonTerminalEvent(t *testing.T) {
 	}
 	if logs != "" {
 		t.Errorf("expected empty logs for non-terminal event, got %q", logs)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Pod Started event filtering (send-pod-start-event annotation)
+// ---------------------------------------------------------------------------
+
+func TestOnAdd_PodStartedEvent_SkippedByDefault(t *testing.T) {
+	cronjobUID := "cj-nostart"
+	cj := testCronJob(cronjobUID)
+	job := testJob("nostart-job", cronjobUID)
+	pod := testPod("nostart-job-pod", "nostart-job")
+
+	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
+	handler := newTestEventHandler([]runtime.Object{job, pod}, watched)
+
+	// Verify that FetchAndCheckPodEvent returns watched=true (the CronJob is tracked)
+	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "nostart-job-pod", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isWatched {
+		t.Fatal("expected watched=true — CronJob is in the watched set")
+	}
+
+	// Now verify that SendPodStartEvent is false (no annotation)
+	if cj.Annotations != nil {
+		t.Fatal("expected no annotations on test CronJob")
+	}
+}
+
+func TestOnAdd_PodStartedEvent_EnabledByAnnotation(t *testing.T) {
+	cronjobUID := "cj-start-enabled"
+	cj := testCronJobWithAnnotations(cronjobUID, map[string]string{
+		"k8s.cronitor.io/send-pod-start-event": "true",
+	})
+	job := testJob("start-job", cronjobUID)
+	pod := testPod("start-job-pod", "start-job")
+
+	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
+	handler := newTestEventHandler([]runtime.Object{job, pod}, watched)
+
+	_, _, _, gotCJ, isWatched, err := handler.FetchAndCheckPodEvent("default", "start-job-pod", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isWatched {
+		t.Fatal("expected watched=true")
+	}
+
+	// With the annotation set to "true", SendPodStartEvent should return true
+	parser := pkg.NewCronitorConfigParser(gotCJ)
+	if !parser.SendPodStartEvent() {
+		t.Error("expected SendPodStartEvent()=true with annotation set")
+	}
+}
+
+func TestOnAdd_PodBackOffEvent_NotAffectedByAnnotation(t *testing.T) {
+	// BackOff events should always be sent regardless of the annotation
+	cronjobUID := "cj-backoff"
+	cj := testCronJob(cronjobUID) // no annotation
+	job := testJob("backoff-job", cronjobUID)
+	pod := testPod("backoff-job-pod", "backoff-job")
+
+	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
+	handler := newTestEventHandler([]runtime.Object{job, pod}, watched)
+
+	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "backoff-job-pod", true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isWatched {
+		t.Fatal("expected watched=true — BackOff events should not be filtered")
 	}
 }
 
