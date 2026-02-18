@@ -122,7 +122,7 @@ func (e EventHandler) fetchPodLogs(pod *corev1.Pod) (string, error) {
 // the owner chain to a watched CronJob, and retrieves the associated Pod and logs.
 // It replaces the old CheckJobIsWatched + FetchObjectsFromJobEvent combination,
 // eliminating redundant API calls.
-func (e EventHandler) FetchAndCheckJobEvent(namespace, jobName string) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1.CronJob, watched bool, err error) {
+func (e EventHandler) FetchAndCheckJobEvent(namespace, jobName string, includeLogs bool) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1.CronJob, watched bool, err error) {
 	// 1. Single GET for the Job
 	job, err = e.fetchJob(namespace, jobName)
 	if err != nil {
@@ -157,8 +157,8 @@ func (e EventHandler) FetchAndCheckJobEvent(namespace, jobName string) (pod *cor
 		return
 	}
 
-	// 6. Conditionally fetch logs
-	if viper.GetBool("ship-logs") {
+	// 6. Conditionally fetch logs (only on terminal events to avoid duplicates)
+	if includeLogs && viper.GetBool("ship-logs") {
 		logs, _ = e.fetchPodLogs(pod)
 	}
 	return
@@ -168,7 +168,7 @@ func (e EventHandler) FetchAndCheckJobEvent(namespace, jobName string) (pod *cor
 // owner chain through Job to CronJob, checks whether the CronJob is watched,
 // and retrieves logs. It replaces the old fetchJobByPod + CheckJobIsWatched +
 // FetchObjectsFromPodEvent combination, eliminating redundant API calls.
-func (e EventHandler) FetchAndCheckPodEvent(namespace, podName string) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1.CronJob, watched bool, err error) {
+func (e EventHandler) FetchAndCheckPodEvent(namespace, podName string, includeLogs bool) (pod *corev1.Pod, logs string, job *v1.Job, cronjob *v1.CronJob, watched bool, err error) {
 	// 1. Single GET for the Pod
 	pod, err = e.fetchPod(namespace, podName)
 	if err != nil {
@@ -217,8 +217,10 @@ func (e EventHandler) FetchAndCheckPodEvent(namespace, podName string) (pod *cor
 		return
 	}
 
-	// 7. Conditionally fetch logs
-	logs, _ = e.fetchPodLogs(pod)
+	// 7. Conditionally fetch logs (only on terminal events to avoid duplicates)
+	if includeLogs {
+		logs, _ = e.fetchPodLogs(pod)
+	}
 	return
 }
 
@@ -251,7 +253,10 @@ func (e EventHandler) OnAdd(obj interface{}) {
 			return
 		}
 
-		pod, logs, job, cronjob, watched, err := e.FetchAndCheckJobEvent(typedEvent.InvolvedObject.Namespace, typedEvent.InvolvedObject.Name)
+		// Only fetch logs on terminal events (Completed, BackoffLimitExceeded) to avoid
+		// shipping duplicate/incomplete logs on SuccessfulCreate (run) events
+		isTerminalEvent := typedEvent.Reason == "Completed" || typedEvent.Reason == "BackoffLimitExceeded"
+		pod, logs, job, cronjob, watched, err := e.FetchAndCheckJobEvent(typedEvent.InvolvedObject.Namespace, typedEvent.InvolvedObject.Name, isTerminalEvent)
 		if err != nil {
 			slog.Warn("could not fetch objects related to event", "error", err)
 			return
@@ -299,7 +304,10 @@ func (e EventHandler) OnAdd(obj interface{}) {
 		podNamespace := typedEvent.InvolvedObject.Namespace
 		podName := typedEvent.InvolvedObject.Name
 
-		pod, logs, job, cronjob, watched, err := e.FetchAndCheckPodEvent(podNamespace, podName)
+		// Only fetch logs on terminal events (BackOff/fail) to avoid
+		// shipping duplicate/incomplete logs on Started (run) events
+		isTerminalEvent := typedEvent.Reason == "BackOff"
+		pod, logs, job, cronjob, watched, err := e.FetchAndCheckPodEvent(podNamespace, podName, isTerminalEvent)
 		if err != nil {
 			switch t := err.(type) {
 			case PodNotFoundError:

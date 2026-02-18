@@ -105,7 +105,7 @@ func TestFetchAndCheckJobEvent_WatchedJob(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
 	handler := newTestEventHandler([]runtime.Object{job, pod}, watched)
 
-	gotPod, _, gotJob, gotCJ, isWatched, err := handler.FetchAndCheckJobEvent("default", "myjob-123")
+	gotPod, _, gotJob, gotCJ, isWatched, err := handler.FetchAndCheckJobEvent("default", "myjob-123", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestFetchAndCheckJobEvent_UnwatchedJob(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{job}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "myjob-123")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "myjob-123", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestFetchAndCheckJobEvent_JobNotFound(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "nonexistent")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "nonexistent", true)
 	if err == nil {
 		t.Fatal("expected error for missing job")
 	}
@@ -165,7 +165,7 @@ func TestFetchAndCheckJobEvent_NoOwnerRef(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{job}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "orphan-job")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "orphan-job", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestFetchAndCheckJobEvent_NonCronJobOwner(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{job}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "deploy-job")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "deploy-job", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestFetchAndCheckPodEvent_WatchedPod(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
 	handler := newTestEventHandler([]runtime.Object{pod, job}, watched)
 
-	gotPod, _, gotJob, gotCJ, isWatched, err := handler.FetchAndCheckPodEvent("default", "myjob-456-def")
+	gotPod, _, gotJob, gotCJ, isWatched, err := handler.FetchAndCheckPodEvent("default", "myjob-456-def", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestFetchAndCheckPodEvent_PodNotFound(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{}, watched)
 
-	_, _, _, _, _, err := handler.FetchAndCheckPodEvent("default", "nonexistent")
+	_, _, _, _, _, err := handler.FetchAndCheckPodEvent("default", "nonexistent", false)
 	if err == nil {
 		t.Fatal("expected error for missing pod")
 	}
@@ -258,7 +258,7 @@ func TestFetchAndCheckPodEvent_PodNotOwnedByJob(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{pod}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "standalone-pod")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "standalone-pod", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -276,12 +276,63 @@ func TestFetchAndCheckPodEvent_UnwatchedCronJob(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{pod, job}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "myjob-789-ghi")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "myjob-789-ghi", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if isWatched {
 		t.Fatal("expected watched=false for unwatched CronJob")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Log shipping on terminal events only
+// ---------------------------------------------------------------------------
+
+func TestFetchAndCheckJobEvent_SkipsLogsOnNonTerminalEvent(t *testing.T) {
+	cronjobUID := "cj-nologs"
+	cj := testCronJob(cronjobUID)
+	job := testJob("nologs-job", cronjobUID)
+	pod := testPod("nologs-job-pod", "nologs-job")
+
+	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
+	handler := newTestEventHandler([]runtime.Object{job, pod}, watched)
+
+	viper.Set("ship-logs", true)
+	defer viper.Set("ship-logs", "")
+
+	// includeLogs=false (simulating SuccessfulCreate/run event)
+	_, logs, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "nologs-job", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isWatched {
+		t.Fatal("expected watched=true")
+	}
+	if logs != "" {
+		t.Errorf("expected empty logs for non-terminal event, got %q", logs)
+	}
+}
+
+func TestFetchAndCheckPodEvent_SkipsLogsOnNonTerminalEvent(t *testing.T) {
+	cronjobUID := "cj-nologs-pod"
+	cj := testCronJob(cronjobUID)
+	job := testJob("nologs-pod-job", cronjobUID)
+	pod := testPod("nologs-pod-job-pod", "nologs-pod-job")
+
+	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
+	handler := newTestEventHandler([]runtime.Object{pod, job}, watched)
+
+	// includeLogs=false (simulating Started/run event)
+	_, logs, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "nologs-pod-job-pod", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isWatched {
+		t.Fatal("expected watched=true")
+	}
+	if logs != "" {
+		t.Errorf("expected empty logs for non-terminal event, got %q", logs)
 	}
 }
 
@@ -315,7 +366,7 @@ func TestFetchAndCheckJobEvent_MinimalAPICalls(t *testing.T) {
 	viper.Set("ship-logs", false)
 	defer viper.Set("ship-logs", "")
 
-	_, _, _, _, watched, err := handler.FetchAndCheckJobEvent("default", "countjob")
+	_, _, _, _, watched, err := handler.FetchAndCheckJobEvent("default", "countjob", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -352,7 +403,7 @@ func TestFetchAndCheckPodEvent_MinimalAPICalls(t *testing.T) {
 	}
 	handler := &EventHandler{collection: collection}
 
-	_, _, _, _, watched, err := handler.FetchAndCheckPodEvent("default", "pcountjob-pod")
+	_, _, _, _, watched, err := handler.FetchAndCheckPodEvent("default", "pcountjob-pod", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
