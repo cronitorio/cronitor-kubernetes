@@ -329,34 +329,34 @@ func TestTimezoneInJSON(t *testing.T) {
 
 func TestMetricDurationAnnotation(t *testing.T) {
 	tests := []struct {
-		name          string
-		annotationVal string
-		expectedRules []string
+		name               string
+		annotationVal      string
+		expectedAssertions []string
 	}{
 		{
-			name:          "less than with seconds",
-			annotationVal: "< 5 seconds",
-			expectedRules: []string{"metric.duration < 5 seconds"},
+			name:               "less than with seconds",
+			annotationVal:      "< 5 seconds",
+			expectedAssertions: []string{"metric.duration < 5 seconds"},
 		},
 		{
-			name:          "greater than with seconds",
-			annotationVal: "> 1 second",
-			expectedRules: []string{"metric.duration > 1 second"},
+			name:               "greater than with seconds",
+			annotationVal:      "> 1 second",
+			expectedAssertions: []string{"metric.duration > 1 second"},
 		},
 		{
-			name:          "less than with minutes",
-			annotationVal: "< 10 minutes",
-			expectedRules: []string{"metric.duration < 10 minutes"},
+			name:               "less than with minutes",
+			annotationVal:      "< 10 minutes",
+			expectedAssertions: []string{"metric.duration < 10 minutes"},
 		},
 		{
-			name:          "comma-separated multiple rules",
-			annotationVal: "< 30 seconds, > 5 seconds",
-			expectedRules: []string{"metric.duration < 30 seconds", "metric.duration > 5 seconds"},
+			name:               "comma-separated multiple assertions",
+			annotationVal:      "< 30 seconds, > 5 seconds",
+			expectedAssertions: []string{"metric.duration < 30 seconds", "metric.duration > 5 seconds"},
 		},
 		{
-			name:          "without time unit",
-			annotationVal: "< 5",
-			expectedRules: []string{"metric.duration < 5"},
+			name:               "without time unit",
+			annotationVal:      "< 5",
+			expectedAssertions: []string{"metric.duration < 5"},
 		},
 	}
 
@@ -371,12 +371,12 @@ func TestMetricDurationAnnotation(t *testing.T) {
 			}
 			cronitorJob := convertCronJobToCronitorJob(&cronJob)
 
-			if len(cronitorJob.Rules) != len(tc.expectedRules) {
-				t.Fatalf("expected %d rules, got %d", len(tc.expectedRules), len(cronitorJob.Rules))
+			if len(cronitorJob.Assertions) != len(tc.expectedAssertions) {
+				t.Fatalf("expected %d assertions, got %d", len(tc.expectedAssertions), len(cronitorJob.Assertions))
 			}
-			for i, rule := range cronitorJob.Rules {
-				if rule != tc.expectedRules[i] {
-					t.Errorf("rule[%d] = %q, want %q", i, rule, tc.expectedRules[i])
+			for i, assertion := range cronitorJob.Assertions {
+				if assertion != tc.expectedAssertions[i] {
+					t.Errorf("assertion[%d] = %q, want %q", i, assertion, tc.expectedAssertions[i])
 				}
 			}
 		})
@@ -390,8 +390,8 @@ func TestMetricDurationNoAnnotation(t *testing.T) {
 	}
 	cronitorJob := convertCronJobToCronitorJob(&cronJob)
 
-	if len(cronitorJob.Rules) != 0 {
-		t.Errorf("expected no rules when annotation is absent, got %d", len(cronitorJob.Rules))
+	if len(cronitorJob.Assertions) != 0 {
+		t.Errorf("expected no assertions when annotation is absent, got %d", len(cronitorJob.Assertions))
 	}
 }
 
@@ -414,22 +414,22 @@ func TestMetricDurationInJSON(t *testing.T) {
 		t.Fatalf("failed to unmarshal JSON: %v", err)
 	}
 
-	rules, ok := result["rules"]
+	assertions, ok := result["assertions"]
 	if !ok {
-		t.Fatal("expected 'rules' field in JSON output")
+		t.Fatal("expected 'assertions' field in JSON output")
 	}
 
-	rulesArr, ok := rules.([]interface{})
-	if !ok || len(rulesArr) != 1 {
-		t.Fatalf("expected 1 rule in JSON, got %v", rules)
+	assertionsArr, ok := assertions.([]interface{})
+	if !ok || len(assertionsArr) != 1 {
+		t.Fatalf("expected 1 assertion in JSON, got %v", assertions)
 	}
 
-	if rulesArr[0] != "metric.duration < 5 seconds" {
-		t.Errorf("expected rule 'metric.duration < 5 seconds', got %v", rulesArr[0])
+	if assertionsArr[0] != "metric.duration < 5 seconds" {
+		t.Errorf("expected assertion 'metric.duration < 5 seconds', got %v", assertionsArr[0])
 	}
 }
 
-func TestMetricDurationRulesOmittedWhenEmpty(t *testing.T) {
+func TestMetricDurationAssertionsOmittedWhenEmpty(t *testing.T) {
 	cronJob, err := pkg.CronJobFromAnnotations([]pkg.Annotation{})
 	if err != nil {
 		t.Fatalf("unexpected error unmarshalling json: %v", err)
@@ -445,8 +445,8 @@ func TestMetricDurationRulesOmittedWhenEmpty(t *testing.T) {
 		t.Fatalf("failed to unmarshal JSON: %v", err)
 	}
 
-	if _, ok := result["rules"]; ok {
-		t.Error("expected 'rules' field to be omitted from JSON when empty")
+	if _, ok := result["assertions"]; ok {
+		t.Error("expected 'assertions' field to be omitted from JSON when empty")
 	}
 }
 
