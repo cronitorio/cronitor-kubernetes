@@ -18,7 +18,7 @@ import (
 )
 
 type CronJobCollection struct {
-	clientset           *kubernetes.Clientset
+	clientset           kubernetes.Interface
 	serverVersion       *version.Info
 	cronitorApi         *api.CronitorApi
 	cronjobs            map[types.UID]*v1.CronJob
