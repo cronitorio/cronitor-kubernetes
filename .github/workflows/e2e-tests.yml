@@ -43,7 +43,7 @@ jobs:
       - name: Deploy mock server
         run: |
           kubectl apply -f ./e2e-test/mock-server/k8s-manifests.yaml
-          kubectl wait --for=condition=ready pod -l app=mock-cronitor-api -n cronitor-mock --timeout=60s
+          kubectl rollout status deployment/mock-cronitor-api -n cronitor-mock --timeout=60s
 
       - name: Install Helm
         uses: azure/setup-helm@v4
@@ -150,7 +150,7 @@ jobs:
       - name: Deploy mock server
         run: |
           kubectl apply -f ./e2e-test/mock-server/k8s-manifests.yaml
-          kubectl wait --for=condition=ready pod -l app=mock-cronitor-api -n cronitor-mock --timeout=60s
+          kubectl rollout status deployment/mock-cronitor-api -n cronitor-mock --timeout=60s
 
       - name: Install Helm
         uses: azure/setup-helm@v4
