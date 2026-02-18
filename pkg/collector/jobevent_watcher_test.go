@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/api"
 	"github.com/spf13/viper"
 	v1 "k8s.io/api/batch/v1"
@@ -72,6 +73,20 @@ func testPod(name string, jobName string) *corev1.Pod {
 	}
 }
 
+func testCronJobWithAnnotations(uid string, annotations map[string]string) *v1.CronJob {
+	return &v1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "test-cronjob-" + uid,
+			Namespace:   "default",
+			UID:         types.UID(uid),
+			Annotations: annotations,
+		},
+		Spec: v1.CronJobSpec{
+			Schedule: "*/5 * * * *",
+		},
+	}
+}
+
 func newTestEventHandler(objects []runtime.Object, watched map[types.UID]*v1.CronJob) *EventHandler {
 	clientset := fake.NewSimpleClientset(objects...)
 
@@ -105,7 +120,7 @@ func TestFetchAndCheckJobEvent_WatchedJob(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
 	handler := newTestEventHandler([]runtime.Object{job, pod}, watched)
 
-	gotPod, _, gotJob, gotCJ, isWatched, err := handler.FetchAndCheckJobEvent("default", "myjob-123")
+	gotPod, _, gotJob, gotCJ, isWatched, err := handler.FetchAndCheckJobEvent("default", "myjob-123", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -131,7 +146,7 @@ func TestFetchAndCheckJobEvent_UnwatchedJob(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{job}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "myjob-123")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "myjob-123", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -144,7 +159,7 @@ func TestFetchAndCheckJobEvent_JobNotFound(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "nonexistent")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "nonexistent", true)
 	if err == nil {
 		t.Fatal("expected error for missing job")
 	}
@@ -165,7 +180,7 @@ func TestFetchAndCheckJobEvent_NoOwnerRef(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{job}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "orphan-job")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "orphan-job", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -193,7 +208,7 @@ func TestFetchAndCheckJobEvent_NonCronJobOwner(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{job}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "deploy-job")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "deploy-job", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -215,7 +230,7 @@ func TestFetchAndCheckPodEvent_WatchedPod(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
 	handler := newTestEventHandler([]runtime.Object{pod, job}, watched)
 
-	gotPod, _, gotJob, gotCJ, isWatched, err := handler.FetchAndCheckPodEvent("default", "myjob-456-def")
+	gotPod, _, gotJob, gotCJ, isWatched, err := handler.FetchAndCheckPodEvent("default", "myjob-456-def", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -237,7 +252,7 @@ func TestFetchAndCheckPodEvent_PodNotFound(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{}, watched)
 
-	_, _, _, _, _, err := handler.FetchAndCheckPodEvent("default", "nonexistent")
+	_, _, _, _, _, err := handler.FetchAndCheckPodEvent("default", "nonexistent", false)
 	if err == nil {
 		t.Fatal("expected error for missing pod")
 	}
@@ -258,7 +273,7 @@ func TestFetchAndCheckPodEvent_PodNotOwnedByJob(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{pod}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "standalone-pod")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "standalone-pod", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -276,12 +291,136 @@ func TestFetchAndCheckPodEvent_UnwatchedCronJob(t *testing.T) {
 	watched := map[types.UID]*v1.CronJob{}
 	handler := newTestEventHandler([]runtime.Object{pod, job}, watched)
 
-	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "myjob-789-ghi")
+	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "myjob-789-ghi", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if isWatched {
 		t.Fatal("expected watched=false for unwatched CronJob")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Log shipping on terminal events only
+// ---------------------------------------------------------------------------
+
+func TestFetchAndCheckJobEvent_SkipsLogsOnNonTerminalEvent(t *testing.T) {
+	cronjobUID := "cj-nologs"
+	cj := testCronJob(cronjobUID)
+	job := testJob("nologs-job", cronjobUID)
+	pod := testPod("nologs-job-pod", "nologs-job")
+
+	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
+	handler := newTestEventHandler([]runtime.Object{job, pod}, watched)
+
+	viper.Set("ship-logs", true)
+	defer viper.Set("ship-logs", "")
+
+	// includeLogs=false (simulating SuccessfulCreate/run event)
+	_, logs, _, _, isWatched, err := handler.FetchAndCheckJobEvent("default", "nologs-job", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isWatched {
+		t.Fatal("expected watched=true")
+	}
+	if logs != "" {
+		t.Errorf("expected empty logs for non-terminal event, got %q", logs)
+	}
+}
+
+func TestFetchAndCheckPodEvent_SkipsLogsOnNonTerminalEvent(t *testing.T) {
+	cronjobUID := "cj-nologs-pod"
+	cj := testCronJob(cronjobUID)
+	job := testJob("nologs-pod-job", cronjobUID)
+	pod := testPod("nologs-pod-job-pod", "nologs-pod-job")
+
+	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
+	handler := newTestEventHandler([]runtime.Object{pod, job}, watched)
+
+	// includeLogs=false (simulating Started/run event)
+	_, logs, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "nologs-pod-job-pod", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isWatched {
+		t.Fatal("expected watched=true")
+	}
+	if logs != "" {
+		t.Errorf("expected empty logs for non-terminal event, got %q", logs)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Pod Started event filtering (send-pod-start-event annotation)
+// ---------------------------------------------------------------------------
+
+func TestOnAdd_PodStartedEvent_SkippedByDefault(t *testing.T) {
+	cronjobUID := "cj-nostart"
+	cj := testCronJob(cronjobUID)
+	job := testJob("nostart-job", cronjobUID)
+	pod := testPod("nostart-job-pod", "nostart-job")
+
+	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
+	handler := newTestEventHandler([]runtime.Object{job, pod}, watched)
+
+	// Verify that FetchAndCheckPodEvent returns watched=true (the CronJob is tracked)
+	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "nostart-job-pod", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isWatched {
+		t.Fatal("expected watched=true — CronJob is in the watched set")
+	}
+
+	// Now verify that SendPodStartEvent is false (no annotation)
+	if cj.Annotations != nil {
+		t.Fatal("expected no annotations on test CronJob")
+	}
+}
+
+func TestOnAdd_PodStartedEvent_EnabledByAnnotation(t *testing.T) {
+	cronjobUID := "cj-start-enabled"
+	cj := testCronJobWithAnnotations(cronjobUID, map[string]string{
+		"k8s.cronitor.io/send-pod-start-event": "true",
+	})
+	job := testJob("start-job", cronjobUID)
+	pod := testPod("start-job-pod", "start-job")
+
+	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
+	handler := newTestEventHandler([]runtime.Object{job, pod}, watched)
+
+	_, _, _, gotCJ, isWatched, err := handler.FetchAndCheckPodEvent("default", "start-job-pod", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isWatched {
+		t.Fatal("expected watched=true")
+	}
+
+	// With the annotation set to "true", SendPodStartEvent should return true
+	parser := pkg.NewCronitorConfigParser(gotCJ)
+	if !parser.SendPodStartEvent() {
+		t.Error("expected SendPodStartEvent()=true with annotation set")
+	}
+}
+
+func TestOnAdd_PodBackOffEvent_NotAffectedByAnnotation(t *testing.T) {
+	// BackOff events should always be sent regardless of the annotation
+	cronjobUID := "cj-backoff"
+	cj := testCronJob(cronjobUID) // no annotation
+	job := testJob("backoff-job", cronjobUID)
+	pod := testPod("backoff-job-pod", "backoff-job")
+
+	watched := map[types.UID]*v1.CronJob{cj.UID: cj}
+	handler := newTestEventHandler([]runtime.Object{job, pod}, watched)
+
+	_, _, _, _, isWatched, err := handler.FetchAndCheckPodEvent("default", "backoff-job-pod", true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isWatched {
+		t.Fatal("expected watched=true — BackOff events should not be filtered")
 	}
 }
 
@@ -315,7 +454,7 @@ func TestFetchAndCheckJobEvent_MinimalAPICalls(t *testing.T) {
 	viper.Set("ship-logs", false)
 	defer viper.Set("ship-logs", "")
 
-	_, _, _, _, watched, err := handler.FetchAndCheckJobEvent("default", "countjob")
+	_, _, _, _, watched, err := handler.FetchAndCheckJobEvent("default", "countjob", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -352,7 +491,7 @@ func TestFetchAndCheckPodEvent_MinimalAPICalls(t *testing.T) {
 	}
 	handler := &EventHandler{collection: collection}
 
-	_, _, _, _, watched, err := handler.FetchAndCheckPodEvent("default", "pcountjob-pod")
+	_, _, _, _, watched, err := handler.FetchAndCheckPodEvent("default", "pcountjob-pod", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

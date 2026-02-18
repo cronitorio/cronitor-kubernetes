@@ -102,6 +102,7 @@ Control alert behavior for this monitor.
 |------------|-------------|--------|---------|
 | `k8s.cronitor.io/note` | A note displayed on the monitor in the Cronitor dashboard. Useful for documentation or runbook links. | Any string | None |
 | `k8s.cronitor.io/log-complete-event` | Send job completion as a log event instead of a state change. Use for async workflows where the actual task completion occurs outside the Kubernetes job. | `"true"`, `"false"` | `"false"` |
+| `k8s.cronitor.io/send-pod-start-event` | Send an additional `run` event when the Pod container starts. By default, only the Job-level `SuccessfulCreate` event triggers a `run`. Enable this if you need a more precise "code is executing" timestamp — for example, when image pull or scheduling delays make the Job creation time inaccurate for duration tracking. | `"true"`, `"false"` | `"false"` |
 
 #### Legacy annotation names
 

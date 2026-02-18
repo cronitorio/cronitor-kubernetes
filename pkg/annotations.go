@@ -108,6 +108,13 @@ const (
 	// The only valid values are "true" and "false". Default is "false".
 	AnnotationLogCompleteEvent CronitorAnnotation = "k8s.cronitor.io/log-complete-event"
 
+	// AnnotationSendPodStartEvent controls whether Pod "Started" events are sent as run telemetry.
+	// By default, the agent does NOT send a run event for Pod Started events because the Job-level
+	// SuccessfulCreate event already triggers a run. Set to "true" to opt in to the additional
+	// Pod Started → run telemetry.
+	// The only valid values are "true" and "false". Default is "false".
+	AnnotationSendPodStartEvent CronitorAnnotation = "k8s.cronitor.io/send-pod-start-event"
+
 	// AnnotationMetricDuration lets you set duration assertions on the monitor.
 	// The value should be a comparison string starting with "<" or ">", followed by a number and an optional time unit.
 	// Multiple assertions can be comma-separated.
@@ -354,6 +361,19 @@ func (cronitorParser CronitorConfigParser) LogCompleteEvent() (bool, error) {
 	}
 
 	return false, nil
+}
+
+// SendPodStartEvent returns whether Pod "Started" events should generate run telemetry.
+// Default is false — the Job-level SuccessfulCreate already sends a run event.
+func (cronitorParser CronitorConfigParser) SendPodStartEvent() bool {
+	if raw, ok := cronitorParser.cronjob.Annotations[string(AnnotationSendPodStartEvent)]; ok {
+		val, err := strconv.ParseBool(raw)
+		if err != nil {
+			return false
+		}
+		return val
+	}
+	return false
 }
 
 // GetMetricDuration returns the raw metric.duration annotation value.

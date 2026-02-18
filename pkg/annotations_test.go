@@ -547,6 +547,56 @@ func TestGetMetricDuration(t *testing.T) {
 	}
 }
 
+func TestSendPodStartEvent(t *testing.T) {
+	tests := []struct {
+		name          string
+		annotation    string
+		expectedValue bool
+	}{
+		{
+			name:          "true annotation",
+			annotation:    "true",
+			expectedValue: true,
+		},
+		{
+			name:          "false annotation",
+			annotation:    "false",
+			expectedValue: false,
+		},
+		{
+			name:          "invalid annotation defaults to false",
+			annotation:    "invalid",
+			expectedValue: false,
+		},
+		{
+			name:          "no annotation defaults to false",
+			annotation:    "",
+			expectedValue: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var annotations []Annotation
+			if tc.annotation != "" {
+				annotations = []Annotation{
+					{Key: "k8s.cronitor.io/send-pod-start-event", Value: tc.annotation},
+				}
+			}
+
+			cronJob, err := CronJobFromAnnotations(annotations)
+			if err != nil {
+				t.Fatalf("failed to create CronJob from annotations: %v", err)
+			}
+
+			parser := NewCronitorConfigParser(&cronJob)
+			if got := parser.SendPodStartEvent(); got != tc.expectedValue {
+				t.Errorf("SendPodStartEvent() = %v, want %v", got, tc.expectedValue)
+			}
+		})
+	}
+}
+
 func TestGetNote(t *testing.T) {
 	tests := []struct {
 		name         string
