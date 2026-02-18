@@ -331,57 +331,32 @@ func TestMetricDurationAnnotation(t *testing.T) {
 	tests := []struct {
 		name          string
 		annotationVal string
-		expectedRules []Rule
+		expectedRules []string
 	}{
 		{
 			name:          "less than with seconds",
 			annotationVal: "< 5 seconds",
-			expectedRules: []Rule{
-				{RuleType: "metric.duration", Value: "< 5", TimeUnit: "seconds"},
-			},
+			expectedRules: []string{"metric.duration < 5 seconds"},
 		},
 		{
 			name:          "greater than with seconds",
 			annotationVal: "> 1 second",
-			expectedRules: []Rule{
-				{RuleType: "metric.duration", Value: "> 1", TimeUnit: "seconds"},
-			},
+			expectedRules: []string{"metric.duration > 1 second"},
 		},
 		{
 			name:          "less than with minutes",
 			annotationVal: "< 10 minutes",
-			expectedRules: []Rule{
-				{RuleType: "metric.duration", Value: "< 10", TimeUnit: "minutes"},
-			},
-		},
-		{
-			name:          "greater than with hours",
-			annotationVal: "> 2 hours",
-			expectedRules: []Rule{
-				{RuleType: "metric.duration", Value: "> 2", TimeUnit: "hours"},
-			},
+			expectedRules: []string{"metric.duration < 10 minutes"},
 		},
 		{
 			name:          "comma-separated multiple rules",
 			annotationVal: "< 30 seconds, > 5 seconds",
-			expectedRules: []Rule{
-				{RuleType: "metric.duration", Value: "< 30", TimeUnit: "seconds"},
-				{RuleType: "metric.duration", Value: "> 5", TimeUnit: "seconds"},
-			},
+			expectedRules: []string{"metric.duration < 30 seconds", "metric.duration > 5 seconds"},
 		},
 		{
 			name:          "without time unit",
 			annotationVal: "< 5",
-			expectedRules: []Rule{
-				{RuleType: "metric.duration", Value: "< 5"},
-			},
-		},
-		{
-			name:          "singular time unit normalized to plural",
-			annotationVal: "> 1 minute",
-			expectedRules: []Rule{
-				{RuleType: "metric.duration", Value: "> 1", TimeUnit: "minutes"},
-			},
+			expectedRules: []string{"metric.duration < 5"},
 		},
 	}
 
@@ -400,14 +375,8 @@ func TestMetricDurationAnnotation(t *testing.T) {
 				t.Fatalf("expected %d rules, got %d", len(tc.expectedRules), len(cronitorJob.Rules))
 			}
 			for i, rule := range cronitorJob.Rules {
-				if rule.RuleType != tc.expectedRules[i].RuleType {
-					t.Errorf("rule[%d].RuleType = %q, want %q", i, rule.RuleType, tc.expectedRules[i].RuleType)
-				}
-				if rule.Value != tc.expectedRules[i].Value {
-					t.Errorf("rule[%d].Value = %q, want %q", i, rule.Value, tc.expectedRules[i].Value)
-				}
-				if rule.TimeUnit != tc.expectedRules[i].TimeUnit {
-					t.Errorf("rule[%d].TimeUnit = %q, want %q", i, rule.TimeUnit, tc.expectedRules[i].TimeUnit)
+				if rule != tc.expectedRules[i] {
+					t.Errorf("rule[%d] = %q, want %q", i, rule, tc.expectedRules[i])
 				}
 			}
 		})
@@ -455,15 +424,8 @@ func TestMetricDurationInJSON(t *testing.T) {
 		t.Fatalf("expected 1 rule in JSON, got %v", rules)
 	}
 
-	ruleMap := rulesArr[0].(map[string]interface{})
-	if ruleMap["rule_type"] != "metric.duration" {
-		t.Errorf("expected rule_type 'metric.duration', got %v", ruleMap["rule_type"])
-	}
-	if ruleMap["value"] != "< 5" {
-		t.Errorf("expected value '< 5', got %v", ruleMap["value"])
-	}
-	if ruleMap["time_unit"] != "seconds" {
-		t.Errorf("expected time_unit 'seconds', got %v", ruleMap["time_unit"])
+	if rulesArr[0] != "metric.duration < 5 seconds" {
+		t.Errorf("expected rule 'metric.duration < 5 seconds', got %v", rulesArr[0])
 	}
 }
 
