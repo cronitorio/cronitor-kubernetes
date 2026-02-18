@@ -94,6 +94,7 @@ Control alert behavior for this monitor.
 |------------|-------------|--------|---------|
 | `k8s.cronitor.io/notify` | Notification lists to alert when the job fails or recovers. Use keys from your [Cronitor notification settings](https://cronitor.io/app/settings/alerts). | Comma-separated list of keys | Account default |
 | `k8s.cronitor.io/grace-seconds` | Seconds to wait after the scheduled time before alerting on a missing job. No alert is sent if the job completes within this period. | Integer | Account default |
+| `k8s.cronitor.io/metric.duration` | Set duration assertions on the monitor. Alert when job runtime exceeds or falls below a threshold. Multiple assertions can be comma-separated. | `"< 5 seconds"`, `"> 1 minute"`, `"< 30 seconds, > 5 seconds"` | None |
 
 #### Additional configuration
 

@@ -29,6 +29,7 @@ type CronitorJob struct {
 	Notify       []string `json:"notify,omitempty"`
 	Group        string   `json:"group,omitempty"`
 	GraceSeconds int      `json:"grace_seconds,omitempty"`
+	Assertions   []string `json:"assertions,omitempty"`
 }
 
 func (cronitorJob CronitorJob) GetEnvironment() string {
@@ -99,7 +100,23 @@ func convertCronJobToCronitorJob(cronJob *v1.CronJob) CronitorJob {
 		cronitorJob.GraceSeconds = graceSeconds
 	}
 
+	if metricDuration := configParser.GetMetricDuration(); metricDuration != "" {
+		cronitorJob.Assertions = parseMetricDurationAssertions(metricDuration)
+	}
+
 	return cronitorJob
+}
+
+func parseMetricDurationAssertions(value string) []string {
+	var assertions []string
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		assertions = append(assertions, "metric.duration "+part)
+	}
+	return assertions
 }
 
 func convertCronJobsToCronitorJobs(jobs []*v1.CronJob) []CronitorJob {

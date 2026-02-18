@@ -327,6 +327,129 @@ func TestTimezoneInJSON(t *testing.T) {
 	}
 }
 
+func TestMetricDurationAnnotation(t *testing.T) {
+	tests := []struct {
+		name               string
+		annotationVal      string
+		expectedAssertions []string
+	}{
+		{
+			name:               "less than with seconds",
+			annotationVal:      "< 5 seconds",
+			expectedAssertions: []string{"metric.duration < 5 seconds"},
+		},
+		{
+			name:               "greater than with seconds",
+			annotationVal:      "> 1 second",
+			expectedAssertions: []string{"metric.duration > 1 second"},
+		},
+		{
+			name:               "less than with minutes",
+			annotationVal:      "< 10 minutes",
+			expectedAssertions: []string{"metric.duration < 10 minutes"},
+		},
+		{
+			name:               "comma-separated multiple assertions",
+			annotationVal:      "< 30 seconds, > 5 seconds",
+			expectedAssertions: []string{"metric.duration < 30 seconds", "metric.duration > 5 seconds"},
+		},
+		{
+			name:               "without time unit",
+			annotationVal:      "< 5",
+			expectedAssertions: []string{"metric.duration < 5"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			annotations := []pkg.Annotation{
+				{Key: "k8s.cronitor.io/metric.duration", Value: tc.annotationVal},
+			}
+			cronJob, err := pkg.CronJobFromAnnotations(annotations)
+			if err != nil {
+				t.Fatalf("unexpected error unmarshalling json: %v", err)
+			}
+			cronitorJob := convertCronJobToCronitorJob(&cronJob)
+
+			if len(cronitorJob.Assertions) != len(tc.expectedAssertions) {
+				t.Fatalf("expected %d assertions, got %d", len(tc.expectedAssertions), len(cronitorJob.Assertions))
+			}
+			for i, assertion := range cronitorJob.Assertions {
+				if assertion != tc.expectedAssertions[i] {
+					t.Errorf("assertion[%d] = %q, want %q", i, assertion, tc.expectedAssertions[i])
+				}
+			}
+		})
+	}
+}
+
+func TestMetricDurationNoAnnotation(t *testing.T) {
+	cronJob, err := pkg.CronJobFromAnnotations([]pkg.Annotation{})
+	if err != nil {
+		t.Fatalf("unexpected error unmarshalling json: %v", err)
+	}
+	cronitorJob := convertCronJobToCronitorJob(&cronJob)
+
+	if len(cronitorJob.Assertions) != 0 {
+		t.Errorf("expected no assertions when annotation is absent, got %d", len(cronitorJob.Assertions))
+	}
+}
+
+func TestMetricDurationInJSON(t *testing.T) {
+	annotations := []pkg.Annotation{
+		{Key: "k8s.cronitor.io/metric.duration", Value: "< 5 seconds"},
+	}
+	cronJob, err := pkg.CronJobFromAnnotations(annotations)
+	if err != nil {
+		t.Fatalf("unexpected error unmarshalling json: %v", err)
+	}
+	cronitorJob := convertCronJobToCronitorJob(&cronJob)
+	jsonBytes, err := json.Marshal(cronitorJob)
+	if err != nil {
+		t.Fatalf("failed to marshal cronitorJob: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	assertions, ok := result["assertions"]
+	if !ok {
+		t.Fatal("expected 'assertions' field in JSON output")
+	}
+
+	assertionsArr, ok := assertions.([]interface{})
+	if !ok || len(assertionsArr) != 1 {
+		t.Fatalf("expected 1 assertion in JSON, got %v", assertions)
+	}
+
+	if assertionsArr[0] != "metric.duration < 5 seconds" {
+		t.Errorf("expected assertion 'metric.duration < 5 seconds', got %v", assertionsArr[0])
+	}
+}
+
+func TestMetricDurationAssertionsOmittedWhenEmpty(t *testing.T) {
+	cronJob, err := pkg.CronJobFromAnnotations([]pkg.Annotation{})
+	if err != nil {
+		t.Fatalf("unexpected error unmarshalling json: %v", err)
+	}
+	cronitorJob := convertCronJobToCronitorJob(&cronJob)
+	jsonBytes, err := json.Marshal(cronitorJob)
+	if err != nil {
+		t.Fatalf("failed to marshal cronitorJob: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	if _, ok := result["assertions"]; ok {
+		t.Error("expected 'assertions' field to be omitted from JSON when empty")
+	}
+}
+
 func TestTimezoneOmittedWhenEmpty(t *testing.T) {
 	// Test that the timezone field is omitted from JSON when empty (omitempty)
 	cronJob, err := pkg.CronJobFromAnnotations([]pkg.Annotation{})
