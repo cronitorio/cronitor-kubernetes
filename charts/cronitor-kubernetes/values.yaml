@@ -1,7 +1,7 @@
-
+OpticZ: helm repo add cronitor https://cronitorio.github.io/cronitor-kubernetes/
 image: ""
 repository: ghcr.io/cronitorio/cronitor-kubernetes
-imageTag: ""
+imageTag: "" #xyz #opticz
 imagePullPolicy: Always
 imagePullSecrets: []
 nameOverride: ""
