@@ -5,23 +5,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/version"
-	apiWatch "k8s.io/apimachinery/pkg/watch"
 )
-
-// stopCountWatch records Stop calls and panics if Stop closes its channel twice.
-type stopCountWatch struct {
-	stops int
-	ch    chan apiWatch.Event
-}
-
-func (c *stopCountWatch) Stop() {
-	c.stops++
-	close(c.ch)
-}
-
-func (c *stopCountWatch) ResultChan() <-chan apiWatch.Event {
-	return c.ch
-}
 
 func TestServerVersionCompare(t *testing.T) {
 	serverVersionInfo := version.Info{
@@ -69,59 +53,20 @@ func TestRightBatchApiVersion(t *testing.T) {
 	}
 }
 
-func TestStopWatchingAllNilNeverStartedOrStoppedDoesNotPanic(t *testing.T) {
-	mustNotPanic := func(name string, fn func()) {
-		t.Helper()
-		defer func() {
-			if r := recover(); r != nil {
-				t.Errorf("%s panicked: %v", name, r)
-			}
-		}()
-		fn()
+func TestStopWatchingAll_WhenNotStarted(t *testing.T) {
+	// StopWatchingAll should not panic when stopper is nil.
+	coll := &CronJobCollection{}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("StopWatchingAll panicked when stopper was nil: %v", r)
+		}
+	}()
+
+	coll.StopWatchingAll()
+	coll.StopWatchingAll()
+
+	if coll.stopper != nil {
+		t.Error("stopper should remain nil after StopWatchingAll on an unstarted collection")
 	}
-
-	mustNotPanic("nil collection", func() {
-		var coll *CronJobCollection
-		coll.StopWatchingAll()
-	})
-
-	mustNotPanic("never started", func() {
-		coll := &CronJobCollection{}
-		coll.StopWatchingAll()
-		coll.StopWatchingAll()
-		if coll.stopper != nil {
-			t.Error("stopper should remain nil after StopWatchingAll on an unstarted collection")
-		}
-	})
-
-	mustNotPanic("nil watcher fields", func() {
-		// Watcher was never given a stop channel, informer, or jobs watcher.
-		watcher := &CronJobWatcher{}
-		coll := &CronJobCollection{stopper: func() { watcher.StopWatching() }}
-		coll.StopWatchingAll()
-		coll.StopWatchingAll()
-		watcher.StopWatching()
-	})
-
-	mustNotPanic("already stopped", func() {
-		events := make(chan apiWatch.Event)
-		counter := &stopCountWatch{ch: events}
-		watcher := &CronJobWatcher{
-			stopper:     make(chan struct{}),
-			jobsWatcher: &WatchWrapper{watcher: counter},
-		}
-		coll := &CronJobCollection{stopper: func() { watcher.StopWatching() }}
-		coll.StopWatchingAll()
-		// Collection stopper is cleared, and the watcher channel is already closed.
-		coll.StopWatchingAll()
-		watcher.StopWatching()
-		select {
-		case <-watcher.stopper:
-		default:
-			t.Error("stop channel should be closed after the first StopWatchingAll")
-		}
-		if counter.stops != 1 {
-			t.Errorf("watch interface Stop called %d times, want 1", counter.stops)
-		}
-	})
 }

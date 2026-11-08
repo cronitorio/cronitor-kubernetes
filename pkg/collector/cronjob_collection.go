@@ -26,7 +26,7 @@ type CronJobCollection struct {
 	kubernetesNamespace string
 	loaded              bool
 	stopper             func()
-	stopMu              sync.Mutex // protects stopper; never hold it across the stop call
+	stopMu              sync.Mutex // protects stopper
 }
 
 func NewCronJobCollection(pathToKubeconfig string, namespace string, cronitorApi *api.CronitorApi) (*CronJobCollection, error) {
@@ -152,20 +152,18 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 func (coll *CronJobCollection) StartWatchingAll() {
 	cronJobWatcher := NewCronJobWatcher(*coll)
 
+	coll.stopMu.Lock()
 	coll.stopper = func() {
 		cronJobWatcher.StopWatching()
 	}
+	coll.stopMu.Unlock()
 
 	cronJobWatcher.StartWatching()
 }
 
 func (coll *CronJobCollection) StopWatchingAll() {
-	if coll == nil {
-		slog.Warn("CronJobCollection.StopWatchingAll() called on a nil collection")
-		return
-	}
-	// Clear the stopper before invoking it so a second shutdown, including one
-	// from another goroutine, cannot close the same channel twice.
+	// StartWatchingAll publishes stopper under stopMu. Swap it out here so
+	// this call either runs that func or sees nil, then run it unlocked.
 	coll.stopMu.Lock()
 	stop := coll.stopper
 	coll.stopper = nil
