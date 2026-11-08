@@ -54,7 +54,7 @@ func TestRightBatchApiVersion(t *testing.T) {
 }
 
 func TestStopWatchingAll_WhenNotStarted(t *testing.T) {
-	// StopWatchingAll should not panic when stopper is nil.
+	// Second call is the already-cleared stopper; it must stay a no-op.
 	coll := &CronJobCollection{}
 
 	defer func() {

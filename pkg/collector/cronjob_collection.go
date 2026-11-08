@@ -162,8 +162,7 @@ func (coll *CronJobCollection) StartWatchingAll() {
 }
 
 func (coll *CronJobCollection) StopWatchingAll() {
-	// StartWatchingAll publishes stopper under stopMu. Swap it out here so
-	// this call either runs that func or sees nil, then run it unlocked.
+	// run stop outside stopMu
 	coll.stopMu.Lock()
 	stop := coll.stopper
 	coll.stopper = nil
