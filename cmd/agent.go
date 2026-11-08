@@ -79,25 +79,34 @@ func agentRun(cmd *cobra.Command, args []string) error {
 		slog.Info("no kubeconfig provided, defaulting to in-cluster...")
 	}
 	namespace := viper.GetString("namespace")
-	collection, err := collector.NewCronJobCollection(kubeconfig, namespace, &cronitorApi)
+
+	// Stop on every return, including a failed load after the collection
+	// exists. The closure is nil-safe when construction never succeeded.
+	var collection *collector.CronJobCollection
+	gracefulExit := func() {
+		if collection == nil {
+			slog.Warn("cronjob collection is nil; nothing to stop")
+			return
+		}
+		collection.StopWatchingAll()
+	}
+	defer gracefulExit()
+
+	var err error
+	collection, err = collector.NewCronJobCollection(kubeconfig, namespace, &cronitorApi)
 	if err != nil {
 		return err
 	}
-	if err := collection.LoadAllExistingCronJobs(); err != nil {
+	if err = collection.LoadAllExistingCronJobs(); err != nil {
 		return err
 	}
 	collection.StartWatchingAll()
-
-	gracefulExit := func() {
-		collection.StopWatchingAll()
-	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case sig := <-c:
 		slog.Info("received signal to exit", "signal", sig.String())
-		gracefulExit()
 	}
 	// case <-leaderlost
 

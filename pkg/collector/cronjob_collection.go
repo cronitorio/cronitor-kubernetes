@@ -26,6 +26,7 @@ type CronJobCollection struct {
 	kubernetesNamespace string
 	loaded              bool
 	stopper             func()
+	stopMu              sync.Mutex // protects stopper; never hold it across the stop call
 }
 
 func NewCronJobCollection(pathToKubeconfig string, namespace string, cronitorApi *api.CronitorApi) (*CronJobCollection, error) {
@@ -159,12 +160,21 @@ func (coll *CronJobCollection) StartWatchingAll() {
 }
 
 func (coll *CronJobCollection) StopWatchingAll() {
-	if coll.stopper == nil {
+	if coll == nil {
+		slog.Warn("CronJobCollection.StopWatchingAll() called on a nil collection")
+		return
+	}
+	// Clear the stopper before invoking it so a second shutdown, including one
+	// from another goroutine, cannot close the same channel twice.
+	coll.stopMu.Lock()
+	stop := coll.stopper
+	coll.stopper = nil
+	coll.stopMu.Unlock()
+	if stop == nil {
 		slog.Warn("CronJobCollection.StopWatchingAll() called, but it wasn't running")
 		return
 	}
-	coll.stopper()
-	coll.stopper = nil
+	stop()
 }
 
 func (coll *CronJobCollection) GetAllWatchedCronJobUIDs() []types.UID {

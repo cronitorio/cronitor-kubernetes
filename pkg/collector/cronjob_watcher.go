@@ -3,6 +3,7 @@ package collector
 import (
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 
 	"github.com/cronitorio/cronitor-kubernetes/pkg"
 	"github.com/cronitorio/cronitor-kubernetes/pkg/normalizer"
@@ -98,20 +99,45 @@ func onDelete(coll CronJobCollection, cronjob *v1.CronJob) {
 type CronJobWatcher struct {
 	informer    cache.SharedIndexInformer
 	stopper     chan struct{}
+	stopState   uint32 // 0 until StopWatching claims the stop
 	jobsWatcher *WatchWrapper
 }
 
 func (c CronJobWatcher) StartWatching() {
 	defer runtime.HandleCrash()
 
+	if c.informer == nil || c.stopper == nil {
+		slog.Warn("CronJob watcher not started; informer or stop channel is nil")
+		return
+	}
+
 	slog.Info("the CronJob watcher is starting...")
 	go c.informer.Run(c.stopper)
-	go c.jobsWatcher.Start()
+	if c.jobsWatcher != nil {
+		go c.jobsWatcher.Start()
+	} else {
+		slog.Warn("CronJob watcher started without a jobs watcher")
+	}
 }
 
-func (c CronJobWatcher) StopWatching() {
-	close(c.stopper)
-	c.jobsWatcher.Stop()
+func (c *CronJobWatcher) StopWatching() {
+	if c == nil {
+		slog.Warn("CronJob watcher stop skipped; watcher is nil")
+		return
+	}
+	// Claim the stop once. A second call, or a call after the channel was
+	// already cleared, must not close it again.
+	if !atomic.CompareAndSwapUint32(&c.stopState, 0, 1) {
+		return
+	}
+	if c.stopper != nil {
+		close(c.stopper)
+	} else {
+		slog.Warn("CronJob watcher stop skipped closing a nil stop channel")
+	}
+	if c.jobsWatcher != nil {
+		c.jobsWatcher.Stop()
+	}
 }
 
 func coerceObjToV1CronJob(version string, obj interface{}) *v1.CronJob {

@@ -366,11 +366,16 @@ type WatchWrapper struct {
 	watcher        apiWatch.Interface
 	eventHandler   *EventHandler
 	stopped        bool
+	stopOnce       sync.Once
 	workerPoolSize int
 }
 
 func (w *WatchWrapper) Start() {
 	defer runtime.HandleCrash()
+	if w == nil || w.watcher == nil {
+		slog.Warn("jobs watcher not started; watch interface is nil")
+		return
+	}
 	slog.Info("the jobs watcher is starting...")
 
 	sem := make(chan struct{}, w.workerPoolSize)
@@ -392,9 +397,21 @@ func (w *WatchWrapper) Start() {
 }
 
 func (w *WatchWrapper) Stop() {
-	slog.Info("the jobs watcher is stopping...")
-	w.stopped = true
-	w.watcher.Stop()
+	if w == nil {
+		slog.Warn("jobs watcher stop skipped; watcher was not started")
+		return
+	}
+	w.stopOnce.Do(func() {
+		// Set this before stopping so Start does not treat a requested stop
+		// as an unexpected channel close.
+		w.stopped = true
+		if w.watcher == nil {
+			slog.Warn("jobs watcher stop skipped; watch interface was not started")
+			return
+		}
+		slog.Info("the jobs watcher is stopping...")
+		w.watcher.Stop()
+	})
 }
 
 func NewJobsEventWatcher(collection *CronJobCollection) *WatchWrapper {
