@@ -54,13 +54,9 @@ func TestRightBatchApiVersion(t *testing.T) {
 }
 
 func TestStopWatchingAll_WhenNotStarted(t *testing.T) {
-	// StopWatchingAll should not panic when stopper is nil
-	// This tests the nil check we added
-	coll := &CronJobCollection{
-		stopper: nil,
-	}
+	// Second call is the already-cleared stopper; it must stay a no-op.
+	coll := &CronJobCollection{}
 
-	// This should not panic - just log a warning and return
 	defer func() {
 		if r := recover(); r != nil {
 			t.Errorf("StopWatchingAll panicked when stopper was nil: %v", r)
@@ -68,9 +64,9 @@ func TestStopWatchingAll_WhenNotStarted(t *testing.T) {
 	}()
 
 	coll.StopWatchingAll()
+	coll.StopWatchingAll()
 
-	// Verify stopper is still nil (wasn't set to something else)
 	if coll.stopper != nil {
-		t.Error("stopper should remain nil after StopWatchingAll on unstarted collection")
+		t.Error("stopper should remain nil after StopWatchingAll on an unstarted collection")
 	}
 }

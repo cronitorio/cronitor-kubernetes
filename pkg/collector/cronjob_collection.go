@@ -26,6 +26,7 @@ type CronJobCollection struct {
 	kubernetesNamespace string
 	loaded              bool
 	stopper             func()
+	stopMu              sync.Mutex // protects stopper
 }
 
 func NewCronJobCollection(pathToKubeconfig string, namespace string, cronitorApi *api.CronitorApi) (*CronJobCollection, error) {
@@ -151,20 +152,26 @@ func (coll *CronJobCollection) LoadAllExistingCronJobs() error {
 func (coll *CronJobCollection) StartWatchingAll() {
 	cronJobWatcher := NewCronJobWatcher(*coll)
 
+	coll.stopMu.Lock()
 	coll.stopper = func() {
 		cronJobWatcher.StopWatching()
 	}
+	coll.stopMu.Unlock()
 
 	cronJobWatcher.StartWatching()
 }
 
 func (coll *CronJobCollection) StopWatchingAll() {
-	if coll.stopper == nil {
+	// run stop outside stopMu
+	coll.stopMu.Lock()
+	stop := coll.stopper
+	coll.stopper = nil
+	coll.stopMu.Unlock()
+	if stop == nil {
 		slog.Warn("CronJobCollection.StopWatchingAll() called, but it wasn't running")
 		return
 	}
-	coll.stopper()
-	coll.stopper = nil
+	stop()
 }
 
 func (coll *CronJobCollection) GetAllWatchedCronJobUIDs() []types.UID {
